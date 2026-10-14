@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { LegalNav, LegalContactCard } from '../components/legal/LegalNav';
-import { FaFileContract, FaCircleCheck } from 'react-icons/fa6';
+import { FaFileContract } from 'react-icons/fa6';
 
 const TermsAndConditions: React.FC = () => {
   usePageSEO({
