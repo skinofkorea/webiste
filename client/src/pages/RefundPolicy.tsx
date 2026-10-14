@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { LegalNav, LegalContactCard } from '../components/legal/LegalNav';
-import { FaArrowRotateLeft, FaCircleCheck, FaClockRotateLeft, FaHandHoldingHeart } from 'react-icons/fa6';
+import { FaArrowRotateLeft, FaCircleCheck } from 'react-icons/fa6';
 
 const RefundPolicy: React.FC = () => {
   usePageSEO({

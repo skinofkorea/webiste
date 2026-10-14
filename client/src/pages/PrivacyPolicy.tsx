@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { LegalNav, LegalContactCard } from '../components/legal/LegalNav';
-import { FaShieldHalved, FaLock, FaUserCheck } from 'react-icons/fa6';
+import { FaShieldHalved, FaLock } from 'react-icons/fa6';
 
 const PrivacyPolicy: React.FC = () => {
   usePageSEO({

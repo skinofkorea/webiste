@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { LegalNav, LegalContactCard } from '../components/legal/LegalNav';
-import { FaTruckFast, FaBoxOpen, FaRoute, FaShieldCheck } from 'react-icons/fa6';
+import { FaTruckFast } from 'react-icons/fa6';
 
 const ShippingPolicy: React.FC = () => {
   usePageSEO({

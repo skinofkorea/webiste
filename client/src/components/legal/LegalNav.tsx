@@ -1,14 +1,12 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
   FaFileContract, 
   FaShieldHalved, 
   FaTruckFast, 
   FaArrowRotateLeft, 
-  FaPhone, 
   FaEnvelope, 
-  FaWhatsapp,
-  FaCircleCheck
+  FaWhatsapp
 } from 'react-icons/fa6';
 
 interface LegalNavProps {
