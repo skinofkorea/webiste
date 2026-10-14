@@ -17,12 +17,6 @@ interface RazorpayCheckoutProps {
   disabled?: boolean;
 }
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
   amount,
   currency = 'INR',

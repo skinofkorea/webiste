@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { AllOrdersResponse, MessageResponse, NewOrderRequest, OrderDetailsResponse, UpdateOrderRequest } from "../../types/api-types";
+import { AllOrdersResponse, MessageResponse, NewOrderRequest, NewOrderResponse, OrderDetailsResponse, UpdateOrderRequest } from "../../types/api-types";
 
 export const orderApi = createApi({
     reducerPath: "orderApi",
@@ -17,7 +17,7 @@ export const orderApi = createApi({
     }),
     tagTypes: ['orders'],
     endpoints: (builder) => ({
-        newOrder: builder.mutation<MessageResponse, NewOrderRequest>({
+        newOrder: builder.mutation<NewOrderResponse, NewOrderRequest>({
             query: (order) => ({
                 url: `new`,
                 method: 'POST',
@@ -63,5 +63,4 @@ export const {
     useDeleteOrderMutation,
     useUpdateOrderStatusMutation
 } = orderApi; // This is a placeholder to avoid TS error
-
 

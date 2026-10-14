@@ -4,6 +4,7 @@ import BackButton from '../../components/common/BackBtn';
 import { useDeleteOrderMutation, useOrderDetailsQuery, useUpdateOrderStatusMutation } from '../../redux/api/order.api';
 import { notify } from '../../utils/util';
 import { FaTrash, FaTimes } from 'react-icons/fa';
+import { formatStorePrice } from '../../data/miikoreanStorefront';
 
 const AdminOrderDetails: React.FC = () => {
     const { orderId } = useParams<{ orderId: string }>();
@@ -158,7 +159,7 @@ const AdminOrderDetails: React.FC = () => {
                     </div>
                     <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/70">
                         <strong className="block text-[10px] uppercase text-neutral-400 mb-1 tracking-wider font-semibold">Total Value</strong>
-                        <span className="text-neutral-900 font-bold text-lg block">₹{data?.order?.total.toFixed(2)}</span>
+                        <span className="text-neutral-900 font-bold text-lg block">{formatStorePrice(data?.order?.total || 0, data?.order?.currency || 'INR')}</span>
                         <span className="text-neutral-500 text-[11px] block mt-0.5">Inclusive of taxes & delivery</span>
                     </div>
                     <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/70">
@@ -213,8 +214,8 @@ const AdminOrderDetails: React.FC = () => {
                                     <tr key={item.productId} className="hover:bg-neutral-50/70 transition-colors">
                                         <td className="px-5 py-3.5 font-semibold text-neutral-900">{item.name}</td>
                                         <td className="px-5 py-3.5 text-neutral-700 font-medium">{item.quantity} units</td>
-                                        <td className="px-5 py-3.5 text-neutral-500">₹{item.price.toFixed(2)}</td>
-                                        <td className="px-5 py-3.5 font-bold text-neutral-900">₹{(item.quantity * item.price).toFixed(2)}</td>
+                                        <td className="px-5 py-3.5 text-neutral-500">{formatStorePrice(item.price, data?.order?.currency || 'INR')}</td>
+                                        <td className="px-5 py-3.5 font-bold text-neutral-900">{formatStorePrice(item.quantity * item.price, data?.order?.currency || 'INR')}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -361,4 +362,3 @@ const AdminOrderDetails: React.FC = () => {
 };
 
 export default AdminOrderDetails;
-

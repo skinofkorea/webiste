@@ -36,6 +36,19 @@ export function optimizeCloudinaryUrl(
   return url.replace(/\/upload\//, `/upload/${transformStr}/`);
 }
 
+export function optimizeProductImageUrl(url?: string, width = 800): string {
+  if (!url) return '';
+  if (url.includes(CLOUDINARY_BASE)) return optimizeCloudinaryUrl(url, width);
+
+  if (url.includes('cdn.shopify.com/')) {
+    const optimizedUrl = new URL(url);
+    optimizedUrl.searchParams.set('width', String(width));
+    return optimizedUrl.toString();
+  }
+
+  return url;
+}
+
 /**
  * Optimized helper for small icons and avatars (100px - 200px)
  */
@@ -74,4 +87,3 @@ export function getPlaceholderUrl(url: string): string {
     '/upload/f_auto,q_10,w_20,e_blur:500/'
   );
 }
-

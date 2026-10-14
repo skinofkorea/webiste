@@ -7,10 +7,49 @@ import { RootState } from '../redux/store';
 import { NewOrderRequest } from '../types/api-types';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { formatStorePrice } from '../data/miikoreanStorefront';
+
+interface RazorpayPaymentResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayCreateOrderResponse {
+  success: boolean;
+  message?: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  key_id?: string;
+}
+
+interface RazorpayCheckoutOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  image: string;
+  order_id: string;
+  handler: (response: RazorpayPaymentResponse) => void;
+  modal: { ondismiss: () => void };
+  prefill: { name: string; email: string; contact: string };
+  theme: { color: string };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: (response: unknown) => void) => void;
+}
+
+interface RazorpayConstructor {
+  new (options: RazorpayCheckoutOptions): RazorpayInstance;
+}
 
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay?: RazorpayConstructor;
   }
 }
 
@@ -30,8 +69,8 @@ const loadRazorpayScript = (): Promise<boolean> => {
 
 const CheckoutForm: React.FC = () => {
   usePageSEO({
-    title: 'Checkout | URVA',
-    description: 'Review your URVA order and complete checkout securely.',
+    title: 'Checkout | Mii Korean Skincare',
+    description: 'Review your Mii Korean order and complete checkout securely.',
     canonical: '/checkout',
     noIndex: true,
   });
@@ -53,6 +92,10 @@ const CheckoutForm: React.FC = () => {
 
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (cartItems.some((item) => (item.currency || 'INR') !== 'GBP')) {
+      notify('Your basket contains items from the previous INR store. Clear it before paying in GBP.', 'error');
+      return;
+    }
     if (cartItems.some((item) => item.productId.startsWith('demo-'))) {
       notify('Sample products are for preview only. Remove them from your basket before checkout.', 'error');
       return;
@@ -75,43 +118,46 @@ const CheckoutForm: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: Math.round(total * 100),
-          currency: 'INR',
-          description: 'URVA order',
+          currency: 'GBP',
+          description: 'Mii Korean skincare order',
           customer_name: shippingInfo.name || 'Customer',
           customer_email: shippingInfo.email || '',
           customer_phone: shippingInfo.phone || '',
         }),
       });
 
-      const rzpData = await rzpOrderRes.json();
+      const rzpData = await rzpOrderRes.json() as RazorpayCreateOrderResponse;
 
-      if (!rzpData || !rzpData.success || !rzpData.order_id) {
-        notify('Failed to initialize Razorpay checkout. Please try again.', 'error');
+      if (!rzpOrderRes.ok || !rzpData.success || !rzpData.order_id) {
+        notify(rzpData?.message || 'Failed to initialize Razorpay checkout. Please try again.', 'error');
+        setIsProcessing(false);
+        return;
+      }
+      if (rzpData.currency !== 'GBP' || rzpData.amount !== Math.round(total * 100)) {
+        notify('The payment gateway did not confirm GBP pricing. No payment was taken.', 'error');
         setIsProcessing(false);
         return;
       }
 
       const razorpayKey = rzpData.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID || '';
       if (!razorpayKey) {
-        notify('Payment gateway key is not configured. Please add RAZORPAY_KEY_ID to environment settings.', 'error');
+        notify('Razorpay is not configured for GBP payments. Enable GBP/international payments and set the gateway keys.', 'error');
         setIsProcessing(false);
         return;
       }
 
       // 2. Launch Razorpay Modal Popup
-      const options = {
+      const options: RazorpayCheckoutOptions = {
         key: razorpayKey,
         amount: rzpData.amount,
-        currency: rzpData.currency || 'INR',
-        name: 'URVA',
-        description: 'Regional products from URVA',
-        image: 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png',
+        currency: rzpData.currency,
+        name: 'Mii Korean Skincare',
+        description: 'Authentic Korean skincare',
+        image: 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418',
         order_id: rzpData.order_id,
-        handler: async function (response: any) {
-          notify('Payment verified! Saving order...', 'success');
-
+        handler: async (response) => {
           try {
-            await fetch('/api/v1/payments/razorpay/verify-payment', {
+            const verificationResponse = await fetch('/api/v1/payments/razorpay/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -120,9 +166,17 @@ const CheckoutForm: React.FC = () => {
                 razorpay_signature: response.razorpay_signature,
               }),
             });
-          } catch (vErr) {
-            console.warn('Payment signature verification check:', vErr);
+            const verification = await verificationResponse.json() as { success: boolean; message?: string };
+            if (!verificationResponse.ok || !verification.success) {
+              throw new Error(verification.message || 'Payment signature verification failed.');
+            }
+          } catch (verificationError) {
+            console.error('Razorpay payment verification failed:', verificationError);
+            notify('We could not verify the payment. Your basket has been kept; please contact support before retrying.', 'error');
+            setIsProcessing(false);
+            return;
           }
+          notify('Payment verified! Saving order...', 'success');
 
           const orderData: NewOrderRequest = {
             shippingCharges,
@@ -132,28 +186,28 @@ const CheckoutForm: React.FC = () => {
               razorpayOrderId: response.razorpay_order_id,
               razorpaySignature: response.razorpay_signature,
               clientOrigin: window.location.origin,
-            } as any,
+            },
             tax,
             discount,
             total,
+            currency: 'GBP',
             subTotal,
             orderItems: cartItems,
             userId: guestUserId,
           };
 
           try {
-            const orderRes: any = await newOrder(orderData).unwrap();
+            const orderRes = await newOrder(orderData).unwrap();
             const createdOrderId = orderRes?.order?.id || orderRes?.order?._id || `ord_${Date.now()}`;
 
             localStorage.setItem('guestUserId', guestUserId);
             dispatch(resetCart());
 
             window.location.href = `/my-orders?payment=success&orderId=${createdOrderId}`;
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error('Order save error after payment:', err);
-            localStorage.setItem('guestUserId', guestUserId);
-            dispatch(resetCart());
-            window.location.href = `/my-orders?payment=success&orderId=ord_${Date.now()}`;
+            notify(`Payment was received, but the order could not be saved. Please contact hello@miikorean.com with payment reference ${response.razorpay_payment_id}.`, 'error');
+            setIsProcessing(false);
           }
         },
         modal: {
@@ -172,11 +226,14 @@ const CheckoutForm: React.FC = () => {
         },
       };
 
+      if (!window.Razorpay) {
+        throw new Error('Razorpay checkout did not initialise.');
+      }
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Razorpay Modal launching error:', error);
-      notify('Failed to launch Razorpay payment popup. Please try again.', 'error');
+      notify(error instanceof Error ? error.message : 'Failed to launch Razorpay payment popup. Please try again.', 'error');
       setIsProcessing(false);
     }
   };
@@ -190,16 +247,16 @@ const CheckoutForm: React.FC = () => {
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xs border border-neutral-200 max-w-xl w-full">
         {/* Merchant Branding Header */}
         <div className="flex flex-col items-center mb-6 text-center border-b border-neutral-200 pb-5">
-          <img src="https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png" alt="URVA — Delivering the Authentic Rural Aura" className="h-14 w-14 object-contain mb-2" />
-          <h1 className="text-2xl font-sans font-semibold tracking-tight text-[#111111]">URVA</h1>
-          <p className="text-xs text-neutral-500 mt-1">Secure Razorpay Payment Gateway</p>
+          <img src="https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418" alt="Mii Korean Skincare" className="h-14 w-auto object-contain mb-2" />
+          <h1 className="text-2xl font-sans font-semibold tracking-tight text-neutral-950">Mii Korean</h1>
+          <p className="text-xs text-neutral-500 mt-1">Secure Razorpay checkout</p>
         </div>
 
         {/* Customer Info Summary */}
         <div className="bg-neutral-50 p-4 rounded-xl mb-6 border border-neutral-200 text-xs sm:text-sm space-y-1">
           <p className="font-semibold text-neutral-800 mb-2 uppercase tracking-wider text-xs">Shipping Summary:</p>
           <p className="font-medium text-neutral-900">{shippingInfo.name}</p>
-          <p className="text-neutral-600">{shippingInfo.address}, {shippingInfo.city}, {shippingInfo.state} - {shippingInfo.pinCode}</p>
+          <p className="text-neutral-600">{shippingInfo.address}, {shippingInfo.city}{shippingInfo.state ? `, ${shippingInfo.state}` : ''} {shippingInfo.pinCode}, {shippingInfo.country}</p>
           <p className="text-neutral-600">Phone: {shippingInfo.phone}</p>
         </div>
 
@@ -207,21 +264,21 @@ const CheckoutForm: React.FC = () => {
         <div className="space-y-2 mb-6 border-b border-neutral-200 pb-4 text-xs sm:text-sm">
           <div className="flex justify-between text-neutral-600">
             <span>Subtotal</span>
-            <span>₹ {subTotal}</span>
+            <span>{formatStorePrice(subTotal, 'GBP')}</span>
           </div>
           {discount > 0 && (
             <div className="flex justify-between text-emerald-600 font-semibold">
               <span>Discount</span>
-              <span>- ₹ {discount}</span>
+              <span>-{formatStorePrice(discount, 'GBP')}</span>
             </div>
           )}
           <div className="flex justify-between text-neutral-600">
             <span>Shipping Charges</span>
-            <span>₹ {shippingCharges}</span>
+            <span>{shippingCharges === 0 ? 'Free' : formatStorePrice(shippingCharges, 'GBP')}</span>
           </div>
           <div className="flex justify-between text-base sm:text-lg font-sans font-bold text-[#111111] pt-2 border-t border-neutral-100">
             <span>Total Payable</span>
-            <span>₹ {total}</span>
+            <span>{formatStorePrice(total, 'GBP')}</span>
           </div>
         </div>
 
@@ -238,7 +295,7 @@ const CheckoutForm: React.FC = () => {
                 <span>Opening Razorpay Modal...</span>
               </>
             ) : (
-              <span>Proceed to Razorpay Payment (₹ {total}) ➔</span>
+              <span>Pay securely with Razorpay ({formatStorePrice(total, 'GBP')}) ➔</span>
             )}
           </button>
         </form>

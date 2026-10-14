@@ -9,7 +9,6 @@ import {
   FaCheck, 
   FaMagic, 
   FaSearch, 
-  FaRupeeSign, 
   FaPlus 
 } from 'react-icons/fa';
 
@@ -148,10 +147,10 @@ const AdminCoupons: React.FC = () => {
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider">
-                Discount Amount (₹ Flat Off)
+                Discount Amount (£ Flat Off)
               </label>
               <div className="relative">
-                <FaRupeeSign className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-xs" />
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-xs">£</span>
                 <input
                   type="number"
                   min="1"
@@ -249,7 +248,7 @@ const AdminCoupons: React.FC = () => {
 
                     <div className="flex items-center gap-4">
                       <span className="font-bold text-emerald-700 text-xs">
-                        ₹{Number(coupon.amount).toFixed(2)} OFF
+                        £{Number(coupon.amount).toFixed(2)} OFF
                       </span>
                       <button
                         onClick={() => handleDeleteCoupon(coupon._id, coupon.code)}

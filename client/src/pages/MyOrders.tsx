@@ -4,11 +4,12 @@ import BackButton from '../components/common/BackBtn';
 import { useMyOrdersQuery } from '../redux/api/order.api';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { formatStorePrice } from '../data/miikoreanStorefront';
 
 const MyOrders: React.FC = () => {
     usePageSEO({
-        title: 'My Orders | URVA',
-        description: 'Track and view your URVA orders.',
+        title: 'Guest Orders | Mii Korean Skincare',
+        description: 'View and track guest orders placed on this device.',
         canonical: '/my-orders',
         noIndex: true,
     });
@@ -41,8 +42,8 @@ const MyOrders: React.FC = () => {
         return (
             <div className="container mx-auto my-8 p-4 bg-white rounded-lg shadow-md text-center">
                 <BackButton fallback="/" />
-                <h2 className="text-2xl font-bold mb-6">My Orders</h2>
-                <p className="text-gray-500">No orders found. Place an order to see it here.</p>
+                <h2 className="text-2xl font-bold mb-6">Guest orders</h2>
+                <p className="text-gray-500">No guest orders found on this device yet. Place an order and it will appear here.</p>
             </div>
         );
     }
@@ -58,7 +59,7 @@ const MyOrders: React.FC = () => {
     return (
         <div className="container mx-auto my-8 p-6 bg-white rounded-2xl border border-neutral-200 shadow-xs max-w-5xl">
             <BackButton />
-            <h2 className="text-2xl font-sans font-semibold tracking-tight mb-6 text-center text-[#111111]">My Orders</h2>
+            <h2 className="text-2xl font-sans font-semibold tracking-tight mb-6 text-center text-[#111111]">Guest orders</h2>
             {data.orders.length === 0 ? (
                 <p className="text-center text-sm text-neutral-500 py-8">No orders found</p>
             ) : (
@@ -83,7 +84,7 @@ const MyOrders: React.FC = () => {
                                             {order.status}
                                         </span>
                                     </td>
-                                    <td className="p-4 font-semibold text-[#111111]">₹ {order.total.toFixed(2)}</td>
+                                    <td className="p-4 font-semibold text-[#111111]">{formatStorePrice(order.total, order.currency || 'INR')}</td>
                                     <td className="p-4 text-right">
                                         <button
                                             className="bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-medium hover:bg-neutral-800 transition-colors"

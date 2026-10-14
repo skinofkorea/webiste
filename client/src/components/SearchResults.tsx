@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types/api-types';
+import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
 // Define the props for the SearchResults component
 interface SearchResultsProps {
@@ -16,7 +17,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ products }) => {
       {products.map((product) => (
         <div key={product._id} className="border rounded-lg p-4 flex flex-col justify-between h-full">
           {/* Product Image */}
-          <img src={product.photo} alt={product.name} className="w-full h-48 object-cover rounded-md" />
+          <img src={optimizeProductImageUrl(product.photo, 480)} alt={product.name} loading="lazy" decoding="async" className="w-full h-48 object-cover rounded-md" />
           {/* Product Name */}
           <h3 className="text-xl font-bold mt-4">{product.name}</h3>
           {/* Product Price */}
@@ -32,4 +33,3 @@ const SearchResults: React.FC<SearchResultsProps> = ({ products }) => {
 };
 
 export default SearchResults;
-

@@ -8,19 +8,10 @@ import BackButton from '../components/common/BackBtn';
 import { FaTruck, FaShieldAlt } from 'react-icons/fa';
 import { usePageSEO } from '../hooks/usePageSEO';
 
-const INDIAN_STATES = [
-    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
-    "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
-    "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-    "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
-    "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
-];
-
 const Shipping: React.FC = () => {
     usePageSEO({
-        title: 'Shipping Address | URVA',
-        description: 'Enter your delivery address for your URVA order.',
+        title: 'Delivery Address | Mii Korean Skincare',
+        description: 'Enter your delivery address for your Mii Korean order.',
         canonical: '/shipping',
         noIndex: true,
     });
@@ -30,21 +21,24 @@ const Shipping: React.FC = () => {
 
     const { user } = useSelector((state: RootState) => state.user);
     const { shippingInfo, cartItems } = useSelector((state: RootState) => state.cart);
+    const supportedCountries = ['United Kingdom', 'Isle of Man', 'Jersey', 'Guernsey'];
+    const hasSupportedSavedAddress = supportedCountries.includes(shippingInfo.country);
 
     // Redirect if cart is empty
     useEffect(() => {
-        if (cartItems.length === 0) {
+        if (cartItems.length === 0 || cartItems.some((item) => (item.currency || 'INR') !== 'GBP')) {
             navigate('/cart');
         }
-    }, [cartItems.length, navigate]);
+    }, [cartItems, navigate]);
 
     const [name, setName] = useState(shippingInfo.name || user?.name || '');
     const [email, setEmail] = useState(shippingInfo.email || user?.email || '');
-    const [address, setAddress] = useState(shippingInfo.address || '');
-    const [landmark, setLandmark] = useState(shippingInfo.landmark || '');
-    const [city, setCity] = useState(shippingInfo.city || '');
-    const [state, setState] = useState(shippingInfo.state || 'Telangana');
-    const [pinCode, setPinCode] = useState(shippingInfo.pinCode || '');
+    const [address, setAddress] = useState(hasSupportedSavedAddress ? shippingInfo.address || '' : '');
+    const [landmark, setLandmark] = useState(hasSupportedSavedAddress ? shippingInfo.landmark || '' : '');
+    const [city, setCity] = useState(hasSupportedSavedAddress ? shippingInfo.city || '' : '');
+    const [state, setState] = useState(hasSupportedSavedAddress ? shippingInfo.state || '' : '');
+    const [country, setCountry] = useState(hasSupportedSavedAddress ? shippingInfo.country : 'United Kingdom');
+    const [pinCode, setPinCode] = useState(hasSupportedSavedAddress ? shippingInfo.pinCode || '' : '');
     const [phone, setPhone] = useState(shippingInfo.phone || '');
 
     const latitude = shippingInfo.latitude;
@@ -54,7 +48,7 @@ const Shipping: React.FC = () => {
         e.preventDefault();
         const trimmedName = name.trim();
 
-        if (!trimmedName || !email || !phone || !address || !city || !state || !pinCode) {
+        if (!trimmedName || !email || !phone || !address || !city || !pinCode || !country) {
             notify('Please fill all required fields', 'error');
             return;
         }
@@ -62,12 +56,13 @@ const Shipping: React.FC = () => {
             notify('Please enter a valid email address', 'error');
             return;
         }
-        if (!/^\d{10}$/.test(phone)) {
-            notify('Please enter a valid 10-digit mobile number', 'error');
+        if (!/^\+?[\d\s()-]{10,20}$/.test(phone.trim())) {
+            notify('Please enter a valid phone number', 'error');
             return;
         }
-        if (!/^\d{6}$/.test(pinCode.trim())) {
-            notify('Please enter a valid 6-digit Pincode', 'error');
+        const normalizedPostcode = pinCode.trim().toUpperCase();
+        if (!/^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/.test(normalizedPostcode)) {
+            notify('Please enter a valid UK postcode', 'error');
             return;
         }
 
@@ -78,9 +73,10 @@ const Shipping: React.FC = () => {
             landmark,
             city,
             state,
-            country: 'India',
-            pinCode: pinCode.trim(),
+            country,
+            pinCode: normalizedPostcode,
             phone,
+            couponCode: shippingInfo.couponCode,
             latitude,
             longitude,
             deliveryType: 'nearest_landmark',
@@ -140,13 +136,13 @@ const Shipping: React.FC = () => {
 
                         {/* Phone / WhatsApp Number */}
                         <div>
-                            <label className={labelClass}>Phone / WhatsApp Number <span className="text-red-500">*</span></label>
+                            <label className={labelClass}>Phone number <span className="text-red-500">*</span></label>
                             <input
                                 type="tel"
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value)}
                                 className={inputClass}
-                                placeholder="10-digit mobile number"
+                                placeholder="e.g. 07123 456789"
                                 required
                             />
                         </div>
@@ -161,7 +157,7 @@ const Shipping: React.FC = () => {
                                 value={address}
                                 onChange={(e) => setAddress(e.target.value)}
                                 className={inputClass}
-                                placeholder="House/Flat No., Building Name, Street"
+                                placeholder="House number and street"
                                 required
                             />
                         </div>
@@ -174,7 +170,7 @@ const Shipping: React.FC = () => {
                                 value={landmark}
                                 onChange={(e) => setLandmark(e.target.value)}
                                 className={inputClass}
-                                placeholder="e.g. Near HDFC Bank, Opposite Park"
+                                placeholder="Optional delivery instructions"
                             />
                         </div>
 
@@ -187,42 +183,44 @@ const Shipping: React.FC = () => {
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
                                     className={inputClass}
-                                    placeholder="e.g. Hyderabad"
+                                    placeholder="Town or city"
                                     required
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>State <span className="text-red-500">*</span></label>
-                                <select
+                                <label className={labelClass}>County / region</label>
+                                <input
+                                    type="text"
                                     value={state}
                                     onChange={(e) => setState(e.target.value)}
                                     className={inputClass}
-                                    required
-                                >
-                                    <option value="">Select State</option>
-                                    {INDIAN_STATES.map((s) => (
-                                        <option key={s} value={s}>{s}</option>
-                                    ))}
-                                </select>
+                                    placeholder="County (optional)"
+                                />
                             </div>
                             <div>
-                                <label className={labelClass}>Pincode <span className="text-red-500">*</span></label>
+                                <label className={labelClass}>Postcode <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     value={pinCode}
-                                    onChange={(e) => setPinCode(e.target.value)}
+                                    onChange={(e) => setPinCode(e.target.value.toUpperCase())}
                                     className={inputClass}
-                                    placeholder="6-digit Pincode"
-                                    maxLength={6}
+                                    placeholder="e.g. S9 1EP"
+                                    maxLength={8}
                                     required
                                 />
                             </div>
+                        </div>
+                        <div>
+                            <label className={labelClass}>Country <span className="text-red-500">*</span></label>
+                            <select value={country} onChange={(e) => setCountry(e.target.value)} className={inputClass} required>
+                                {supportedCountries.map((supportedCountry) => <option key={supportedCountry}>{supportedCountry}</option>)}
+                            </select>
                         </div>
 
                         {/* Security / Delivery Trust Info */}
                         <div className="pt-2 flex items-center justify-between text-xs text-neutral-500 border-t border-neutral-200">
                             <span className="flex items-center gap-1.5 text-neutral-800 font-medium">
-                                <FaTruck /> Fast & Secure Pan-India Shipping
+                                <FaTruck /> Tracked UK delivery
                             </span>
                             <span className="flex items-center gap-1 text-emerald-700 font-medium">
                                 <FaShieldAlt /> Safe Checkout
@@ -234,7 +232,7 @@ const Shipping: React.FC = () => {
                             type="submit"
                             className="w-full bg-black hover:bg-neutral-800 text-white font-medium py-3.5 px-4 rounded-lg uppercase tracking-wider transition-colors shadow-xs text-xs mt-4 flex items-center justify-center gap-2"
                         >
-                            <span>Proceed to Payment ➔</span>
+                            <span>Continue to payment ➔</span>
                         </button>
                     </form>
                 </div>

@@ -55,6 +55,7 @@ export interface Product {
     stock: number;
     photo: string;
     price: number;
+    currency?: string;
     description: string;
     featured: boolean;
     isActive?: boolean;
@@ -141,6 +142,7 @@ export type CartItem = {
     photo: string;
     name: string;
     price: number;
+    currency?: string;
     quantity: number;
     stock: number;
 };
@@ -155,10 +157,15 @@ export type ShippingInfo = {
     country: string;
     pinCode: string;
     phone: string;
+    couponCode?: string;
     landmark?: string;
     latitude?: number;
     longitude?: number;
     deliveryType?: 'current_location' | 'nearest_landmark';
+    razorpayPaymentId?: string;
+    razorpayOrderId?: string;
+    razorpaySignature?: string;
+    clientOrigin?: string;
 }
 
 // Order Item
@@ -173,6 +180,7 @@ export type Order = {
     shippingCharges: number;
     discount: number;
     total: number;
+    currency?: string;
     status: string;
     user: {
         name: string;
@@ -208,8 +216,16 @@ export type NewOrderRequest = {
     shippingCharges: number;
     discount: number;
     total: number;
+    currency: string;
     shippingInfo: ShippingInfo;
     userId: string;
+}
+
+export type NewOrderResponse = MessageResponse & {
+    order?: {
+        id?: string;
+        _id?: string;
+    };
 }
 
 // Update Order
@@ -349,4 +365,3 @@ export interface BannerResponse {
     banner: StoreBanner;
     message?: string;
 }
-

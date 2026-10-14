@@ -7,20 +7,14 @@ import GlobalLoadingOverlay from './components/common/GlobalLoadingOverlay';
 
 
 // Lazy load public components
-const HomePage = lazy(() => import('./pages/HomePage'));
 const Layout = lazy(() => import('./components/layout/Layout'));
-const ProductsPage = lazy(() => import('./pages/ProductsPage'));
-const CategoryPage = lazy(() => import('./pages/CategoryPage'));
-const AboutPage = lazy(() => import('./pages/About'));
+const ProductsPage = lazy(() => import('./pages/MiikoreanProductsPage'));
+const HomePageMiikorean = lazy(() => import('./pages/MiikoreanHomePage'));
+const MiikoreanProductPage = lazy(() => import('./pages/MiikoreanProductPage'));
+const MiikoreanContentPage = lazy(() => import('./pages/MiikoreanContentPage'));
 const CartPage = lazy(() => import('./pages/CartPage'));
-const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const CheckoutForm = lazy(() => import('./components/CheckoutForm'));
 const Shipping = lazy(() => import('./pages/Shipping'));
-
-const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
-const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy'));
-const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 
 // Lazy load admin components
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -41,7 +35,6 @@ const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
 // Other pages
 const MyOrders = lazy(() => import('./pages/MyOrders'));
 const OrderDetails = lazy(() => import('./pages/OrderDetails'));
-const TrackShipment = lazy(() => import('./pages/TrackShipment'));
 const NotFoundPage = lazy(() => import('./pages/NotFound'));
 
 const App: React.FC = () => {
@@ -55,17 +48,22 @@ const App: React.FC = () => {
                         <Routes>
                             {/* Public routes */}
                             <Route path="/" element={<Layout />}>
-                                <Route index element={<HomePage />} />
-                                <Route path="about" element={<AboutPage />} />
+                                <Route index element={<HomePageMiikorean />} />
+                                <Route path="about" element={<Navigate to="/pages/about-us" replace />} />
+                                <Route path="contact" element={<Navigate to="/pages/contact" replace />} />
+                                <Route path="collections" element={<Navigate to="/pages/collections" replace />} />
+                                <Route path="collections/:collectionHandle" element={<ProductsPage />} />
                                 <Route path="products" element={<ProductsPage />} />
-                                <Route path="category/:categorySlug" element={<CategoryPage />} />
-                                <Route path="product/:productId" element={<ProductDetails />} />
-                                <Route path="search" element={<Navigate to="/products" replace />} />
-                                <Route path="track-shipment" element={<TrackShipment />} />
-                                <Route path="terms" element={<TermsAndConditions />} />
-                                <Route path="privacy" element={<PrivacyPolicy />} />
-                                <Route path="shipping-policy" element={<ShippingPolicy />} />
-                                <Route path="refund-policy" element={<RefundPolicy />} />
+                                <Route path="category/:categorySlug" element={<ProductsPage />} />
+                                <Route path="product/:productId" element={<MiikoreanProductPage />} />
+                                <Route path="search" element={<ProductsPage />} />
+                                <Route path="pages/:pageHandle" element={<MiikoreanContentPage />} />
+                                <Route path="skin-analysis" element={<Navigate to="/pages/renude-analysis" replace />} />
+                                <Route path="shipping-policy" element={<Navigate to="/pages/shipping-policy" replace />} />
+                                <Route path="refund-policy" element={<Navigate to="/pages/return-policy" replace />} />
+                                <Route path="terms" element={<a className="block p-10 text-center text-neutral-900 underline" href="https://www.miikorean.com/policies/terms-of-service">Read Mii Korean's terms of service</a>} />
+                                <Route path="privacy" element={<a className="block p-10 text-center text-neutral-900 underline" href="https://www.miikorean.com/policies/privacy-policy">Read Mii Korean's privacy policy</a>} />
+                                <Route path="track-shipment" element={<Navigate to="/my-orders" replace />} />
                                 <Route path="cart" element={<CartPage />} />
                                 <Route path="my-orders" element={<MyOrders />} />
                                 <Route path="/order/:id" element={<OrderDetails />} />

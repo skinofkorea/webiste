@@ -3,11 +3,13 @@ import { useParams } from 'react-router-dom';
 import BackButton from '../components/common/BackBtn';
 import { useOrderDetailsQuery } from '../redux/api/order.api';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { formatStorePrice } from '../data/miikoreanStorefront';
+import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
 const OrderDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     usePageSEO({
-        title: `Order #${id || ''} | URVA`,
+        title: `Order #${id || ''} | Mii Korean Skincare`,
         description: 'View order details and status.',
         canonical: `/order/${id || ''}`,
         noIndex: true,
@@ -38,6 +40,8 @@ const OrderDetails: React.FC = () => {
     }
 
     const { order } = data;
+    const currency = order.currency || 'INR';
+    const formatPrice = (amount: number) => formatStorePrice(amount, currency);
 
     const getStatusBadge = (status: string) => {
         switch (status.toLowerCase()) {
@@ -63,7 +67,7 @@ const OrderDetails: React.FC = () => {
                         <div>
                             <span className="text-xs font-mono text-neutral-400 block">ORDER RECEIPT</span>
                             <h1 className="text-lg sm:text-2xl font-sans font-semibold tracking-tight text-[#111111] break-all">ID: {order._id}</h1>
-                            <p className="text-xs text-neutral-500 mt-0.5">Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            <p className="text-xs text-neutral-500 mt-0.5">Placed on {new Date(order.createdAt).toLocaleDateString(currency === 'GBP' ? 'en-GB' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                         </div>
                         <div>
                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border ${getStatusBadge(order.status)}`}>
@@ -94,11 +98,11 @@ const OrderDetails: React.FC = () => {
                         <div className="md:hidden space-y-3">
                             {order.orderItems.map((item, index) => (
                                 <div key={item._id || index} className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200 flex items-center gap-3">
-                                    <img src={item.photo} alt={item.name} className="h-14 w-14 object-contain rounded-lg bg-white p-1 border border-neutral-200 flex-shrink-0" />
+                                    <img src={optimizeProductImageUrl(item.photo, 160)} alt={item.name} loading="lazy" decoding="async" className="h-14 w-14 object-contain rounded-lg bg-white p-1 border border-neutral-200 flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-xs text-[#111111] truncate">{item.name}</p>
-                                        <p className="text-xs text-neutral-500">Qty: {item.quantity} × ₹{item.price.toFixed(2)}</p>
-                                        <p className="text-xs font-semibold text-neutral-900 mt-0.5">₹ {(item.price * item.quantity).toFixed(2)}</p>
+                                        <p className="text-xs text-neutral-500">Qty: {item.quantity} × {formatPrice(item.price)}</p>
+                                        <p className="text-xs font-semibold text-neutral-900 mt-0.5">{formatPrice(item.price * item.quantity)}</p>
                                     </div>
                                 </div>
                             ))}
@@ -120,13 +124,13 @@ const OrderDetails: React.FC = () => {
                                         <tr className="hover:bg-neutral-50/50 transition-colors" key={item._id || `item-${index}`}>
                                             <td className="p-4">
                                                 <div className="flex items-center space-x-3">
-                                                    <img src={item.photo} alt={item.name} className="h-12 w-12 object-contain rounded-lg bg-white p-1 border border-neutral-200" />
+                                                    <img src={optimizeProductImageUrl(item.photo, 160)} alt={item.name} loading="lazy" decoding="async" className="h-12 w-12 object-contain rounded-lg bg-white p-1 border border-neutral-200" />
                                                     <span className="font-semibold text-[#111111]">{item.name}</span>
                                                 </div>
                                             </td>
                                             <td className="p-4 font-medium text-neutral-700">{item.quantity}</td>
-                                            <td className="p-4 font-medium text-neutral-700">₹ {item.price.toFixed(2)}</td>
-                                            <td className="p-4 font-semibold text-[#111111] text-right">₹ {(item.price * item.quantity).toFixed(2)}</td>
+                                            <td className="p-4 font-medium text-neutral-700">{formatPrice(item.price)}</td>
+                                            <td className="p-4 font-semibold text-[#111111] text-right">{formatPrice(item.price * item.quantity)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -139,29 +143,29 @@ const OrderDetails: React.FC = () => {
                         <h3 className="font-sans font-semibold text-base text-[#111111] pb-2 border-b border-neutral-200">Payment Breakdown</h3>
                         <div className="flex justify-between text-neutral-600 pt-1">
                             <span>Subtotal</span>
-                            <span className="font-semibold text-neutral-900">₹ {order.subtotal.toFixed(2)}</span>
+                            <span className="font-semibold text-neutral-900">{formatPrice(order.subtotal)}</span>
                         </div>
                         {order.tax > 0 && (
                             <div className="flex justify-between text-neutral-600">
                                 <span>Taxes</span>
-                                <span className="font-semibold text-neutral-900">₹ {order.tax.toFixed(2)}</span>
+                                <span className="font-semibold text-neutral-900">{formatPrice(order.tax)}</span>
                             </div>
                         )}
                         {order.shippingCharges > 0 && (
                             <div className="flex justify-between text-neutral-600">
                                 <span>Shipping Charges</span>
-                                <span className="font-semibold text-neutral-900">₹ {order.shippingCharges.toFixed(2)}</span>
+                                <span className="font-semibold text-neutral-900">{formatPrice(order.shippingCharges)}</span>
                             </div>
                         )}
                         {order.discount > 0 && (
                             <div className="flex justify-between text-emerald-600 font-semibold">
                                 <span>Discount</span>
-                                <span>-₹ {order.discount.toFixed(2)}</span>
+                                <span>-{formatPrice(order.discount)}</span>
                             </div>
                         )}
                         <div className="pt-3 border-t border-neutral-200 flex justify-between items-baseline font-bold text-base text-[#111111]">
                             <span>Total Paid</span>
-                            <span className="text-xl sm:text-2xl font-extrabold">₹ {order.total.toFixed(2)}</span>
+                            <span className="text-xl sm:text-2xl font-extrabold">{formatPrice(order.total)}</span>
                         </div>
                     </div>
                 </div>

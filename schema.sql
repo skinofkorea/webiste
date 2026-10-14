@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   shipping_charges NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (shipping_charges >= 0),
   discount NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (discount >= 0),
   total NUMERIC(10, 2) NOT NULL CHECK (total >= 0),
+  currency CHAR(3) NOT NULL DEFAULT 'GBP',
   status VARCHAR(50) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -137,7 +138,11 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS tax NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_charges NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS discount NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS total NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS currency CHAR(3);
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';
+UPDATE public.orders SET currency = 'INR' WHERE currency IS NULL;
+ALTER TABLE public.orders ALTER COLUMN currency SET DEFAULT 'GBP';
+ALTER TABLE public.orders ALTER COLUMN currency SET NOT NULL;
 
 DROP TRIGGER IF EXISTS update_orders_updated_at ON public.orders;
 CREATE TRIGGER update_orders_updated_at
@@ -384,4 +389,3 @@ CREATE POLICY "Public Read team_members" ON public.team_members FOR SELECT USING
 CREATE POLICY "Public Read gallery" ON public.gallery FOR SELECT USING (true);
 CREATE POLICY "Public Read blogs" ON public.blogs FOR SELECT USING (true);
 CREATE POLICY "Public Read recipes" ON public.recipes FOR SELECT USING (true);
-

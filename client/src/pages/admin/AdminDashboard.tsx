@@ -6,7 +6,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useGetStatsQuery } from '../../redux/api/stats.api';
 import { useAllProductsQuery } from '../../redux/api/product.api';
 import { 
-  FaRupeeSign, 
   FaShoppingBag, 
   FaTicketAlt, 
   FaBoxes, 
@@ -60,7 +59,7 @@ const AdminDashboard: React.FC = () => {
         cornerRadius: 8,
         displayColors: false,
         callbacks: {
-          label: (context: any) => ` ₹${Number(context.raw || 0).toLocaleString('en-IN')}`,
+          label: (context: any) => ` ${new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(context.raw || 0))}`,
         }
       }
     },
@@ -74,7 +73,7 @@ const AdminDashboard: React.FC = () => {
         ticks: {
           font: { family: 'Plus Jakarta Sans', size: 11 },
           color: '#9CA3AF',
-          callback: (value: any) => `₹${value}`
+          callback: (value: any) => `£${value}`
         }
       }
     }
@@ -82,9 +81,7 @@ const AdminDashboard: React.FC = () => {
 
   // Revenue chart data
   const chartData = useMemo(() => {
-    const rawData = stats?.revenueByMonth || {
-      Jan: 1200, Feb: 2800, Mar: 4500, Apr: 6800, May: 9200, Jun: 14000
-    };
+    const rawData = stats?.revenueByMonth || {};
     return {
       labels: Object.keys(rawData),
       datasets: [
@@ -216,10 +213,10 @@ const AdminDashboard: React.FC = () => {
       {/* Widgets section */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Widget 
-          heading="Total Revenue" 
-          value={`₹${(stats?.totalRevenue || 0).toLocaleString('en-IN')}`} 
-          description="Gross lifetime revenue" 
-          icon={<FaRupeeSign className="text-base" />}
+          heading="GBP Revenue"
+          value={new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(stats?.totalRevenue || 0)}
+          description="Paid GBP orders"
+          icon={<span className="text-base font-semibold">£</span>}
           accentClass="bg-neutral-100 text-neutral-900 border border-neutral-200"
         />
         <Widget 
@@ -366,7 +363,7 @@ const AdminDashboard: React.FC = () => {
                       {order.orderItems?.length || 1} items
                     </td>
                     <td className="px-5 py-3.5 font-bold text-neutral-900">
-                      ₹{Number(order.total || 0).toFixed(2)}
+                      {new Intl.NumberFormat(order.currency === 'GBP' ? 'en-GB' : 'en-IN', { style: 'currency', currency: order.currency || 'INR' }).format(Number(order.total || 0))}
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <button

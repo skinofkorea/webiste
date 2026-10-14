@@ -3,23 +3,26 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import BackButton from '../components/common/BackBtn';
 import { useApplyCouponMutation } from '../redux/api/coupon.api';
-import { calculatePrice, decrementCartItem, discountApplied, incrementCartItem, removeCartItem, resetCart } from '../redux/reducers/cart.reducer';
+import { calculatePrice, decrementCartItem, discountApplied, incrementCartItem, removeCartItem, resetCart, saveShippingInfo } from '../redux/reducers/cart.reducer';
 import { RootState } from '../redux/store';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
+import { formatStorePrice } from '../data/miikoreanStorefront';
+import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
 const Cart: React.FC = () => {
   usePageSEO({
-    title: 'My Rural Basket | URVA',
-    description: 'Review the products in your URVA basket before checkout.',
+    title: 'Your Bag | Mii Korean Skincare',
+    description: 'Review your Mii Korean skincare basket before checkout.',
     canonical: '/cart',
     noIndex: true,
   });
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { cartItems, subTotal, total, discount } = useSelector((state: RootState) => state.cart);
+  const { cartItems, subTotal, total, discount, shippingCharges, shippingInfo } = useSelector((state: RootState) => state.cart);
   const hasDemoItems = cartItems.some((item) => item.productId.startsWith('demo-'));
+  const hasLegacyCurrency = cartItems.some((item) => (item.currency || 'INR') !== 'GBP');
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
@@ -50,6 +53,10 @@ const Cart: React.FC = () => {
     if (!couponCode.trim()) return;
     try {
       const response = await applyCoupon({ code: couponCode }).unwrap();
+      if (response.coupon.amount > subTotal) {
+        notify('This coupon discount is greater than your basket subtotal.', 'error');
+        return;
+      }
       dispatch(discountApplied(response.coupon.amount));
       setAppliedCoupon(couponCode);
       setCouponCode('');
@@ -66,9 +73,12 @@ const Cart: React.FC = () => {
   };
 
   const getPhotoUrl = (photoUrl?: string) => {
-    if (!photoUrl) return 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png';
-    return photoUrl;
+    if (!photoUrl) return 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+    return optimizeProductImageUrl(photoUrl, 160);
   };
+
+  const productPath = (productId: string) => `/product/${productId.split('__')[0]}`;
+  const cartCurrency = cartItems[0]?.currency || 'INR';
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] py-6 sm:py-10 px-4">
@@ -76,14 +86,14 @@ const Cart: React.FC = () => {
         <BackButton fallback="/products" />
 
         <div className="bg-white rounded-2xl p-5 sm:p-8 shadow-xs border border-neutral-200">
-          <h1 className="text-2xl sm:text-3xl font-sans font-semibold tracking-tight text-[#111111] mb-6">My Rural Basket</h1>
+          <h1 className="text-2xl sm:text-3xl font-sans font-semibold tracking-tight text-neutral-950 mb-6">Your bag</h1>
 
           {cartItems.length === 0 ? (
             <div className="py-12 text-center space-y-4">
               <p className="text-5xl">🧺</p>
               <h2 className="text-xl font-sans font-semibold text-[#111111]">Your basket is currently empty</h2>
               <p className="text-xs sm:text-sm text-neutral-500 max-w-sm mx-auto font-light">
-                Your basket is waiting for something worth discovering.
+              Your bag is waiting for something worth discovering.
               </p>
               <Link
                 to="/products"
@@ -103,7 +113,7 @@ const Cart: React.FC = () => {
                     <div key={item.productId} className="bg-[#FAFAFA] p-4 rounded-xl border border-neutral-200 flex flex-col gap-3">
                       <div className="flex items-center gap-3">
                         <Link
-                          to={item.productId.startsWith('demo-') ? '/products' : `/product/${item.productId}`}
+                          to={item.productId.startsWith('demo-') ? '/products' : productPath(item.productId)}
                           className="flex-shrink-0"
                         >
                           <img
@@ -111,16 +121,16 @@ const Cart: React.FC = () => {
                             alt={item.name}
                             className="h-16 w-16 object-contain rounded-lg bg-white p-1 border border-neutral-200"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png';
+                              (e.target as HTMLImageElement).src = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
                             }}
                           />
                         </Link>
                         <div className="flex-1 min-w-0">
-                          <Link to={item.productId.startsWith('demo-') ? '/products' : `/product/${item.productId}`}>
+                          <Link to={item.productId.startsWith('demo-') ? '/products' : productPath(item.productId)}>
                             <h3 className="font-semibold text-sm text-[#111111] truncate">{item.name}</h3>
                           </Link>
-                          <p className="text-xs text-neutral-500">₹ {item.price.toFixed(2)} per unit</p>
-                          <p className="text-xs font-semibold text-neutral-900 mt-0.5">Subtotal: ₹ {(item.price * item.quantity).toFixed(2)}</p>
+                          <p className="text-xs text-neutral-500">{formatStorePrice(item.price, item.currency || 'INR')} per unit</p>
+                          <p className="text-xs font-semibold text-neutral-900 mt-0.5">Subtotal: {formatStorePrice(item.price * item.quantity, item.currency || 'INR')}</p>
                         </div>
                         <button
                           onClick={() => handleRemove(item.productId)}
@@ -170,7 +180,7 @@ const Cart: React.FC = () => {
                         <tr className="hover:bg-neutral-50/50 transition-colors" key={item.productId}>
                           <td className="p-4">
                             <Link
-                              to={item.productId.startsWith('demo-') ? '/products' : `/product/${item.productId}`}
+                              to={item.productId.startsWith('demo-') ? '/products' : productPath(item.productId)}
                               className="flex items-center space-x-3 group"
                             >
                               <img
@@ -178,13 +188,13 @@ const Cart: React.FC = () => {
                                 alt={item.name}
                                 className="h-14 w-14 object-contain rounded-lg bg-white p-1 border border-neutral-200"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png';
+                                  (e.target as HTMLImageElement).src = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
                                 }}
                               />
                               <span className="font-semibold text-sm text-[#111111] group-hover:underline">{item.name}</span>
                             </Link>
                           </td>
-                          <td className="p-4 text-sm font-medium text-neutral-600">₹ {item.price.toFixed(2)}</td>
+                          <td className="p-4 text-sm font-medium text-neutral-600">{formatStorePrice(item.price, item.currency || 'INR')}</td>
                           <td className="p-4">
                             <div className="flex items-center space-x-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1 w-max">
                               <button
@@ -202,7 +212,7 @@ const Cart: React.FC = () => {
                               </button>
                             </div>
                           </td>
-                          <td className="p-4 text-sm font-semibold text-[#111111]">₹ {(item.price * item.quantity).toFixed(2)}</td>
+                          <td className="p-4 text-sm font-semibold text-[#111111]">{formatStorePrice(item.price * item.quantity, item.currency || 'INR')}</td>
                           <td className="p-4 text-right">
                             <button
                               onClick={() => handleRemove(item.productId)}
@@ -241,24 +251,24 @@ const Cart: React.FC = () => {
                 <div className="space-y-2.5 text-xs sm:text-sm">
                   <div className="flex justify-between text-neutral-600">
                     <span>Subtotal</span>
-                    <span className="font-semibold text-neutral-900">₹ {subTotal.toFixed(2)}</span>
+                    <span className="font-semibold text-neutral-900">{formatStorePrice(subTotal, cartCurrency)}</span>
                   </div>
 
                   {discount > 0 && (
                     <div className="flex justify-between text-neutral-800 font-semibold">
                       <span>Discount Coupon</span>
-                      <span>-₹ {discount.toFixed(2)}</span>
+                      <span>-{formatStorePrice(discount, cartCurrency)}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between text-neutral-600">
                     <span>Shipping Charges</span>
-                    <span className="text-neutral-700 font-medium">Calculated at Checkout</span>
+                    <span className="text-neutral-700 font-medium">{shippingCharges === 0 ? 'Free' : formatStorePrice(shippingCharges, cartCurrency)}</span>
                   </div>
 
                   <div className="pt-3 border-t border-neutral-200 flex justify-between items-baseline font-bold text-base text-[#111111]">
                     <span>Total Amount</span>
-                    <span className="text-xl sm:text-2xl font-extrabold">₹ {(total - discount).toFixed(2)}</span>
+                    <span className="text-xl sm:text-2xl font-extrabold">{formatStorePrice(total, cartCurrency)}</span>
                   </div>
                 </div>
 
@@ -299,12 +309,20 @@ const Cart: React.FC = () => {
                     Sample products are for preview only and are not available to order yet. Remove them from your basket to continue to checkout.
                   </p>
                 )}
+                {hasLegacyCurrency && (
+                  <p role="alert" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                    This basket contains items from the previous INR store. Remove them or clear your basket before checking out in GBP.
+                  </p>
+                )}
                 <button
-                  onClick={() => navigate('/shipping')}
-                  disabled={hasDemoItems}
+                  onClick={() => {
+                    dispatch(saveShippingInfo({ ...shippingInfo, couponCode: appliedCoupon || undefined }));
+                    navigate('/shipping');
+                  }}
+                  disabled={hasDemoItems || hasLegacyCurrency}
                   className="w-full bg-black hover:bg-neutral-800 text-white font-medium py-3.5 px-4 rounded-lg text-xs uppercase tracking-widest transition-colors shadow-xs text-center block mt-4 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {hasDemoItems ? 'Remove Sample Items to Checkout' : 'Proceed to Checkout ➔'}
+                  {hasDemoItems ? 'Remove Sample Items to Checkout' : hasLegacyCurrency ? 'Clear previous-store items to checkout' : 'Proceed to Checkout ➔'}
                 </button>
               </div>
             </div>

@@ -11,8 +11,8 @@ interface SEOProps {
   schema?: object | object[];
 }
 
-const BASE_URL = 'https://urvaa.in';
-const DEFAULT_IMAGE = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png';
+const BASE_URL = 'https://www.miikorean.com';
+const DEFAULT_IMAGE = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
 
 /**
  * usePageSEO – sets <title>, all meta tags, canonical, and injects
@@ -69,8 +69,8 @@ export function usePageSEO({
     setMeta('og:type', ogType, true);
     setMeta('og:image', ogImage, true);
     setMeta('og:image:alt', title, true);
-    setMeta('og:site_name', 'URVA', true);
-    setMeta('og:locale', 'en_IN', true);
+    setMeta('og:site_name', 'Mii Korean Skincare', true);
+    setMeta('og:locale', 'en_GB', true);
 
     // ─── Twitter / X ───
     setMeta('twitter:card', 'summary_large_image');
@@ -95,7 +95,7 @@ export function usePageSEO({
 
     // Cleanup on unmount — restore defaults
     return () => {
-      document.title = 'URVA | Delivering the Authentic Rural Aura';
+      document.title = 'Mii Korean Skincare';
       document.querySelectorAll('script[data-page-schema]').forEach((el) => el.remove());
     };
   }, [title, description, canonical, ogType, ogImage, keywords, noIndex, schema]);

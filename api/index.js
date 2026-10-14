@@ -63,6 +63,20 @@ const RAZORPAY_CONFIG = {
   get KEY_SECRET() { return process.env.RAZORPAY_KEY_SECRET || ''; },
 };
 
+let miikoreanCatalog;
+
+function getMiikoreanProducts() {
+  if (!miikoreanCatalog) {
+    const catalogPath = path.join(__dirname, 'data', 'miikorean-storefront.json');
+    const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+    if (!Array.isArray(catalog.products)) {
+      throw new Error('The Miikorean product catalog is unavailable or invalid.');
+    }
+    miikoreanCatalog = catalog.products;
+  }
+  return miikoreanCatalog;
+}
+
 // Initialize Razorpay instance
 function getRazorpayInstance() {
   if (!RAZORPAY_CONFIG.KEY_ID || !RAZORPAY_CONFIG.KEY_SECRET) {
@@ -88,7 +102,7 @@ function verifyRazorpaySignature(orderId, paymentId, signature) {
 // Resend Email API Configuration
 const RESEND_CONFIG = {
   get KEY() { return process.env.RESEND_API_KEY || ''; },
-  get FROM() { return process.env.RESEND_FROM_EMAIL || 'URVA <sales@urvaa.in>'; }
+  get FROM() { return process.env.RESEND_FROM_EMAIL || 'Mii Korean <hello@miikorean.com>'; }
 };
 
 // Send email using Resend REST API
@@ -170,7 +184,12 @@ async function handleOrderSuccess(orderId) {
     const recipientEmail = userRow?.email || shippingInfo?.email;
     const customerName = userRow?.name || shippingInfo?.name || 'Customer';
 
-    const baseUrl = process.env.CLIENT_URL || 'https://urvaa.in';
+    const currency = order.currency || 'INR';
+    const formatMoney = (amount) => new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-IN', {
+      style: 'currency',
+      currency,
+    }).format(Number(amount || 0));
+    const baseUrl = process.env.CLIENT_URL || 'https://www.miikorean.com';
 
     const orderItems = typeof order.order_items === 'string' ? JSON.parse(order.order_items) : order.order_items;
     const itemsListHtml = (orderItems || []).map(item => `
@@ -180,13 +199,14 @@ async function handleOrderSuccess(orderId) {
           <div style="font-size: 12px; color: #5f6455; margin-top: 2px;">Qty: ${item.quantity}</div>
         </td>
         <td style="padding: 12px; border-bottom: 1px solid #efe9db; text-align: right; font-size: 14px; font-weight: bold; color: #24291f; font-family: sans-serif;">
-          ₹${(item.price * item.quantity).toFixed(2)}
+          ${formatMoney(item.price * item.quantity)}
         </td>
       </tr>
     `).join('');
 
-    const formattedDate = new Date(order.created_at || Date.now()).toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
+    const isGbpOrder = currency === 'GBP';
+    const formattedDate = new Date(order.created_at || Date.now()).toLocaleString(isGbpOrder ? 'en-GB' : 'en-IN', {
+      timeZone: isGbpOrder ? 'Europe/London' : 'Asia/Kolkata',
       dateStyle: 'medium',
       timeStyle: 'short'
     });
@@ -197,14 +217,14 @@ async function handleOrderSuccess(orderId) {
           
           <!-- Header Logo -->
           <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid #efe9db; padding-bottom: 20px;">
-            <h1 style="color: #5C2333; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">URVA</h1>
-            <span style="font-size: 10px; color: #C79A56; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Delivering the Authentic Rural Aura</span>
+            <h1 style="color: #5C2333; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Mii Korean</h1>
+            <span style="font-size: 10px; color: #C79A56; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Authentic Korean skincare</span>
           </div>
 
           <!-- Greeting -->
           <h2 style="color: #5C2333; font-size: 20px; font-family: Garamond, serif; margin-top: 0; font-weight: bold;">Order Confirmed!</h2>
           <p style="font-size: 14px; color: #24291f; margin-bottom: 20px;">Dear ${customerName},</p>
-          <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Thank you for shopping with URVA. Your payment was successful, and your order is being prepared. Below are your order details.</p>
+          <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Thank you for shopping with Mii Korean. Your payment was successful, and your order is being prepared. Below are your order details.</p>
           
           <!-- Status Card -->
           <div style="background-color: #f7f4ec; border-radius: 12px; padding: 20px; margin-bottom: 30px; border: 1px solid #efe9db;">
@@ -243,21 +263,21 @@ async function handleOrderSuccess(orderId) {
             <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
               <tr>
                 <td style="padding: 6px 0; color: #5f6455;">Subtotal</td>
-                <td style="padding: 6px 0; text-align: right; color: #24291f;">₹${Number(order.subtotal || 0).toFixed(2)}</td>
+                <td style="padding: 6px 0; text-align: right; color: #24291f;">${formatMoney(order.subtotal)}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 0; color: #5f6455;">Tax & Shipping</td>
-                <td style="padding: 6px 0; text-align: right; color: #24291f;">₹${Number((order.tax || 0) + (order.shipping_charges || 0)).toFixed(2)}</td>
+                <td style="padding: 6px 0; text-align: right; color: #24291f;">${formatMoney(Number(order.tax || 0) + Number(order.shipping_charges || 0))}</td>
               </tr>
               ${order.discount ? `
               <tr>
                 <td style="padding: 6px 0; color: #5C2333; font-weight: bold;">Discount Applied</td>
-                <td style="padding: 6px 0; text-align: right; color: #5C2333; font-weight: bold;">-₹${Number(order.discount).toFixed(2)}</td>
+                <td style="padding: 6px 0; text-align: right; color: #5C2333; font-weight: bold;">-${formatMoney(order.discount)}</td>
               </tr>
               ` : ''}
               <tr style="font-size: 16px; font-weight: bold; color: #5C2333;">
                 <td style="padding: 12px 0 0 0; border-top: 1px solid #efe9db;">Total Amount Paid</td>
-                <td style="padding: 12px 0 0 0; border-top: 1px solid #efe9db; text-align: right;">₹${Number(order.total).toFixed(2)}</td>
+                <td style="padding: 12px 0 0 0; border-top: 1px solid #efe9db; text-align: right;">${formatMoney(order.total)}</td>
               </tr>
             </table>
           </div>
@@ -269,8 +289,8 @@ async function handleOrderSuccess(orderId) {
 
           <!-- Footer Notes -->
           <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
-            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at +91 9494957576 or urvaaofficial@gmail.com.</p>
-            <p style="margin: 0;">© ${new Date().getFullYear()} URVA. All rights reserved.</p>
+            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at 0800 080 7037 or hello@miikorean.com.</p>
+            <p style="margin: 0;">© ${new Date().getFullYear()} Miikorean Ltd. All rights reserved.</p>
           </div>
 
         </div>
@@ -281,13 +301,15 @@ async function handleOrderSuccess(orderId) {
     if (recipientEmail && recipientEmail.includes('@')) {
       await sendEmail({
         to: recipientEmail,
-        subject: `URVA — Order Confirmed #${order.id}`,
+        subject: `Mii Korean — Order Confirmed #${order.id}`,
         html: emailHtml
       });
     }
 
     // 3. Decrement stock for purchased items
     for (const item of (orderItems || [])) {
+      if (order.currency === 'GBP') continue;
+
       try {
         // Extract base product ID (remove variant suffix like "_1kg")
         const baseProductId = item.productId.includes('_') 
@@ -444,6 +466,7 @@ function mapOrder(row) {
     shippingCharges: Number(row.shipping_charges),
     discount: Number(row.discount || 0),
     total: Number(row.total),
+    currency: row.currency || 'INR',
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -650,9 +673,12 @@ export default async function handler(req, res) {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
         const { amount, currency, receipt, description, customer_name, customer_email, customer_phone } = body;
 
-        const amountInPaise = parseInt(amount, 10) || 49900;
-        if (amountInPaise < 100) {
-          return res.status(400).json({ success: false, message: 'Minimum amount must be at least 100 paise (₹1)' });
+        const amountInPence = Number(amount);
+        if (!Number.isSafeInteger(amountInPence) || amountInPence < 100) {
+          return res.status(400).json({ success: false, message: 'The payment amount must be at least 100 pence (£1).' });
+        }
+        if (String(currency || '').toUpperCase() !== 'GBP') {
+          return res.status(400).json({ success: false, message: 'This store only accepts GBP payments.' });
         }
 
         const orderReceipt = receipt || `order_${Date.now()}`;
@@ -660,12 +686,12 @@ export default async function handler(req, res) {
         try {
           const razorpay = getRazorpayInstance();
           const order = await razorpay.orders.create({
-            amount: amountInPaise,
-            currency: currency || 'INR',
+            amount: amountInPence,
+            currency: 'GBP',
             receipt: orderReceipt,
             notes: {
-              customer_name: customer_name || 'URVA Customer',
-              customer_email: customer_email || 'support@urvaa.in',
+              customer_name: customer_name || 'Mii Korean Customer',
+              customer_email: customer_email || 'hello@miikorean.com',
               customer_phone: customer_phone || '',
             },
           });
@@ -762,7 +788,7 @@ export default async function handler(req, res) {
       }
 
       // Always redirect to production — payments only run on prod.
-      const origin = process.env.CLIENT_URL || 'https://urvaa.in';
+      const origin = process.env.CLIENT_URL || 'https://www.miikorean.com';
       const host = req.headers.host || '';
 
       // Verify SecureHash
@@ -815,65 +841,116 @@ export default async function handler(req, res) {
 
     // ─── ORDERS: Create New Order (with Silent Guest Sign-Up) ───
     if (url.includes('/api/v1/orders/new') && req.method === 'POST') {
-      const { orderItems, shippingInfo, discount, shippingCharges, subTotal, tax, total, userId } = req.body || {};
+      const { orderItems, shippingInfo, discount, shippingCharges, subTotal, tax, total, userId, currency } = req.body || {};
 
-      if (shippingInfo === undefined || total === undefined) {
-        return res.status(400).json({ success: false, message: 'Please fill all fields' });
+      if (!shippingInfo || !Array.isArray(orderItems) || orderItems.length === 0 || currency !== 'GBP') {
+        return res.status(400).json({ success: false, message: 'A valid GBP order and shipping address are required.' });
+      }
+      const supportedCountries = ['United Kingdom', 'Isle of Man', 'Jersey', 'Guernsey'];
+      if (
+        !['name', 'phone', 'address', 'city', 'pinCode'].every((field) => typeof shippingInfo[field] === 'string' && shippingInfo[field].trim()) ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(shippingInfo.email || '')) ||
+        !supportedCountries.includes(shippingInfo.country)
+      ) {
+        return res.status(400).json({ success: false, message: 'Please provide a complete UK delivery address.' });
       }
 
-      // ✅ CRITICAL FIX: Validate stock availability BEFORE creating order
-      console.log('🔍 Validating stock for order items...');
-      
-      if (orderItems && Array.isArray(orderItems)) {
-        for (const item of orderItems) {
-          try {
-            // Extract base product ID (remove variant suffix like "_1kg")
-            const baseProductId = item.productId.includes('_') 
-              ? item.productId.split('_')[0] 
-              : item.productId;
+      const toPence = (value) => Number.isFinite(Number(value)) ? Math.round(Number(value) * 100) : NaN;
+      let calculatedSubtotalPence = 0;
+      const products = getMiikoreanProducts();
 
-            // Check current stock
-            let product = null;
-            const { data: dbProduct, error: productError } = await supabase
-              .from('products')
-              .select('stock, name')
-              .eq('id', baseProductId)
-              .single();
+      for (const item of orderItems) {
+        const productId = String(item?.productId || '');
+        const separatorIndex = productId.lastIndexOf('__');
+        const handle = separatorIndex < 0 ? '' : productId.slice(0, separatorIndex);
+        const variantId = separatorIndex < 0 ? '' : productId.slice(separatorIndex + 2);
+        const quantity = Number(item?.quantity);
+        const product = products.find((entry) => entry.handle === handle);
+        const variant = product?.variants?.find((entry) => String(entry.id) === variantId);
 
-            if (!productError && dbProduct) {
-              product = dbProduct;
-            }
-
-            if (!product) {
-              console.error(`❌ Product not found: ${baseProductId}`, productError);
-              return res.status(400).json({
-                success: false,
-                message: `Product "${item.name}" is no longer available`
-              });
-            }
-
-            const availableStock = Number(product.stock || 0);
-            const requestedQuantity = Number(item.quantity || 0);
-
-            // Stock validation
-            if (availableStock < requestedQuantity) {
-              console.warn(`⚠️  Insufficient stock for "${product.name}": Requested ${requestedQuantity}, Available ${availableStock}`);
-              return res.status(400).json({
-                success: false,
-                message: `Sorry, only ${availableStock} units of "${product.name}" are available. Please update your cart.`
-              });
-            }
-
-            console.log(`✅ Stock OK for "${product.name}": ${requestedQuantity} / ${availableStock}`);
-          } catch (validationError) {
-            console.error('❌ Stock validation error:', validationError);
-            return res.status(500).json({
-              success: false,
-              message: 'Failed to validate stock availability. Please try again.'
-            });
-          }
+        if (!product || !variant || !variant.available || item.currency !== 'GBP') {
+          return res.status(400).json({ success: false, message: `Product "${item?.name || 'item'}" is no longer available.` });
         }
-        console.log('✅ All items have sufficient stock');
+
+        if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 99) {
+          return res.status(400).json({ success: false, message: 'Product quantities must be between 1 and 99.' });
+        }
+
+        const variantPricePence = toPence(variant.price);
+        if (!Number.isSafeInteger(variantPricePence) || toPence(item.price) !== variantPricePence) {
+          return res.status(409).json({ success: false, message: `The price for "${product.title}" has changed. Please review your basket.` });
+        }
+
+        calculatedSubtotalPence += variantPricePence * quantity;
+      }
+
+      const submittedSubtotalPence = toPence(subTotal);
+      const submittedShippingPence = toPence(shippingCharges);
+      const submittedDiscountPence = toPence(discount || 0);
+      const submittedTaxPence = toPence(tax || 0);
+      const submittedTotalPence = toPence(total);
+      const expectedShippingPence = calculatedSubtotalPence > 0 && calculatedSubtotalPence < 3500 ? 375 : 0;
+      const expectedTotalPence = calculatedSubtotalPence + expectedShippingPence - submittedDiscountPence + submittedTaxPence;
+
+      if (
+        submittedSubtotalPence !== calculatedSubtotalPence ||
+        submittedShippingPence !== expectedShippingPence ||
+        submittedDiscountPence < 0 ||
+        submittedDiscountPence > calculatedSubtotalPence ||
+        submittedTaxPence !== 0 ||
+        submittedTotalPence !== expectedTotalPence
+      ) {
+        return res.status(400).json({ success: false, message: 'The order totals do not match the current basket. Please review your basket.' });
+      }
+
+      if (submittedDiscountPence > 0) {
+        const couponCode = String(shippingInfo.couponCode || '').trim().toUpperCase();
+        if (!couponCode) {
+          return res.status(400).json({ success: false, message: 'The applied discount could not be verified.' });
+        }
+
+        const { data: coupon, error: couponError } = await supabase
+          .from('coupons')
+          .select('code, amount, is_active')
+          .ilike('code', couponCode)
+          .maybeSingle();
+        if (couponError) {
+          console.error('Coupon verification failed:', couponError);
+          return res.status(500).json({ success: false, message: 'Could not verify the discount. Please try again.' });
+        }
+        if (!coupon || coupon.is_active === false || toPence(coupon.amount) !== submittedDiscountPence) {
+          return res.status(400).json({ success: false, message: 'The applied discount is no longer valid. Please review your basket.' });
+        }
+      }
+
+      const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = shippingInfo;
+      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature || !verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature)) {
+        return res.status(400).json({ success: false, message: 'Payment verification failed. Please contact support before retrying.' });
+      }
+
+      let gatewayOrder;
+      let gatewayPayment;
+      try {
+        const razorpay = getRazorpayInstance();
+        [gatewayOrder, gatewayPayment] = await Promise.all([
+          razorpay.orders.fetch(razorpayOrderId),
+          razorpay.payments.fetch(razorpayPaymentId),
+        ]);
+      } catch (paymentError) {
+        console.error('Razorpay order confirmation lookup failed:', paymentError);
+        return res.status(502).json({ success: false, message: 'We could not confirm your payment. Please contact support before retrying.' });
+      }
+
+      if (
+        gatewayOrder.currency !== 'GBP' ||
+        gatewayOrder.amount !== submittedTotalPence ||
+        gatewayOrder.status !== 'paid' ||
+        gatewayPayment.order_id !== razorpayOrderId ||
+        gatewayPayment.currency !== 'GBP' ||
+        gatewayPayment.amount !== submittedTotalPence ||
+        gatewayPayment.status !== 'captured'
+      ) {
+        return res.status(400).json({ success: false, message: 'The payment does not match this GBP order. Please contact support.' });
       }
 
       // ── Silent Guest Sign-Up ──
@@ -918,7 +995,7 @@ export default async function handler(req, res) {
               .from('users')
               .insert({
                 uid: guestUid,
-                email: guestEmail || `${guestPhone}@guest.urvaa.in`,
+                email: guestEmail || `${guestPhone}@guest.miikorean.com`,
                 name: guestName,
                 provider: 'guest',
                 role: 'user',
@@ -949,34 +1026,15 @@ export default async function handler(req, res) {
           shipping_charges: shippingCharges || 0,
           discount: discount || 0,
           total: total,
-          status: shippingInfo?.razorpayPaymentId ? 'Processing' : 'Pending',
+          currency: 'GBP',
+          status: 'Processing',
         })
         .select()
         .single();
 
       if (error) {
-        console.error('Supabase order insert error (returning graceful fallback order):', error);
-        const fallbackOrder = {
-          _id: `ord_${Date.now()}`,
-          id: `ord_${Date.now()}`,
-          user: resolvedUserId || 'guest',
-          shippingInfo,
-          orderItems,
-          subTotal,
-          tax,
-          shippingCharges,
-          discount,
-          total,
-          status: 'Pending',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        return res.status(201).json({
-          success: true,
-          message: 'Order placed successfully',
-          order: fallbackOrder,
-        });
+        console.error('Supabase order insert error:', error);
+        return res.status(500).json({ success: false, message: 'Payment was received, but we could not save the order. Please contact support with your payment reference.' });
       }
 
         // Trigger order confirmation email & stock update
@@ -1136,7 +1194,7 @@ export default async function handler(req, res) {
         const recipientEmail = userRow?.email || shippingInfo?.email || 'shubhamvasantgundu@gmail.com';
         const customerName = userRow?.name || shippingInfo?.name || 'Customer';
 
-        const baseUrl = process.env.CLIENT_URL || 'https://urvaa.in';
+        const baseUrl = process.env.CLIENT_URL || 'https://www.miikorean.com';
 
         // If status is "Shipped" and we have tracking data, send tracking email
         if (status === 'Shipped' && updated.awb_number) {
@@ -1146,13 +1204,13 @@ export default async function handler(req, res) {
                 
                 <!-- Header Logo -->
                 <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid #efe9db; padding-bottom: 20px;">
-                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">URVA</h1>
-                  <span style="font-size: 10px; color: #c4633c; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Pure & Organic</span>
+                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Mii Korean</h1>
+                  <span style="font-size: 10px; color: #c4633c; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Authentic Korean skincare</span>
                 </div>
 
                 <h2 style="color: #1f5133; font-size: 20px; font-family: Garamond, serif; margin-top: 0; font-weight: bold;">📦 Your Order Has Been Shipped!</h2>
                 <p style="font-size: 14px; color: #24291f; margin-bottom: 20px;">Dear ${customerName},</p>
-                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Your URVA order has been dispatched and is on its way to you.</p>
+                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Your Mii Korean order has been dispatched and is on its way to you.</p>
                 
                 <!-- Tracking Information Box -->
                 <div style="background: linear-gradient(135deg, #1f5133 0%, #2d7a4d 100%); border-radius: 16px; padding: 25px; margin-bottom: 30px; box-shadow: 0 6px 20px rgba(31, 81, 51, 0.15);">
@@ -1180,7 +1238,7 @@ export default async function handler(req, res) {
                   </div>
 
                   <div style="text-align: center;">
-                    <a href="${updated.tracking_url || `https://cargo.apsrtconline.in/track`}" style="background-color: #ffffff; color: #1f5133; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);">🔍 Track Your Shipment</a>
+                    <a href="${updated.tracking_url || `${baseUrl}/my-orders`}" style="background-color: #ffffff; color: #1f5133; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);">🔍 Track Your Shipment</a>
                   </div>
                 </div>
 
@@ -1188,7 +1246,7 @@ export default async function handler(req, res) {
                 <div style="background-color: #fff8dc; border-left: 4px solid #c4633c; border-radius: 8px; padding: 15px; margin-bottom: 25px;">
                   <p style="font-size: 13px; color: #24291f; margin: 0; line-height: 1.6;">
                     <strong>📍 How to Track:</strong><br>
-                    Click the button above or visit <a href="https://cargo.apsrtconline.in/track" style="color: #c4633c; text-decoration: underline;">cargo.apsrtconline.in/track</a> and enter your AWB number along with either the sender or receiver mobile number.
+                    Use the courier tracking link above to follow your delivery. You can also view your order status in your Mii Korean account.
                   </p>
                 </div>
 
@@ -1200,8 +1258,8 @@ export default async function handler(req, res) {
 
                 <!-- Footer Notes -->
                 <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
-                  <p style="margin: 0 0 5px 0;">Thank you for choosing URVA!</p>
-                  <p style="margin: 0;">© ${new Date().getFullYear()} URVA. All rights reserved.</p>
+                  <p style="margin: 0 0 5px 0;">Thank you for choosing Mii Korean!</p>
+                  <p style="margin: 0;">© ${new Date().getFullYear()} Miikorean Ltd. All rights reserved.</p>
                 </div>
 
               </div>
@@ -1222,13 +1280,13 @@ export default async function handler(req, res) {
                 
                 <!-- Header Logo -->
                 <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid #efe9db; padding-bottom: 20px;">
-                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">URVA</h1>
-                  <span style="font-size: 10px; color: #c4633c; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Pure & Organic</span>
+                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Mii Korean</h1>
+                  <span style="font-size: 10px; color: #c4633c; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Authentic Korean skincare</span>
                 </div>
 
                 <h2 style="color: #1f5133; font-size: 20px; font-family: Garamond, serif; margin-top: 0; font-weight: bold;">Order Status Updated! 📦</h2>
                 <p style="font-size: 14px; color: #24291f; margin-bottom: 20px;">Dear ${customerName},</p>
-                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">The status of your URVA order has been updated.</p>
+                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">The status of your Mii Korean order has been updated.</p>
                 
                 <div style="background-color: #f7f4ec; border-radius: 12px; padding: 20px; margin-bottom: 30px; border: 1px solid #efe9db;">
                   <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
@@ -1252,7 +1310,7 @@ export default async function handler(req, res) {
                 <!-- Footer Notes -->
                 <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
                   <p style="margin: 0 0 5px 0;">If you have any questions, reply to this email or contact support.</p>
-                  <p style="margin: 0;">© ${new Date().getFullYear()} URVA. All rights reserved.</p>
+                  <p style="margin: 0;">© ${new Date().getFullYear()} Miikorean Ltd. All rights reserved.</p>
                 </div>
 
               </div>
@@ -1261,7 +1319,7 @@ export default async function handler(req, res) {
 
           await sendEmail({
             to: recipientEmail,
-            subject: `URVA — Order #${updated.id} Status: ${status}`,
+            subject: `Mii Korean — Order #${updated.id} Status: ${status}`,
             html: emailHtml
           });
         }
@@ -1396,11 +1454,11 @@ export default async function handler(req, res) {
 
     // ─── COUPONS: Apply Coupon ───
     if (url.includes('/api/v1/coupons/apply')) {
-      const { coupon } = req.body || {};
-      if (!coupon) {
+      const { code, coupon: legacyCode } = req.body || {};
+      const codeUpper = String(code || legacyCode || '').trim().toUpperCase();
+      if (!codeUpper) {
         return res.status(400).json({ success: false, message: 'Please enter a coupon code' });
       }
-      const codeUpper = String(coupon).trim().toUpperCase();
 
       const { data, error } = await supabase
         .from('coupons')
@@ -1408,7 +1466,11 @@ export default async function handler(req, res) {
         .ilike('code', codeUpper)
         .maybeSingle();
 
-      if (error || !data) {
+      if (error) {
+        console.error('Supabase coupon lookup error:', error);
+        return res.status(500).json({ success: false, message: 'Could not verify this coupon. Please try again.' });
+      }
+      if (!data || data.is_active === false) {
         return res.status(400).json({
           success: false,
           message: 'Invalid or expired coupon code',
@@ -1417,8 +1479,14 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        discount: Number(data.amount),
-        message: `Coupon '${data.code}' applied! ₹${data.amount} discount added.`,
+        coupon: {
+          _id: data.id,
+          code: String(data.code).toUpperCase(),
+          amount: Number(data.amount),
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        },
+        message: `Coupon '${data.code}' applied! £${data.amount} discount added.`,
       });
     }
 
@@ -1432,7 +1500,7 @@ export default async function handler(req, res) {
       const orders = (ordersRaw || []).map(mapOrder);
 
       // Only count confirmed (non-Pending) orders for revenue & totals
-      const confirmedOrders = orders.filter(o => o.status !== 'Pending');
+      const confirmedOrders = orders.filter(o => o.status !== 'Pending' && o.currency === 'GBP');
       const totalRevenue = confirmedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
       const totalOrders = confirmedOrders.length;
       const totalProducts = products?.length || 0;

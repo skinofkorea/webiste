@@ -1,7 +1,6 @@
-# URVA — Rural Products E-Commerce Platform
+# Mii Korean — Skincare Storefront
 
-> **URVA — Delivering the Authentic Rural Aura**  
-> A high-performance rural commerce platform built around the *“One Village – One Product”* initiative. Showcases authentic regional foods, tribal-origin products, eco-friendly goods, Swadesi handlooms, and nursery plants directly to consumers across India.
+Miikorean storefront conversion of the existing React/Vercel commerce app. The customer-facing catalog, collections, content pages, delivery policies, and Renude skin-analysis experience are based on [miikorean.com](https://www.miikorean.com/). Cart and order records remain in this application; checkout is configured for GBP.
 
 ---
 
@@ -11,12 +10,13 @@ The project is structured as a streamlined full-stack application optimized for 
 
 ```
 ├── api/                       # Vercel Serverless Function Endpoints
-│   ├── data/                  # Local fallback data persistence
-│   │   └── store_banners.json # Fallback banner configuration store
+│   ├── data/                  # Local fallback and checkout catalog data
+│   │   ├── miikorean-storefront.json
+│   │   └── store_banners.json
 │   └── index.js               # Unified Serverless REST API router
 │
 ├── client/                    # Frontend React 18 + TypeScript Application
-│   ├── public/                # Static public assets (icons, manifests)
+│   ├── public/                # Static assets and imported Miikorean catalog
 │   ├── src/
 │   │   ├── assets/            # Local images, logos, and vector assets
 │   │   ├── components/        # Reusable UI components (Navbar, Footer, Cart, Checkout)
@@ -58,11 +58,10 @@ The project is structured as a streamlined full-stack application optimized for 
 ## 🚀 Key Features
 
 ### 🛒 Customer Storefront
-- **High-Performance Architecture**: Native WebP/AVIF format auto-negotiation via Cloudinary, responsive image sets, script deferral, and aggressive bundle chunking.
-- **Dynamic Banners**: CMS-managed Hero carousel and mid-page promotional banners with automatic fallback resilience.
-- **Regional Discovery**: Category-based exploration for foods, textiles, tribal crafts, and plants.
-- **Variant Selector**: Dynamic size, scent, and pack variant selection with live inventory adjustments.
-- **Cart & Order Flow**: Instant quantity updates, coupon code engine, delivery tracking, and clean checkout modal.
+- **Imported catalog**: All 445 published products, variants, product descriptions, and image galleries, plus the published collections and store pages.
+- **Product discovery**: Search, brand/category/collection filters, sorting, pagination, product variants, related products, and a persistent wishlist.
+- **Renude skin analysis**: Embedded skin quiz, three-photo upload, and personalised routine recommendations.
+- **GBP cart and checkout**: UK delivery details, £3.75 shipping below £35, and free delivery from £35. Checkout validates catalog prices and the GBP Razorpay payment before saving an order.
 
 ### ⚙️ Admin CMS Dashboard
 - **Collapsible Sidebar**: Clean, space-efficient administration layout with toggleable navigation.
@@ -81,45 +80,53 @@ The project is structured as a streamlined full-stack application optimized for 
 
 ### 1. Installation
 
-Clone the repository and install root dependencies:
+Install root and frontend dependencies:
 
 ```bash
-git clone https://github.com/theshubhamgundu/urvaa.git
-cd urvaa
 npm install
 cd client && npm install && cd ..
 ```
 
-### 2. Environment Variables
+### 2. Refreshing the Miikorean Store Data
 
-Copy the provided `.env.example` templates to `.env`:
+The committed snapshot is used by both the storefront and the order API. Refresh both copies from the public Miikorean Shopify feeds before publishing catalog changes:
+
+```powershell
+.\scripts\sync-miikorean-storefront.ps1
+```
+
+The script exports product variants and images, collection metadata, and published pages to `client/public/miikorean-storefront.json` and `api/data/miikorean-storefront.json`.
+
+### 3. Environment Variables
+
+Copy the provided `.env.example` templates to `.env` and `client/.env`:
 
 ```bash
 cp .env.example .env
 cp client/.env.example client/.env
 ```
 
-Configure your credentials in `.env`:
+Configure the credentials in `.env`:
 - **Supabase**: Set `SUPABASE_URL` and `SUPABASE_ANON_KEY`
-- **Cloudinary**: Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`
-- **Razorpay**: Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`
+- **Razorpay**: Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`; the merchant account must support GBP and international payments. Set `VITE_RAZORPAY_KEY_ID` in `client/.env` to the matching public key.
+- **Email (optional)**: Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL`.
 
-### 3. Database Initialization
+### 4. Database Initialization
 
-Execute the canonical schema script in your Supabase SQL Editor:
+Execute the schema/migration script in your Supabase SQL Editor:
 1. Open your Supabase Dashboard -> **SQL Editor**.
 2. Copy and paste the contents of [`schema.sql`](./schema.sql).
-3. Run the query to create all tables (`products`, `orders`, `categories`, `coupons`, `store_banners`, etc.) and enable Row Level Security policies.
+3. Run the query to create/update the tables and RLS policies. Existing order rows are marked as INR; new orders explicitly store GBP.
 
-### 4. Running Locally
+### 5. Running Locally
 
-Start the development server:
+Start the storefront development server:
 
 ```bash
 npm run dev
 ```
 
-The application will be accessible at: **`http://localhost:5173`**
+The storefront is accessible at **`http://localhost:5173`**. The Vercel `/api/*` functions and Razorpay checkout require a compatible deployed/serverless runtime and configured credentials.
 
 ---
 
@@ -130,6 +137,7 @@ The application will be accessible at: **`http://localhost:5173`**
 | `npm run dev` | Starts the Vite development server with HMR |
 | `npm run build` | Runs TypeScript compiler checks (`tsc`) and compiles production assets |
 | `npm run lint` | Runs ESLint over the client source tree |
+| `.\scripts\sync-miikorean-storefront.ps1` | Refreshes the catalog snapshot for the storefront and API |
 
 ---
 
@@ -138,7 +146,7 @@ The application will be accessible at: **`http://localhost:5173`**
 - **Zero Hardcoded Secrets**: All sensitive API keys and secrets are loaded via environment variables.
 - **Row Level Security (RLS)**: Enforced across all Supabase database tables to prevent unauthorized data manipulation.
 - **Defensive API Architecture**: Fallback persistence ensures storefront banners and critical content remain operable even during database network interruptions.
-- **Payment Verification**: Signature-based payment verification on the backend before marking orders as confirmed.
+- **Payment Verification**: GBP order totals are checked against the imported product catalog and the captured Razorpay order before saving.
 
 ---
 
@@ -146,4 +154,4 @@ The application will be accessible at: **`http://localhost:5173`**
 
 This project is licensed under the [MIT License](./LICENSE).
 
-**URVA** — *Delivering the Authentic Rural Aura.* 🌾
+**Mii Korean** — Korean skincare, curated for your routine.

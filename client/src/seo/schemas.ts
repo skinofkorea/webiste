@@ -1,9 +1,9 @@
 /**
- * Centralised JSON-LD schema builders for URVA.
+ * Centralised JSON-LD schema builders for Mii Korean.
  * Every function returns a plain object ready for JSON.stringify.
  */
 
-const BASE = 'https://urvaa.in';
+const BASE = 'https://www.miikorean.com';
 const ORG_ID = `${BASE}/#organization`;
 
 // BREADCRUMB
@@ -44,7 +44,7 @@ export function webPageSchema({
     ...(breadcrumb
       ? { breadcrumb: breadcrumbSchema(breadcrumb) }
       : {}),
-    inLanguage: 'en-IN',
+    inLanguage: 'en-GB',
   };
 }
 
@@ -78,17 +78,17 @@ export function productSchema({
     sku: sku || `JCM-${Math.random().toString(36).substr(2, 6)}`,
     brand: {
       '@type': 'Brand',
-      name: 'URVA',
+      name: 'Mii Korean',
     },
     manufacturer: {
       '@id': ORG_ID,
     },
-    category: 'Regional Products',
-    keywords: 'regional products, rural products, India, URVA',
+    category: 'Korean Skincare',
+    keywords: 'Korean skincare, beauty, Mii Korean',
     offers: {
       '@type': 'Offer',
       url: `${BASE}${url}`,
-      priceCurrency: 'INR',
+      priceCurrency: 'GBP',
       price: price.toFixed(2),
       priceValidUntil: '2027-12-31',
       ...(mrp ? { highPrice: mrp.toFixed(2) } : {}),
@@ -122,7 +122,7 @@ export function itemListSchema(
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'URVA Products',
+    name: 'Mii Korean Products',
     url: `${BASE}/products`,
     itemListElement: items.map((item) => ({
       '@type': 'ListItem',

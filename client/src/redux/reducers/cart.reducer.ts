@@ -1,6 +1,21 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 import { CartReducerIntialState, CartItem, ShippingInfo } from "../../types/api-types";
 
+const defaultShippingInfo: ShippingInfo = {
+    name: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'United Kingdom',
+    pinCode: '',
+    phone: '',
+    landmark: '',
+    latitude: undefined,
+    longitude: undefined,
+    deliveryType: 'current_location'
+};
+
 const initialState: CartReducerIntialState = {
     loading: false,
     cartItems: JSON.parse(localStorage.getItem('cartItems') || '[]'),
@@ -9,20 +24,7 @@ const initialState: CartReducerIntialState = {
     shippingCharges: 0,
     discount: 0,
     total: 0,
-    shippingInfo: JSON.parse(localStorage.getItem('shippingInfo') || JSON.stringify({
-        name: '',
-        email: '',
-        address: '',
-        city: 'Hyderabad',
-        state: 'Telangana',
-        country: 'India',
-        pinCode: '',
-        phone: '',
-        landmark: '',
-        latitude: undefined,
-        longitude: undefined,
-        deliveryType: 'current_location'
-    }))
+    shippingInfo: JSON.parse(localStorage.getItem('shippingInfo') || JSON.stringify(defaultShippingInfo))
 };
 
 const saveToLocalStorage = (state: CartReducerIntialState) => {
@@ -36,6 +38,13 @@ export const cartReducer = createSlice({
     reducers: {
         addToCart: (state, action: PayloadAction<CartItem>) => {
             state.loading = true;
+
+            const cartCurrency = state.cartItems[0]?.currency || 'INR';
+            const itemCurrency = action.payload.currency || 'INR';
+            if (state.cartItems.length > 0 && cartCurrency !== itemCurrency) {
+                state.loading = false;
+                return;
+            }
 
             const index = state.cartItems.findIndex(item => item.productId === action.payload.productId);
 
@@ -77,9 +86,9 @@ export const cartReducer = createSlice({
         calculatePrice: (state) => {
             const subTotal = state.cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
             state.subTotal = subTotal;
-            state.shippingCharges = 0;
+            state.shippingCharges = subTotal > 0 && subTotal < 35 ? 3.75 : 0;
             state.tax = 0;
-            state.total = state.subTotal - state.discount;
+            state.total = state.subTotal + state.shippingCharges - state.discount;
             // If the discount is greater than the total price, limit the discount to the total price
             if (state.total < 0) {
                 state.discount = state.subTotal;
@@ -101,7 +110,16 @@ export const cartReducer = createSlice({
         resetCart: () => {
             localStorage.removeItem('cartItems');
             localStorage.removeItem('shippingInfo');
-            return initialState;
+            return {
+                ...initialState,
+                cartItems: [],
+                subTotal: 0,
+                tax: 0,
+                shippingCharges: 0,
+                discount: 0,
+                total: 0,
+                shippingInfo: { ...defaultShippingInfo }
+            };
         }
     }
 });

@@ -9,7 +9,7 @@ html {
 
 body {
   font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #FAFAFA;
+  background-color: #FFFFFF;
   color: #111111;
   font-size: 15px;
   line-height: 1.6;
@@ -66,6 +66,48 @@ h6,
   animation-play-state: paused;
 }
 
+@keyframes announcementMarqueeRight {
+  from {
+    transform: translateX(-50%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.announcement-marquee {
+  animation: announcementMarqueeRight 32s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee {
+    animation: none;
+  }
+}
+
+@keyframes announcementFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.announcement-slide {
+  animation: announcementFadeIn 350ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-slide {
+    animation: none;
+  }
+}
+
 /* Glow & Flame Effects */
 @keyframes flameGlow {
 
@@ -85,12 +127,454 @@ h6,
 
 /* Loader */
 .loader {
-  border: 4px solid rgba(199, 154, 86, 0.2);
-  border-top: 4px solid #C79A56;
+  border: 4px solid #E5E5E5;
+  border-top: 4px solid #111111;
   border-radius: 50%;
   width: 40px;
   height: 40px;
   animation: spin 1s linear infinite;
+}
+
+.miikorean-page {
+  color: #111111;
+}
+
+.miikorean-home h1,
+.miikorean-home h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.035em;
+}
+
+.brand-showcase {
+  background:
+    radial-gradient(ellipse at 8% 8%, rgba(231, 195, 163, 0.3), transparent 42%),
+    linear-gradient(125deg, #fff8ef 0%, #fff4e8 52%, #f8e8d8 100%);
+}
+
+.brand-showcase::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background-image: linear-gradient(rgba(139, 69, 31, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(139, 69, 31, 0.035) 1px, transparent 1px);
+  background-size: 54px 54px;
+  content: '';
+  mask-image: linear-gradient(to bottom, transparent, black 22%, black 78%, transparent);
+}
+
+.brand-showcase-glow {
+  position: absolute;
+  z-index: 0;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 50%;
+  background: rgba(220, 170, 128, 0.16);
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+.brand-showcase-glow-one {
+  top: -11rem;
+  right: 8%;
+}
+
+.brand-showcase-glow-two {
+  bottom: -16rem;
+  left: 30%;
+  background: rgba(245, 211, 176, 0.2);
+}
+
+.brand-marquee {
+  overflow: hidden;
+  width: 100%;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+
+.brand-marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.brand-marquee-group {
+  display: flex;
+  flex: none;
+  gap: 0.85rem;
+  padding-right: 0.85rem;
+}
+
+.brand-logo-tile {
+  border: 1px solid rgba(139, 69, 31, 0.1);
+  background: linear-gradient(145deg, #fffaf3, #f4e7d9);
+  box-shadow: 0 8px 22px rgba(116, 71, 39, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 250ms ease, box-shadow 250ms ease, border-color 250ms ease;
+}
+
+.brand-logo-tile:hover,
+.brand-logo-tile:focus-visible {
+  transform: translateY(-4px);
+  border-color: #c98b58;
+  box-shadow: 0 14px 30px rgba(116, 71, 39, 0.16), 0 0 0 3px rgba(201, 139, 88, 0.1);
+}
+
+.featured-edit {
+  background:
+    radial-gradient(ellipse at 92% 0%, rgba(226, 185, 145, 0.28), transparent 34%),
+    linear-gradient(145deg, #fffaf4 0%, #fff4e8 52%, #f9ecdf 100%);
+}
+
+.featured-edit-glow {
+  position: absolute;
+  z-index: 0;
+  top: 8rem;
+  right: -8rem;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 50%;
+  background: rgba(212, 153, 103, 0.12);
+  filter: blur(65px);
+  pointer-events: none;
+}
+
+.homepage-finale {
+  background:
+    radial-gradient(ellipse at 50% 78%, rgba(244, 228, 208, 0.72), transparent 42%),
+    linear-gradient(180deg, #fff 0%, #fffaf4 100%);
+}
+
+.homepage-finale-image {
+  position: relative;
+}
+
+.homepage-finale-button {
+  position: absolute;
+  bottom: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.homepage-finale-button:hover {
+  transform: translate(-50%, -0.125rem);
+}
+
+.homepage-finale-orbit {
+  position: absolute;
+  top: 42%;
+  width: 10rem;
+  height: 5rem;
+  border: 1px solid rgba(139, 69, 31, 0.14);
+  border-color: rgba(139, 69, 31, 0.16) transparent transparent;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.homepage-finale-orbit-left {
+  left: -3rem;
+  transform: rotate(-55deg);
+}
+
+.homepage-finale-orbit-right {
+  right: -3rem;
+  transform: rotate(55deg);
+}
+
+.homepage-finale-product {
+  backdrop-filter: blur(4px);
+}
+
+.miikorean-footer .miikorean-footer-wordmark {
+  font-family: 'Playfair Display', Georgia, serif;
+  color: #2b211c;
+}
+
+.miikorean-testimonials {
+  overflow: hidden;
+  background: #fff;
+  padding: 2.75rem 0;
+}
+
+.miikorean-testimonial-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.miikorean-testimonial-images {
+  position: relative;
+  width: 100%;
+  height: 15rem;
+  perspective: 1000px;
+}
+
+.miikorean-testimonial-image {
+  position: absolute;
+  left: 50%;
+  width: 66%;
+  height: 100%;
+  border: 1px solid rgba(139, 69, 31, 0.12);
+  border-radius: 1.25rem;
+  background: #fff;
+  object-fit: cover;
+  box-shadow: 0 10px 30px rgba(80, 48, 28, 0.16);
+  transform-origin: center;
+  transition: transform 800ms cubic-bezier(0.4, 2, 0.3, 1), opacity 500ms ease;
+}
+
+.miikorean-testimonial-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+@media (min-width: 640px) {
+  .miikorean-testimonials {
+    padding: 3.5rem 0;
+  }
+
+  .miikorean-testimonial-images {
+    height: 19rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .miikorean-testimonial-grid {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 3rem;
+  }
+
+  .miikorean-testimonial-images {
+    height: 22rem;
+  }
+
+  .miikorean-testimonial-image {
+    width: 72%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miikorean-testimonial-image {
+    transition: none;
+  }
+}
+
+.community-video-mobile {
+  display: grid;
+  height: min(72vh, 42rem);
+  min-height: 24rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 5%, #000 95%, transparent);
+}
+
+@media (min-width: 768px) {
+  .community-video-mobile {
+    display: none;
+  }
+}
+
+.community-video-lane {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.community-video-track {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  will-change: transform;
+}
+
+.community-video-group {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.community-video-track-down {
+  animation: communityVideosDown 46s linear infinite;
+}
+
+.community-video-track-up {
+  animation: communityVideosUp 42s linear infinite;
+}
+
+.community-video-mobile:hover .community-video-track,
+.community-video-mobile:focus-within .community-video-track {
+  animation-play-state: paused;
+}
+
+@keyframes communityVideosDown {
+  from {
+    transform: translateY(-50%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes communityVideosUp {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.brand-marquee-track-left {
+  animation: marquee 38s linear infinite;
+}
+
+@keyframes brandMarqueeRight {
+  from {
+    transform: translateX(-50%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.brand-marquee-track-right {
+  animation: brandMarqueeRight 38s linear infinite;
+}
+
+.brand-marquee:hover .brand-marquee-track,
+.brand-marquee:focus-within .brand-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-video-mobile {
+    height: auto;
+    max-height: 72vh;
+    overflow-y: auto;
+  }
+
+  .community-video-track {
+    animation: none;
+    transform: none;
+  }
+
+  .brand-marquee {
+    overflow-x: auto;
+  }
+
+  .brand-marquee-track {
+    animation: none;
+    transform: none;
+  }
+
+  .brand-logo-tile {
+    transition: none;
+  }
+}
+
+.miikorean-rich-text > :first-child {
+  margin-top: 0;
+}
+
+.miikorean-rich-text h1,
+.miikorean-rich-text h2,
+.miikorean-rich-text h3,
+.miikorean-rich-text h4 {
+  margin: 1.5rem 0 0.75rem;
+  color: #111111;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.miikorean-rich-text h1,
+.miikorean-rich-text h2 {
+  font-size: 1.4rem;
+}
+
+.miikorean-rich-text h3 {
+  font-size: 1.1rem;
+}
+
+.miikorean-rich-text p,
+.miikorean-rich-text ul,
+.miikorean-rich-text ol {
+  margin: 0.75rem 0;
+}
+
+.miikorean-rich-text ul,
+.miikorean-rich-text ol {
+  padding-left: 1.5rem;
+}
+
+.miikorean-rich-text ul {
+  list-style: disc;
+}
+
+.miikorean-rich-text ol {
+  list-style: decimal;
+}
+
+.miikorean-rich-text a {
+  color: #111111;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+[class~="text-violet-700"],
+[class~="text-violet-800"],
+[class~="text-purple-700"],
+[class~="text-purple-800"],
+[class~="text-fuchsia-700"],
+[class~="text-fuchsia-800"] {
+  color: #111111 !important;
+}
+
+[class~="bg-violet-50"],
+[class~="bg-violet-100"],
+[class~="bg-purple-50"],
+[class~="bg-purple-100"],
+[class~="bg-fuchsia-50"],
+[class~="bg-fuchsia-100"] {
+  background-color: #F5F5F5 !important;
+}
+
+[class~="bg-violet-600"],
+[class~="bg-violet-700"],
+[class~="bg-purple-600"],
+[class~="bg-purple-700"],
+[class~="bg-fuchsia-600"],
+[class~="bg-fuchsia-700"] {
+  background-color: #111111 !important;
+}
+
+[class~="border-violet-400"],
+[class~="border-violet-500"],
+[class~="border-violet-600"],
+[class~="border-purple-400"],
+[class~="border-purple-500"],
+[class~="border-purple-600"],
+[class~="border-fuchsia-400"],
+[class~="border-fuchsia-500"],
+[class~="border-fuchsia-600"] {
+  border-color: #111111 !important;
+}
+
+.miikorean-rich-text img {
+  height: auto;
+  max-width: 100%;
+  border-radius: 0.75rem;
+}
+
+.miikorean-rich-text table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 @keyframes spin {

@@ -24,6 +24,7 @@ import { addToCart, decrementCartItem, incrementCartItem } from '../redux/reduce
 import { RootState } from '../redux/store';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { productSchema, breadcrumbSchema, webPageSchema } from '../seo/schemas';
+import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
 export interface ProductVariety {
   id: string;
@@ -331,7 +332,7 @@ const ProductDetails: React.FC = () => {
               {/* Large Image Canvas */}
               <div className="relative aspect-4/3 sm:aspect-square w-full rounded-xl overflow-hidden bg-neutral-50 flex items-center justify-center">
                 <img
-                  src={activeImage || resolvedProduct.photo}
+                  src={optimizeProductImageUrl(activeImage || resolvedProduct.photo, 1200)}
                   alt={resolvedProduct.name}
                   className="w-full h-full object-contain p-2 sm:p-4 transition-transform duration-500 group-hover:scale-105"
                   onError={(e) => {
@@ -358,7 +359,7 @@ const ProductDetails: React.FC = () => {
                       }`}
                     >
                       <img
-                        src={img}
+                        src={optimizeProductImageUrl(img, 200)}
                         alt={`Angle ${idx + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -777,7 +778,7 @@ const ProductDetails: React.FC = () => {
               <FaTimes />
             </button>
             <img
-              src={activeImage || resolvedProduct.photo}
+              src={optimizeProductImageUrl(activeImage || resolvedProduct.photo, 1400)}
               alt={resolvedProduct.name}
               className="max-h-[75vh] w-auto object-contain rounded-xl"
             />
