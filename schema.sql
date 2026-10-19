@@ -389,3 +389,20 @@ CREATE POLICY "Public Read team_members" ON public.team_members FOR SELECT USING
 CREATE POLICY "Public Read gallery" ON public.gallery FOR SELECT USING (true);
 CREATE POLICY "Public Read blogs" ON public.blogs FOR SELECT USING (true);
 CREATE POLICY "Public Read recipes" ON public.recipes FOR SELECT USING (true);
+
+-- ─── 9. SEED DATA ───
+-- Default Super Admin User
+INSERT INTO public.users (uid, email, name, role)
+VALUES 
+  ('admin_001', 'admin@miikorean.com', 'Mii Korean Admin', 'admin'),
+  ('admin_002', 'admin@urvaa.in', 'Store Manager', 'admin')
+ON CONFLICT (email) DO UPDATE SET role = 'admin';
+
+-- Default K-Beauty Welcome Coupons (GBP £)
+INSERT INTO public.coupons (code, amount, is_active)
+VALUES 
+  ('WELCOME10', 10.00, true),
+  ('GLOW15', 15.00, true),
+  ('MIIKOREAN20', 20.00, true)
+ON CONFLICT (code) DO NOTHING;
+

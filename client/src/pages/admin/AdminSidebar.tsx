@@ -11,7 +11,8 @@ import {
   FaStar,
   FaImage,
   FaChevronLeft,
-  FaChevronRight
+  FaChevronRight,
+  FaPlus
 } from 'react-icons/fa';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 
@@ -36,14 +37,35 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     navigate('/admin/login');
   };
 
-  const navItems = [
-    { to: '/admin/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
-    { to: '/admin/banners', label: 'Banners & Campaigns', icon: FaImage },
-    { to: '/admin/products', label: 'Products Catalog', icon: FaBox },
-    { to: '/admin/featured', label: 'Featured Items', icon: FaStar },
-    { to: '/admin/orders', label: 'Orders', icon: FaClipboardList },
-    { to: '/admin/customers', label: 'Customers', icon: FaUsers },
-    { to: '/admin/coupons', label: 'Coupons & Promos', icon: FaMoneyCheckAlt },
+  const navSections = [
+    {
+      title: 'Store Overview',
+      items: [
+        { to: '/admin/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
+      ]
+    },
+    {
+      title: 'Catalog & Merchandising',
+      items: [
+        { to: '/admin/products', label: 'Products (445)', icon: FaBox },
+        { to: '/admin/featured', label: 'Featured & Bestsellers', icon: FaStar },
+        { to: '/admin/products/new', label: 'Add Skincare Product', icon: FaPlus },
+      ]
+    },
+    {
+      title: 'Orders & Sales',
+      items: [
+        { to: '/admin/orders', label: 'Customer Orders', icon: FaClipboardList },
+        { to: '/admin/customers', label: 'Customer Directory', icon: FaUsers },
+      ]
+    },
+    {
+      title: 'Marketing & Storefront',
+      items: [
+        { to: '/admin/banners', label: 'Hero Banners & Campaigns', icon: FaImage },
+        { to: '/admin/coupons', label: 'Coupons & Promos', icon: FaMoneyCheckAlt },
+      ]
+    }
   ];
 
   return (
@@ -84,23 +106,23 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 to="/admin/dashboard" 
                 onClick={() => { if (isSidebarOpen) toggleSidebar(); }} 
                 className="group block"
-                title="URVA Admin Dashboard"
+                title="Mii Korean Admin Dashboard"
               >
                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
                   <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center border border-neutral-700 shadow-xs shrink-0">
                     <img
-                      src="https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png"
-                      alt="URVA Logo"
+                      src="https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418"
+                      alt="Mii Korean Logo"
                       className="w-full h-full object-contain"
                     />
                   </div>
                   {!isCollapsed && (
                     <div>
                       <h1 className="text-base font-bold text-white tracking-tight group-hover:text-neutral-300 transition-colors leading-tight font-sans">
-                        URVA
+                        Mii Korean
                       </h1>
                       <span className="text-[10px] text-neutral-400 tracking-[0.2em] uppercase font-semibold block mt-0.5">
-                        Admin Console
+                        Skincare Admin
                       </span>
                     </div>
                   )}
@@ -150,45 +172,52 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </a>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1.5">
-            {!isCollapsed ? (
-              <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                Store Management
-              </p>
-            ) : (
-              <div className="w-6 h-px bg-neutral-800 mx-auto my-2" />
-            )}
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => { if (isSidebarOpen) toggleSidebar(); }}
-                  className={({ isActive }) =>
-                    `relative group flex items-center ${
-                      isCollapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5'
-                    } rounded-xl transition-all duration-200 text-xs font-medium ${
-                      isActive
-                        ? 'bg-white text-black font-semibold shadow-xs'
-                        : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
-                    }`
-                  }
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <Icon className={`${isCollapsed ? 'text-base' : 'text-sm'} shrink-0`} />
-                  {!isCollapsed && <span>{item.label}</span>}
+          {/* Navigation Sections */}
+          <nav className="space-y-4">
+            {navSections.map((section, sIdx) => (
+              <div key={section.title || sIdx} className="space-y-1">
+                {!isCollapsed ? (
+                  <p className="px-3.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500 select-none">
+                    {section.title}
+                  </p>
+                ) : (
+                  sIdx > 0 && <div className="w-6 h-px bg-neutral-800 mx-auto my-2" />
+                )}
 
-                  {/* Floating tooltip when collapsed */}
-                  {isCollapsed && (
-                    <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-1.5 bg-neutral-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center">
-                      {item.label}
-                    </div>
-                  )}
-                </NavLink>
-              );
-            })}
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => { if (isSidebarOpen) toggleSidebar(); }}
+                        className={({ isActive }) =>
+                          `relative group flex items-center ${
+                            isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3.5 py-2.5'
+                          } rounded-xl transition-all duration-200 text-xs font-medium ${
+                            isActive
+                              ? 'bg-white text-black font-semibold shadow-xs'
+                              : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+                          }`
+                        }
+                        title={isCollapsed ? item.label : undefined}
+                      >
+                        <Icon className={`${isCollapsed ? 'text-base' : 'text-sm'} shrink-0`} />
+                        {!isCollapsed && <span>{item.label}</span>}
+
+                        {/* Floating tooltip when collapsed */}
+                        {isCollapsed && (
+                          <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-1.5 bg-neutral-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center">
+                            {item.label}
+                          </div>
+                        )}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
         </div>
 
@@ -200,7 +229,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             } rounded-xl bg-neutral-900 border border-neutral-800/80`}
           >
             <div className="w-8 h-8 rounded-full bg-neutral-800 text-white font-bold flex items-center justify-center text-xs border border-neutral-700 shrink-0">
-              UR
+              MK
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">

@@ -169,10 +169,10 @@ const AdminDashboard: React.FC = () => {
             <span>Store Operations Console</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-            URVA Marketplace
+            Mii Korean Skincare
           </h1>
           <p className="text-xs text-neutral-400">
-            Monitor real-time sales, manage catalog availability, and fulfill customer orders.
+            Monitor real-time sales, manage Korean skincare catalog inventory, and fulfill customer orders.
           </p>
         </div>
 

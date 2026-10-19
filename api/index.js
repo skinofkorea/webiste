@@ -8,8 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://nyydjisfdavwokfawrhr.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_T5w5cXt7kZ1ExWgnaF69Lg_zI-MJEMG';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://wwdkdaeeoyjwvaslcwgv.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGtkYWVlb3lqd3Zhc2xjd2d2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjQwODY2OCwiZXhwIjoyMTA3OTg0NjY4fQ.xPvcoG_dQ0NevQ9svxxbsDxyeC5IiWiNEy26qVgZ0DQ';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Cloudinary Configuration
@@ -63,18 +63,95 @@ const RAZORPAY_CONFIG = {
   get KEY_SECRET() { return process.env.RAZORPAY_KEY_SECRET || ''; },
 };
 
-let miikoreanCatalog;
+let miikoreanCatalogData = null;
+let miikoreanCatalog = null;
 
-function getMiikoreanProducts() {
-  if (!miikoreanCatalog) {
+function getMiikoreanCatalogData() {
+  if (!miikoreanCatalogData) {
     const catalogPath = path.join(__dirname, 'data', 'miikorean-storefront.json');
     const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
     if (!Array.isArray(catalog.products)) {
       throw new Error('The Miikorean product catalog is unavailable or invalid.');
     }
+    miikoreanCatalogData = catalog;
     miikoreanCatalog = catalog.products;
   }
-  return miikoreanCatalog;
+  return miikoreanCatalogData;
+}
+
+function saveMiikoreanCatalogData(catalogData) {
+  miikoreanCatalogData = catalogData;
+  miikoreanCatalog = catalogData.products;
+  const jsonStr = JSON.stringify(catalogData, null, 2);
+
+  // 1. Write to api/data/miikorean-storefront.json
+  const apiPath = path.join(__dirname, 'data', 'miikorean-storefront.json');
+  fs.writeFileSync(apiPath, jsonStr, 'utf8');
+
+  // 2. Sync to client/public/miikorean-storefront.json so storefront updates in real-time
+  try {
+    const clientPath = path.resolve(__dirname, '../client/public/miikorean-storefront.json');
+    if (fs.existsSync(path.dirname(clientPath))) {
+      fs.writeFileSync(clientPath, jsonStr, 'utf8');
+    }
+  } catch (err) {
+    console.warn('Sync to client/public warning:', err.message);
+  }
+
+  if (global.fastApiCache) global.fastApiCache.clear();
+}
+
+function getMiikoreanProducts() {
+  return getMiikoreanCatalogData().products;
+}
+
+function stripHtmlTags(html) {
+  if (!html) return '';
+  return String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function mapCatalogProduct(p) {
+  if (!p) return null;
+  const variants = p.variants || [];
+  const availableVariants = variants.filter(v => v.available);
+  const pricedVariants = (availableVariants.length > 0 ? availableVariants : variants)
+    .map(v => Number(v.price))
+    .filter(Number.isFinite);
+  const images = p.images || [];
+  const firstImage = images[0]?.src || variants.find(v => v.featured_image)?.featured_image || p.photo || '';
+  const description = p.description || stripHtmlTags(p.body_html || '').slice(0, 320);
+
+  const price = pricedVariants.length > 0 ? Math.min(...pricedVariants) : Number(p.price || 0);
+  const compareAtPrice = variants.find(v => v.compare_at_price)?.compare_at_price 
+    ? Number(variants.find(v => v.compare_at_price).compare_at_price) 
+    : (p.compareAtPrice ? Number(p.compareAtPrice) : null);
+
+  const stock = p.stock !== undefined 
+    ? Number(p.stock) 
+    : (availableVariants.length > 0 ? 9999 : 0);
+
+  return {
+    _id: String(p.handle || p.id),
+    id: p.id,
+    name: p.title || p.name,
+    handle: p.handle || String(p.id),
+    category: p.product_type || p.category || 'Skincare',
+    vendor: p.vendor || 'Mii Korean',
+    stock,
+    photo: firstImage,
+    images: images,
+    price,
+    compareAtPrice,
+    description,
+    bodyHtml: p.body_html || p.bodyHtml || '',
+    featured: Boolean(p.featured !== undefined ? p.featured : (p.tags || []).some(tag => /best.?seller|featured|bestseller/i.test(tag))),
+    isActive: p.isActive !== false,
+    createdAt: p.published_at || p.createdAt || new Date().toISOString(),
+    updatedAt: p.updatedAt || p.published_at || new Date().toISOString(),
+    tags: p.tags || [],
+    variants,
+    currency: 'GBP',
+  };
 }
 
 // Initialize Razorpay instance
@@ -1503,7 +1580,7 @@ export default async function handler(req, res) {
       const confirmedOrders = orders.filter(o => o.status !== 'Pending' && o.currency === 'GBP');
       const totalRevenue = confirmedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
       const totalOrders = confirmedOrders.length;
-      const totalProducts = products?.length || 0;
+      const totalProducts = getMiikoreanProducts().length;
       const totalCoupons = couponsRaw?.length || 0;
 
       // Revenue by month (confirmed orders only)
@@ -1592,91 +1669,69 @@ export default async function handler(req, res) {
     // ─── PRODUCTS: Search Products ───
     if (url.includes('/api/v1/products/search')) {
       const urlObj = new URL(url, 'http://localhost');
-      const search = urlObj.searchParams.get('search') || '';
-      const category = urlObj.searchParams.get('category') || '';
+      const search = (urlObj.searchParams.get('search') || '').toLowerCase().trim();
+      const category = (urlObj.searchParams.get('category') || '').toLowerCase().trim();
+      const brand = (urlObj.searchParams.get('brand') || urlObj.searchParams.get('vendor') || '').toLowerCase().trim();
       const price = urlObj.searchParams.get('price') || '';
       const sort = urlObj.searchParams.get('sort') || '';
       const page = parseInt(urlObj.searchParams.get('page') || '1', 10);
-      const limit = 9;
+      const limit = parseInt(urlObj.searchParams.get('limit') || '24', 10);
 
-      let query = supabase.from('products').select('*', { count: 'exact' });
-
-      // Storefront search only shows active products
-      query = query.neq('is_active', false);
+      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+      let filtered = allCatalog.filter(p => p.isActive !== false);
 
       if (search) {
-        query = query.ilike('name', `%${search}%`);
+        filtered = filtered.filter(p => 
+          (p.name && p.name.toLowerCase().includes(search)) ||
+          (p.vendor && p.vendor.toLowerCase().includes(search)) ||
+          (p.category && p.category.toLowerCase().includes(search)) ||
+          (p.description && p.description.toLowerCase().includes(search)) ||
+          (p.tags && p.tags.some(t => t.toLowerCase().includes(search)))
+        );
       }
-      if (category) {
-        query = query.eq('category', category);
+      if (category && category !== 'all') {
+        filtered = filtered.filter(p => p.category && p.category.toLowerCase() === category);
+      }
+      if (brand && brand !== 'all') {
+        filtered = filtered.filter(p => p.vendor && p.vendor.toLowerCase() === brand);
       }
       if (price) {
         const [minPrice, maxPrice] = price.split(',').map(Number);
-        if (!isNaN(minPrice)) query = query.gte('price', minPrice);
-        if (!isNaN(maxPrice)) query = query.lte('price', maxPrice);
+        if (!isNaN(minPrice)) filtered = filtered.filter(p => p.price >= minPrice);
+        if (!isNaN(maxPrice)) filtered = filtered.filter(p => p.price <= maxPrice);
       }
-      if (sort === 'asc') {
-        query = query.order('price', { ascending: true });
-      } else if (sort === 'desc') {
-        query = query.order('price', { ascending: false });
+
+      if (sort === 'asc' || sort === 'price-asc') {
+        filtered.sort((a, b) => a.price - b.price);
+      } else if (sort === 'desc' || sort === 'price-desc') {
+        filtered.sort((a, b) => b.price - a.price);
+      } else if (sort === 'name-asc') {
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
       } else {
-        query = query.order('created_at', { ascending: false });
+        filtered.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
       }
 
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-
-      const { data, count } = await query;
-      const products = (data || []).map(mapProduct);
-      const totalCount = count || 0;
+      const totalCount = filtered.length;
       const totalPage = Math.ceil(totalCount / limit) || 1;
+      const from = (page - 1) * limit;
+      const paginated = filtered.slice(from, from + limit);
 
       return res.status(200).json({
         success: true,
-        products,
+        products: paginated,
         totalPage,
+        totalCount,
       });
     }
 
     // ─── PRODUCTS: Get Latest Products ───
     if (url.includes('/api/v1/products/latest')) {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .neq('is_active', false)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      const productsList = (!error && data) ? data.map(mapProduct) : [];
+      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+      const activeProducts = allCatalog.filter(p => p.isActive !== false).slice(0, 50);
 
       const resBody = {
         success: true,
-        products: productsList,
-      };
-      if (global.fastApiCache) global.fastApiCache.set(url, { body: resBody, timestamp: Date.now() });
-
-      return res.status(200).json(resBody);
-    }
-
-    // ─── PRODUCTS: Get All Products (Admin view shows all, public shows active) ───
-    if (url.includes('/api/v1/products/all')) {
-      const urlObj = new URL(url, 'http://localhost');
-      const page = parseInt(urlObj.searchParams.get('page') || '1', 10);
-      const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10);
-
-      const { data, error, count } = await supabase.from('products').select('*', { count: 'exact' }).order('created_at', { ascending: false });
-
-      const productsList = (!error && data) ? data.map(mapProduct) : [];
-      const totalProducts = count || productsList.length;
-      const totalPages = Math.ceil(totalProducts / limit) || 1;
-
-      const resBody = {
-        success: true,
-        products: productsList,
-        totalProducts,
-        totalPages,
-        currentPage: page,
+        products: activeProducts,
       };
       if (global.fastApiCache) global.fastApiCache.set(url, { body: resBody, timestamp: Date.now() });
 
@@ -1685,14 +1740,31 @@ export default async function handler(req, res) {
 
     // ─── PRODUCTS: Get Categories ───
     if (url.includes('/api/v1/products/categories')) {
-      const categories = [
-        'Tribal Araku Products',
-        'Mana Godavari Foods',
-        'Eco-Friendly Products',
-        'Swadesi Handlooms',
-        'Kadiyam Plants'
-      ];
+      const allCatalog = getMiikoreanProducts();
+      const categorySet = new Set([
+        'Cleanser',
+        'Toner',
+        'Serum & Essence',
+        'Moisturizer',
+        'Sunscreen',
+        'Mask',
+        'Eye Care',
+        'Lip Care',
+        'Exfoliator',
+        'Treatment',
+        'Skincare Sets',
+        'Body & Hair',
+        'Makeup'
+      ]);
 
+      allCatalog.forEach(p => {
+        const cat = p.product_type || p.category;
+        if (cat && typeof cat === 'string' && cat.trim()) {
+          categorySet.add(cat.trim());
+        }
+      });
+
+      const categories = Array.from(categorySet).sort();
       const resBody = {
         success: true,
         categories,
@@ -1702,24 +1774,137 @@ export default async function handler(req, res) {
       return res.status(200).json(resBody);
     }
 
+    // ─── PRODUCTS: Get Brands / Vendors ───
+    if (url.includes('/api/v1/products/brands') || url.includes('/api/v1/products/vendors')) {
+      const allCatalog = getMiikoreanProducts();
+      const brandSet = new Set();
+      allCatalog.forEach(p => {
+        const v = p.vendor;
+        if (v && typeof v === 'string' && v.trim()) {
+          brandSet.add(v.trim());
+        }
+      });
+
+      const brands = Array.from(brandSet).sort();
+      const resBody = {
+        success: true,
+        brands,
+      };
+      if (global.fastApiCache) global.fastApiCache.set(url, { body: resBody, timestamp: Date.now() });
+
+      return res.status(200).json(resBody);
+    }
+
     // ─── PRODUCTS: Get Featured Products ───
     if (url.includes('/api/v1/products/featured')) {
-      let productsList = [];
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('featured', true)
-        .neq('is_active', false);
-
-      if (!error && data) {
-        productsList = data.map(mapProduct);
-      }
+      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+      const featured = allCatalog.filter(p => p.featured === true && p.isActive !== false);
 
       const resBody = {
         success: true,
-        products: productsList,
+        products: featured,
       };
       if (global.fastApiCache) global.fastApiCache.set(url, { body: resBody, timestamp: Date.now() });
+
+      return res.status(200).json(resBody);
+    }
+
+    // ─── PRODUCTS: Get All Products (Admin & Storefront view) ───
+    if (url.includes('/api/v1/products/all')) {
+      const urlObj = new URL(url, 'http://localhost');
+      const page = parseInt(urlObj.searchParams.get('page') || '1', 10);
+      const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10);
+      const search = (urlObj.searchParams.get('search') || '').toLowerCase().trim();
+      const category = urlObj.searchParams.get('category') || '';
+      const brand = urlObj.searchParams.get('brand') || urlObj.searchParams.get('vendor') || '';
+      const stockFilter = urlObj.searchParams.get('stockFilter') || urlObj.searchParams.get('stockStatus') || 'all';
+      const featured = urlObj.searchParams.get('featured') || '';
+      const sortBy = urlObj.searchParams.get('sortBy') || '';
+
+      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+
+      // Collect distinct metadata
+      const categorySet = new Set();
+      const brandSet = new Set();
+      let totalActive = 0;
+      let totalLowStock = 0;
+      let totalOutOfStock = 0;
+
+      allCatalog.forEach(p => {
+        if (p.category) categorySet.add(p.category);
+        if (p.vendor) brandSet.add(p.vendor);
+        if (p.isActive !== false) totalActive++;
+        if (Number(p.stock || 0) === 0 && p.isActive !== false) totalOutOfStock++;
+        else if (Number(p.stock || 0) < 10 && Number(p.stock || 0) > 0 && p.isActive !== false) totalLowStock++;
+      });
+
+      let filtered = allCatalog.filter(p => {
+        // Search
+        if (search) {
+          const match = 
+            (p.name && p.name.toLowerCase().includes(search)) ||
+            (p.vendor && p.vendor.toLowerCase().includes(search)) ||
+            (p.category && p.category.toLowerCase().includes(search)) ||
+            (p.handle && p.handle.toLowerCase().includes(search)) ||
+            (p.tags && p.tags.some(t => t.toLowerCase().includes(search)));
+          if (!match) return false;
+        }
+
+        // Category
+        if (category && category !== 'All' && category !== 'all') {
+          if (p.category?.toLowerCase() !== category.toLowerCase()) return false;
+        }
+
+        // Brand
+        if (brand && brand !== 'All' && brand !== 'all') {
+          if (p.vendor?.toLowerCase() !== brand.toLowerCase()) return false;
+        }
+
+        // Featured
+        if (featured === 'true' && !p.featured) return false;
+        if (featured === 'false' && p.featured) return false;
+
+        // Stock status
+        const stock = Number(p.stock || 0);
+        const isActive = p.isActive !== false;
+        if (stockFilter === 'disabled' && isActive) return false;
+        if (stockFilter === 'out_of_stock' && (stock > 0 || !isActive)) return false;
+        if (stockFilter === 'low_stock' && (stock >= 10 || stock <= 0 || !isActive)) return false;
+        if (stockFilter === 'in_stock' && (stock < 10 || !isActive)) return false;
+
+        return true;
+      });
+
+      // Sort
+      if (sortBy === 'price-asc') {
+        filtered.sort((a, b) => a.price - b.price);
+      } else if (sortBy === 'price-desc') {
+        filtered.sort((a, b) => b.price - a.price);
+      } else if (sortBy === 'name-asc') {
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (sortBy === 'name-desc') {
+        filtered.sort((a, b) => b.name.localeCompare(a.name));
+      } else {
+        filtered.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+      }
+
+      const totalProducts = filtered.length;
+      const totalPages = Math.ceil(totalProducts / limit) || 1;
+      const from = (page - 1) * limit;
+      const pagedProducts = filtered.slice(from, from + limit);
+
+      const resBody = {
+        success: true,
+        products: pagedProducts,
+        totalProducts,
+        totalPages,
+        currentPage: page,
+        totalActive,
+        totalLowStock,
+        totalOutOfStock,
+        categories: Array.from(categorySet).sort(),
+        brands: Array.from(brandSet).sort(),
+      };
 
       return res.status(200).json(resBody);
     }
@@ -1731,43 +1916,110 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, message: 'Unauthorized: Admin authentication required' });
       }
 
-      const body = req.body || {};
-      const { name, category, price, stock, description, photo, variants } = body;
+      const body = (req.body && req.body.productData) ? req.body.productData : (req.body || {});
+      const { name, category, vendor, price, compareAtPrice, stock, description, bodyHtml, photo, images, tags, variants, featured, isActive } = body;
 
-      if (!name || !category || price === undefined || stock === undefined || !description) {
-        return res.status(400).json({ success: false, message: 'Please provide name, category, price, stock, and description' });
+      if (!name || (!category && !body.product_type) || price === undefined) {
+        return res.status(400).json({ success: false, message: 'Please provide at least product name, category, and price' });
       }
 
-      const insertData = {
-        name,
-        category: category,
-        price: Number(price),
-        stock: Number(stock),
-        description,
-        photo: photo || 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png',
-        variants: variants || [],
-        featured: false,
-        is_active: true,
-        event_id: req.body?.event_id || '00000000-0000-0000-0000-000000000000',
+      const catalogData = getMiikoreanCatalogData();
+      const uniqueId = Date.now();
+      const baseHandle = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      let handle = baseHandle || `product-${uniqueId}`;
+      let counter = 1;
+      while (catalogData.products.some(p => p.handle === handle)) {
+        handle = `${baseHandle}-${counter++}`;
+      }
+
+      const cleanPrice = Number(price || 0).toFixed(2);
+      const cleanCompareAt = compareAtPrice ? Number(compareAtPrice).toFixed(2) : null;
+      const initialStock = Number(stock !== undefined ? stock : 100);
+
+      const formattedVariants = (Array.isArray(variants) && variants.length > 0)
+        ? variants.map((v, i) => ({
+            id: v.id || uniqueId + i,
+            title: v.title || v.name || 'Default Title',
+            option1: v.option1 || v.title || v.name || 'Default Title',
+            option2: null,
+            option3: null,
+            price: Number(v.price || v.salePrice || price || 0).toFixed(2),
+            compare_at_price: v.compare_at_price || v.mrp ? Number(v.compare_at_price || v.mrp).toFixed(2) : cleanCompareAt,
+            available: v.available !== false && (v.stock === undefined || Number(v.stock) > 0),
+            sku: v.sku || null,
+            featured_image: v.featured_image || null,
+          }))
+        : [{
+            id: uniqueId + 1,
+            title: 'Default Title',
+            option1: 'Default Title',
+            option2: null,
+            option3: null,
+            price: cleanPrice,
+            compare_at_price: cleanCompareAt,
+            available: initialStock > 0,
+            sku: null,
+            featured_image: null,
+          }];
+
+      const formattedImages = (Array.isArray(images) && images.length > 0)
+        ? images.map((img, i) => ({
+            id: img.id || uniqueId + 10 + i,
+            src: typeof img === 'string' ? img : img.src,
+            alt: img.alt || null,
+            width: 1000,
+            height: 1000,
+          }))
+        : [{
+            id: uniqueId + 10,
+            src: photo || 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png',
+            alt: null,
+            width: 1000,
+            height: 1000,
+          }];
+
+      const newProduct = {
+        id: uniqueId,
+        title: name,
+        handle,
+        body_html: bodyHtml || `<p>${description || ''}</p>`,
+        vendor: vendor || 'Mii Korean',
+        product_type: category || body.product_type || 'Skincare',
+        published_at: new Date().toISOString(),
+        tags: Array.isArray(tags) ? tags : (tags ? String(tags).split(',').map(t => t.trim()) : []),
+        variants: formattedVariants,
+        images: formattedImages,
+        featured: Boolean(featured),
+        isActive: isActive !== false,
+        stock: initialStock,
       };
 
-      const { data: newProduct, error } = await supabase
-        .from('products')
-        .insert(insertData)
-        .select()
-        .single();
+      catalogData.products.unshift(newProduct);
+      catalogData.product_count = catalogData.products.length;
+      saveMiikoreanCatalogData(catalogData);
 
-      if (error) {
-        console.error('Product creation error:', error);
-        return res.status(500).json({ success: false, message: error.message });
+      // Optional: mirror to Supabase if accessible
+      try {
+        await supabase.from('products').insert({
+          id: crypto.randomUUID ? crypto.randomUUID() : undefined,
+          name,
+          category: newProduct.product_type,
+          description: description || stripHtmlTags(newProduct.body_html),
+          price: Number(cleanPrice),
+          stock: initialStock,
+          photo: formattedImages[0]?.src || '',
+          featured: Boolean(featured),
+          is_active: isActive !== false,
+          variants: formattedVariants,
+        });
+      } catch (e) {
+        console.warn('Optional Supabase product insert skipped:', e.message);
       }
-
-      if (global.fastApiCache) global.fastApiCache.clear();
 
       return res.status(201).json({
         success: true,
         message: 'Product created successfully',
-        product: mapProduct(newProduct),
+        product: mapCatalogProduct(newProduct),
       });
     }
 
@@ -1778,37 +2030,27 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, message: 'Unauthorized: Admin authentication required' });
       }
 
-      const productId = url.split('/').pop();
+      const productId = url.split('/').pop().split('?')[0];
+      const catalogData = getMiikoreanCatalogData();
+      const product = catalogData.products.find(p => p.handle === productId || String(p.id) === productId);
 
-      const { data: product, error: fetchError } = await supabase
-        .from('products')
-        .select('is_active')
-        .eq('id', productId)
-        .single();
-
-      if (fetchError || !product) {
-        return res.status(404).json({ success: false, message: 'Product not found' });
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
       }
 
-      const newStatus = product.is_active === false ? true : false;
+      product.isActive = product.isActive === false ? true : false;
+      product.updatedAt = new Date().toISOString();
+      saveMiikoreanCatalogData(catalogData);
 
-      const { data: updated, error: updateError } = await supabase
-        .from('products')
-        .update({ is_active: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', productId)
-        .select()
-        .single();
-
-      if (updateError) {
-        return res.status(500).json({ success: false, message: updateError.message });
-      }
-
-      if (global.fastApiCache) global.fastApiCache.clear();
+      // Optional: mirror to Supabase
+      try {
+        await supabase.from('products').update({ is_active: product.isActive }).eq('name', product.title);
+      } catch (e) {}
 
       return res.status(200).json({
         success: true,
-        message: `Product ${updated.is_active !== false ? 'enabled' : 'disabled'} successfully`,
-        product: mapProduct(updated),
+        message: `Product ${product.isActive ? 'enabled' : 'disabled'} successfully`,
+        product: mapCatalogProduct(product),
       });
     }
 
@@ -1819,36 +2061,26 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, message: 'Unauthorized: Admin authentication required' });
       }
 
-      const productId = url.split('/').pop();
+      const productId = url.split('/').pop().split('?')[0];
+      const catalogData = getMiikoreanCatalogData();
+      const product = catalogData.products.find(p => p.handle === productId || String(p.id) === productId);
 
-      // Get current featured status
-      const { data: product, error: fetchError } = await supabase
-        .from('products')
-        .select('featured')
-        .eq('id', productId)
-        .single();
-
-      if (fetchError || !product) {
-        return res.status(404).json({ success: false, message: 'Product not found' });
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
       }
 
-      const { data: updated, error: updateError } = await supabase
-        .from('products')
-        .update({ featured: !product.featured, updated_at: new Date().toISOString() })
-        .eq('id', productId)
-        .select()
-        .single();
-
-      if (updateError) {
-        return res.status(500).json({ success: false, message: updateError.message });
+      if (req.body && typeof req.body.featured === 'boolean') {
+        product.featured = req.body.featured;
+      } else {
+        product.featured = !Boolean(product.featured);
       }
-
-      if (global.fastApiCache) global.fastApiCache.clear();
+      product.updatedAt = new Date().toISOString();
+      saveMiikoreanCatalogData(catalogData);
 
       return res.status(200).json({
         success: true,
-        message: `Product ${updated.featured ? 'featured' : 'unfeatured'} successfully`,
-        product: mapProduct(updated),
+        message: `Product ${product.featured ? 'featured' : 'unfeatured'} successfully`,
+        product: mapCatalogProduct(product),
       });
     }
 
@@ -1859,19 +2091,22 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, message: 'Unauthorized: Admin authentication required' });
       }
 
-      const productId = url.split('/').pop();
+      const productId = url.split('/').pop().split('?')[0];
+      const catalogData = getMiikoreanCatalogData();
+      const index = catalogData.products.findIndex(p => p.handle === productId || String(p.id) === productId);
 
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productId);
-
-      if (error) {
-        console.error('Product deletion error:', error);
-        return res.status(500).json({ success: false, message: error.message });
+      if (index === -1) {
+        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
       }
 
-      if (global.fastApiCache) global.fastApiCache.clear();
+      const removed = catalogData.products.splice(index, 1)[0];
+      catalogData.product_count = catalogData.products.length;
+      saveMiikoreanCatalogData(catalogData);
+
+      // Optional: mirror to Supabase
+      try {
+        await supabase.from('products').delete().eq('name', removed.title);
+      } catch (e) {}
 
       return res.status(200).json({
         success: true,
@@ -1879,19 +2114,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // ─── PRODUCTS: Get Single Product by ID ───
+    // ─── PRODUCTS: Get Single Product by ID or Handle ───
     if (url.match(/\/api\/v1\/products\/[^/]+$/) && req.method === 'GET') {
-      const id = url.split('/').pop();
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const id = url.split('/').pop().split('?')[0];
+      const catalogData = getMiikoreanCatalogData();
+      const product = catalogData.products.find(p => p.handle === id || String(p.id) === id);
 
-      if (data) {
+      if (product) {
         const resBody = {
           success: true,
-          product: mapProduct(data),
+          product: mapCatalogProduct(product),
         };
         if (global.fastApiCache) global.fastApiCache.set(url, { body: resBody, timestamp: Date.now() });
         return res.status(200).json(resBody);
@@ -1902,57 +2134,98 @@ export default async function handler(req, res) {
 
     // ─── PRODUCTS: Update Product (PUT) ───
     if (url.match(/\/api\/v1\/products\/[^/]+$/) && req.method === 'PUT') {
-      const productId = url.split('/').pop();
+      const productId = url.split('/').pop().split('?')[0];
       
       const token = req.headers.authorization?.replace('Bearer ', '');
       if (!token || token.length !== 128 || !/^[a-f0-9]+$/i.test(token)) {
         return res.status(401).json({ success: false, message: 'Unauthorized: Admin authentication required' });
       }
 
-      // Parse JSON body (sent from admin panel)
-      const body = req.body || {};
-      const { name, category, price, stock, description, variants, photo } = body;
+      const body = (req.body && req.body.productData) ? req.body.productData : (req.body || {});
+      const { name, category, vendor, price, compareAtPrice, stock, description, bodyHtml, variants, photo, images, tags, featured, isActive } = body;
 
-      // Find the product first
-      const { data: product, error: fetchError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', productId)
-        .single();
+      const catalogData = getMiikoreanCatalogData();
+      const product = catalogData.products.find(p => p.handle === productId || String(p.id) === productId);
 
-      if (fetchError || !product) {
-        return res.status(404).json({ success: false, message: 'Product not found' });
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
       }
 
-      // Prepare update data — only include fields that were sent
-      const updateData = {};
-      if (name !== undefined) updateData.name = name;
-      if (category !== undefined) updateData.category = category;
-      if (price !== undefined) updateData.price = Number(price);
-      if (stock !== undefined) updateData.stock = Number(stock);
-      if (description !== undefined) updateData.description = description;
-      if (variants !== undefined) updateData.variants = variants;
-      if (photo !== undefined) updateData.photo = photo;
-      updateData.updated_at = new Date().toISOString();
+      // Update fields
+      if (name !== undefined) product.title = name;
+      if (category !== undefined) product.product_type = category;
+      if (vendor !== undefined) product.vendor = vendor;
+      if (bodyHtml !== undefined) product.body_html = bodyHtml;
+      else if (description !== undefined) product.body_html = `<p>${description}</p>`;
+      if (featured !== undefined) product.featured = Boolean(featured);
+      if (isActive !== undefined) product.isActive = Boolean(isActive);
+      if (stock !== undefined) product.stock = Number(stock);
+      if (tags !== undefined) product.tags = Array.isArray(tags) ? tags : (tags ? String(tags).split(',').map(t => t.trim()) : []);
 
-      const { data: updatedProduct, error: updateError } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', productId)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('Product update error:', updateError);
-        return res.status(500).json({ success: false, message: 'Failed to update product', error: updateError.message });
+      // Price update
+      if (price !== undefined) {
+        const cleanPrice = Number(price).toFixed(2);
+        const cleanCompareAt = compareAtPrice ? Number(compareAtPrice).toFixed(2) : null;
+        if (Array.isArray(product.variants) && product.variants.length > 0) {
+          product.variants[0].price = cleanPrice;
+          if (cleanCompareAt !== null) product.variants[0].compare_at_price = cleanCompareAt;
+        } else {
+          product.variants = [{
+            id: Date.now(),
+            title: 'Default Title',
+            option1: 'Default Title',
+            option2: null,
+            option3: null,
+            price: cleanPrice,
+            compare_at_price: cleanCompareAt,
+            available: (product.stock || 0) > 0,
+            sku: null,
+            featured_image: null,
+          }];
+        }
       }
 
-      if (global.fastApiCache) global.fastApiCache.clear();
+      // Variants update
+      if (Array.isArray(variants) && variants.length > 0) {
+        product.variants = variants.map((v, i) => ({
+          id: v.id || Date.now() + i,
+          title: v.title || v.name || 'Default Title',
+          option1: v.option1 || v.title || v.name || 'Default Title',
+          option2: null,
+          option3: null,
+          price: Number(v.price || v.salePrice || price || 0).toFixed(2),
+          compare_at_price: v.compare_at_price || v.mrp ? Number(v.compare_at_price || v.mrp).toFixed(2) : null,
+          available: v.available !== false && (v.stock === undefined || Number(v.stock) > 0),
+          sku: v.sku || null,
+          featured_image: v.featured_image || null,
+        }));
+      }
+
+      // Photos / Images update
+      if (Array.isArray(images) && images.length > 0) {
+        product.images = images.map((img, i) => ({
+          id: img.id || Date.now() + 10 + i,
+          src: typeof img === 'string' ? img : img.src,
+          alt: img.alt || null,
+          width: 1000,
+          height: 1000,
+        }));
+      } else if (photo) {
+        if (!product.images) product.images = [];
+        if (product.images.length > 0) {
+          product.images[0].src = photo;
+        } else {
+          product.images.push({ id: Date.now() + 10, src: photo, alt: null, width: 1000, height: 1000 });
+        }
+      }
+
+      product.updatedAt = new Date().toISOString();
+      saveMiikoreanCatalogData(catalogData);
 
       return res.status(200).json({
         success: true,
         message: 'Product updated successfully',
-        product: mapProduct(updatedProduct),
+        product: mapCatalogProduct(product),
       });
     }
 
@@ -1991,7 +2264,9 @@ export default async function handler(req, res) {
 
       // Default built-in admin credentials
       const ADMIN_EMAIL = 'admin@urvaa.in';
+      const MII_ADMIN_EMAIL = 'admin@miikorean.com';
       const DEFAULT_ADMIN_HASH = hashAdminPassword('urvaa@2026');
+      const MII_ADMIN_HASH = hashAdminPassword('miikorean@2026');
       const LEGACY_ADMIN_HASH = hashAdminPassword('julinacandles@2026');
       const providedPasswordHash = hashAdminPassword(password);
 
@@ -1999,12 +2274,12 @@ export default async function handler(req, res) {
       let adminData = {
         id: 'admin_001',
         email: cleanEmail,
-        name: 'Admin',
+        name: 'Mii Korean Admin',
       };
 
       // 1. Check built-in admin account
-      if ((cleanEmail === ADMIN_EMAIL.toLowerCase() || cleanEmail === 'admin@julinacandles.in') && 
-          (providedPasswordHash === DEFAULT_ADMIN_HASH || providedPasswordHash === LEGACY_ADMIN_HASH)) {
+      if ((cleanEmail === ADMIN_EMAIL.toLowerCase() || cleanEmail === MII_ADMIN_EMAIL.toLowerCase() || cleanEmail === 'admin@julinacandles.in') && 
+          (providedPasswordHash === DEFAULT_ADMIN_HASH || providedPasswordHash === MII_ADMIN_HASH || providedPasswordHash === LEGACY_ADMIN_HASH)) {
         isAdminValid = true;
       } else {
         // 2. Fallback: check Supabase users table for user with role='admin'
@@ -2061,8 +2336,8 @@ export default async function handler(req, res) {
           success: true,
           admin: {
             id: 'admin_001',
-            email: 'admin@urvaa.in',
-            name: 'Admin',
+            email: 'admin@miikorean.com',
+            name: 'Mii Korean Admin',
           }
         });
       }

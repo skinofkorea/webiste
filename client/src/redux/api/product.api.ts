@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import {
+    BrandsResponse,
     CategoriesResponse,
     DeleteProductRequest,
     FeatureProductRequest,
@@ -35,15 +36,29 @@ export const productApi = createApi({
             providesTags: ['Product']
         }),
         allProducts: builder.query<ProductResponse, ProductRequest>({
-            query: ({ page, limit, sortBy }) => {
-                const sortParam = sortBy ? `&sortBy=${JSON.stringify(sortBy)}` : '';
-                return `all?page=${page}&limit=${limit}${sortParam}`;
+            query: (req = {}) => {
+                const { page = 1, limit = 50, search, category, brand, stockFilter, featured, sortBy } = req;
+                const params = new URLSearchParams();
+                if (page) params.append('page', String(page));
+                if (limit) params.append('limit', String(limit));
+                if (search) params.append('search', search);
+                if (category && category !== 'All' && category !== 'all') params.append('category', category);
+                if (brand && brand !== 'All' && brand !== 'all') params.append('brand', brand);
+                if (stockFilter && stockFilter !== 'all' && stockFilter !== 'All') params.append('stockFilter', stockFilter);
+                if (featured) params.append('featured', featured);
+                if (sortBy) params.append('sortBy', typeof sortBy === 'object' ? JSON.stringify(sortBy) : sortBy);
+                return `all?${params.toString()}`;
             },
             providesTags: ['Product'],
         }),
 
-        categories: builder.query<CategoriesResponse, string>({
+        categories: builder.query<CategoriesResponse, void | string>({
             query: () => '/categories',
+            providesTags: ['Product']
+        }),
+
+        brands: builder.query<BrandsResponse, void | string>({
+            query: () => '/brands',
             providesTags: ['Product']
         }),
         searchProducts: builder.query<SearchProductResponse, SearchProductRequest>({
@@ -109,6 +124,7 @@ export const {
     useLatestProductsQuery,
     useAllProductsQuery,
     useCategoriesQuery,
+    useBrandsQuery,
     useSearchProductsQuery,
     useNewProductMutation,
     useProductDetailsQuery,

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
-import { FaBars, FaLock } from 'react-icons/fa';
+import { FaBars, FaLock, FaExternalLinkAlt } from 'react-icons/fa';
 import { usePageSEO } from '../../hooks/usePageSEO';
 
 // ─── Admin password (client-side gate) ───────────────────────────────────────
-const ADMIN_PASSWORD = 'urvaa@2026';
+const ADMIN_PASSWORD = 'miikorean@2026';
 const SESSION_KEY = 'vh_admin_auth';
 
 // ─── Password Gate ────────────────────────────────────────────────────────────
@@ -24,7 +24,13 @@ const AdminLoginGate: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input === ADMIN_PASSWORD || input === 'urvaa@Admin2026' || input === 'julinacandles@2026') {
+    if (
+      input === ADMIN_PASSWORD || 
+      input === 'urvaa@2026' || 
+      input === 'urvaa@Admin2026' || 
+      input === 'miikorean@Admin2026' || 
+      input === 'julinacandles@2026'
+    ) {
       sessionStorage.setItem(SESSION_KEY, '1');
       // For local/dev convenience: set a temporary admin token so API-protected admin
       // endpoints (which expect a 128-hex token) accept actions. This is only a
@@ -57,9 +63,9 @@ const AdminLoginGate: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
             <FaLock className="text-white text-lg" />
           </div>
           <img 
-            src="https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png" 
-            alt="URVA" 
-            className="h-9 w-auto mb-3 object-contain" 
+            src="https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418" 
+            alt="Mii Korean" 
+            className="h-10 w-auto mb-3 object-contain" 
           />
           <h1 className="text-lg font-bold text-neutral-900 tracking-tight">Admin Access</h1>
           <p className="text-xs text-neutral-500 mt-1 text-center">
@@ -121,8 +127,8 @@ const AdminLoginGate: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
 // ─── Admin Layout ─────────────────────────────────────────────────────────────
 const AdminLayout: React.FC = () => {
   usePageSEO({
-    title: 'Admin Dashboard | URVA',
-    description: 'URVA product and order management',
+    title: 'Admin Dashboard | Mii Korean',
+    description: 'Mii Korean Skincare product and order management',
     canonical: '/admin',
     noIndex: true,
   });
@@ -148,6 +154,39 @@ const AdminLayout: React.FC = () => {
     });
   };
 
+  const location = useLocation();
+
+  const getHeaderMeta = () => {
+    const path = location.pathname;
+    if (path.includes('/admin/featured')) {
+      return { section: 'Merchandising', title: 'Featured Showcase & Bestsellers' };
+    }
+    if (path.includes('/admin/products/new')) {
+      return { section: 'Catalog', title: 'Add New Skincare Product' };
+    }
+    if (path.match(/\/admin\/products\/[^/]+$/)) {
+      return { section: 'Catalog', title: 'Edit Skincare Product' };
+    }
+    if (path.includes('/admin/products')) {
+      return { section: 'Catalog', title: 'Products Inventory (445)' };
+    }
+    if (path.includes('/admin/orders')) {
+      return { section: 'Sales & Fulfillment', title: 'Customer Orders' };
+    }
+    if (path.includes('/admin/customers')) {
+      return { section: 'Sales', title: 'Customer Directory' };
+    }
+    if (path.includes('/admin/banners')) {
+      return { section: 'Marketing', title: 'Campaigns & Hero Banners' };
+    }
+    if (path.includes('/admin/coupons')) {
+      return { section: 'Marketing', title: 'Discount Coupons & Promos' };
+    }
+    return { section: 'Store Overview', title: 'Operations Dashboard' };
+  };
+
+  const { section, title } = getHeaderMeta();
+
   const [isAuthed, setIsAuthed] = useState(
     () => sessionStorage.getItem(SESSION_KEY) === '1'
   );
@@ -172,7 +211,7 @@ const AdminLayout: React.FC = () => {
       <div className={`flex-1 flex flex-col ${isCollapsed ? 'md:pl-20' : 'md:pl-64'} min-w-0 transition-all duration-300`}>
 
         {/* Sticky Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3.5 bg-white/90 backdrop-blur-md border-b border-neutral-200 shadow-2xs">
+        <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-md border-b border-neutral-200/90 shadow-2xs">
           <div className="flex items-center gap-3">
             {/* Mobile toggle */}
             <button
@@ -186,26 +225,50 @@ const AdminLayout: React.FC = () => {
             <button
               onClick={toggleCollapse}
               className="hidden md:flex p-2 rounded-lg hover:bg-neutral-100 text-neutral-700 hover:text-black transition-colors items-center justify-center"
-              title={isCollapsed ? 'Expand sidebar (currently collapsed)' : 'Collapse sidebar'}
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <FaBars className="text-base" />
             </button>
+
+            {/* Breadcrumb & Section Title */}
             <div>
-              <h2 className="text-base font-bold text-neutral-900 tracking-tight">Admin Console</h2>
-              <p className="text-[11px] text-neutral-500 hidden sm:block">Manage inventory, catalog, and customer orders</p>
+              <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 font-medium leading-none mb-1">
+                <span>Mii Korean</span>
+                <span>/</span>
+                <span>{section}</span>
+              </div>
+              <h2 className="text-sm font-bold text-neutral-900 tracking-tight leading-none">
+                {title}
+              </h2>
             </div>
           </div>
 
-          {/* Admin Badge + Logout */}
+          {/* Status & Actions */}
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <span className="block text-xs font-semibold text-neutral-900">Administrator</span>
-              <span className="block text-[10px] text-neutral-500 uppercase tracking-wider">Super Admin</span>
+            {/* Live Store Pill */}
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200 text-xs font-medium transition"
+              title="Open customer storefront in new tab"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Live Storefront (GBP £)</span>
+              <FaExternalLinkAlt className="text-[10px] text-neutral-400" />
+            </a>
+
+            {/* Admin Badge */}
+            <div className="text-right hidden md:block">
+              <span className="block text-xs font-semibold text-neutral-900 leading-tight">Admin Console</span>
+              <span className="block text-[10px] text-neutral-400 font-mono leading-tight">GBP Merchant</span>
             </div>
-            <div className="w-9 h-9 rounded-full bg-[#111111] flex items-center justify-center text-white text-xs font-bold shadow-xs border border-neutral-700">
-              <span>A</span>
+
+            <div className="w-8 h-8 rounded-full bg-[#111111] flex items-center justify-center text-white text-xs font-bold shadow-xs border border-neutral-700 shrink-0">
+              <span>MK</span>
             </div>
+
             <button
               onClick={() => {
                 sessionStorage.removeItem(SESSION_KEY);
@@ -214,7 +277,7 @@ const AdminLayout: React.FC = () => {
               title="Lock admin session"
               className="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
             >
-              <FaLock className="text-sm" />
+              <FaLock className="text-xs" />
             </button>
           </div>
         </header>

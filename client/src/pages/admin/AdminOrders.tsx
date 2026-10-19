@@ -404,7 +404,7 @@ const AdminOrders: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           {customer.phone && (
                             <a
-                              href={`https://wa.me/91${customer.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(customer.name)},%20regarding%20your%20URVA%20order%20%23${order._id ? order._id.slice(0, 8) : ''}...`}
+                              href={`https://wa.me/44${customer.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(customer.name)},%20regarding%20your%20Mii%20Korean%20order%20%23${order._id ? order._id.slice(0, 8) : ''}...`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-emerald-200 transition"

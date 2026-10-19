@@ -1,594 +1,925 @@
 import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   useDeleteProductMutation, 
   useFeatureProductMutation, 
   useProductDetailsQuery, 
-  useUpdateProductMutation 
+  useUpdateProductMutation,
+  useCategoriesQuery,
+  useBrandsQuery
 } from '../../redux/api/product.api';
 import { notify } from '../../utils/util';
 import SkeletonLoader from '../common/SkeletonLoader';
-import dayjs from 'dayjs';
 import BackButton from '../common/BackBtn';
 import { 
   FaTrash, 
   FaStar, 
+  FaRegStar,
   FaSave, 
-  FaBoxOpen, 
+  FaBoxes, 
   FaPlus, 
-  FaCopy, 
-  FaCheckCircle, 
-  FaTimesCircle, 
+  FaEye, 
   FaLayerGroup,
   FaUpload,
   FaExternalLinkAlt,
-  FaRupeeSign
+  FaImage,
+  FaTag,
+  FaTimes
 } from 'react-icons/fa';
 import { uploadToCloudinary } from '../../utils/cloudinary';
 
 export interface ProductVariantItem {
-  id: string;
-  name: string;
-  label: string;
-  salePrice: number;
-  price?: number;
-  mrp: number;
+  id: string | number;
+  title: string;
+  price: number;
+  compare_at_price?: number | null;
   stock: number;
-  inStock: boolean;
-  pack?: string;
+  available: boolean;
+  sku?: string;
+  featured_image?: string;
 }
-export type CandleVariantItem = ProductVariantItem;
+
+const DEFAULT_BRANDS = [
+  'COSRX',
+  'Beauty of Joseon',
+  'Anua',
+  'Laneige',
+  'Dr. Jart+',
+  'Dr. Althea',
+  'Haruharu Wonder',
+  'Innisfree',
+  'Isntree',
+  'Medicube',
+  'Round Lab',
+  'Torriden',
+  'Arencia',
+  'SKIN1004',
+  'Purito Seoul',
+  'I\'m From',
+  'iUNIK',
+  'Mary & May',
+  'Mii Korean Skincare'
+];
+
+const DEFAULT_CATEGORIES = [
+  'Cleanser',
+  'Toner',
+  'Serum & Essence',
+  'Moisturizer',
+  'Sunscreen',
+  'Mask',
+  'Eye Care',
+  'Lip Care',
+  'Exfoliator',
+  'Treatment',
+  'Skincare Sets & Bundles',
+  'Body & Hair',
+  'Makeup'
+];
+
+const SUGGESTED_TAGS = [
+  'Bestseller',
+  'Glass Skin',
+  'Hydrating',
+  'Viral TikTok',
+  'SPF50+',
+  'Centella',
+  'Niacinamide',
+  'Snail Mucin',
+  'Sensitive Skin',
+  'Vegan',
+  'Free Gift'
+];
 
 const AdminManageProduct: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
 
   const { data, isLoading, isError, refetch } = useProductDetailsQuery(productId!);
+  const { data: catData } = useCategoriesQuery();
+  const { data: brandData } = useBrandsQuery();
 
-  const { createdAt, updatedAt } = data?.product || {
-    createdAt: "",
-    updatedAt: "",
-  };
+  const categories = catData?.categories?.length ? catData.categories : DEFAULT_CATEGORIES;
+  const brands = brandData?.brands?.length ? brandData.brands : DEFAULT_BRANDS;
 
-  const [nameUpdate, setNameUpdate] = useState<string>('');
-  const [categoryUpdate, setCategoryUpdate] = useState<string>('');
-  const [priceUpdate, setPriceUpdate] = useState<number>(0);
-  const [stockUpdate, setStockUpdate] = useState<number>(0);
-  const [descriptionUpdate, setDescriptionUpdate] = useState<string>('');
-  const [photoUpdate, setPhotoUpdate] = useState<string>('');
-  const [isFeatured, setIsFeatured] = useState<boolean>(false);
-  const [variantsState, setVariantsState] = useState<CandleVariantItem[]>([]);
-
-  const [photoFileUpdate, setPhotoFileUpdate] = useState<File | null>(null);
-  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
+  // Form states
+  const [name, setName] = useState('');
+  const [handle, setHandle] = useState('');
+  const [vendor, setVendor] = useState('');
+  const [customVendor, setCustomVendor] = useState('');
+  const [category, setCategory] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+  const [price, setPrice] = useState<number | string>(0);
+  const [compareAtPrice, setCompareAtPrice] = useState<number | string>('');
+  const [stock, setStock] = useState<number | string>(100);
+  const [description, setDescription] = useState('');
+  const [bodyHtml, setBodyHtml] = useState('');
+  const [photo, setPhoto] = useState('');
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [newGalleryInput, setNewGalleryInput] = useState('');
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [variants, setVariants] = useState<ProductVariantItem[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
-  const [featureProduct, { isLoading: isFeaturing }] = useFeatureProductMutation();
+  const [featureProduct] = useFeatureProductMutation();
 
   // Populate state from product data
   useEffect(() => {
     if (data && data.product) {
       const p = data.product;
-      setNameUpdate(p.name || '');
-      setCategoryUpdate(p.category || 'Tribal Araku Products');
-      setPriceUpdate(p.price || 0);
-      setStockUpdate(p.stock ?? 0);
-      setDescriptionUpdate(p.description || '');
-      setPhotoUpdate(p.photo || 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png');
-      setIsFeatured(p.featured || false);
+      setName(p.name || '');
+      setHandle(p.handle || p._id || '');
+      
+      const v = p.vendor || 'Mii Korean';
+      if (brands.includes(v)) {
+        setVendor(v);
+        setCustomVendor('');
+      } else {
+        setVendor('__custom__');
+        setCustomVendor(v);
+      }
 
-      if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-        const normalized: CandleVariantItem[] = p.variants.map((v: any, index: number) => ({
-          id: v.id || `var_${index}_${Date.now()}`,
-          name: v.name || v.label || `Option ${index + 1}`,
-          label: v.label || v.name || `Option ${index + 1}`,
-          salePrice: Number(v.salePrice || v.price || p.price || 0),
-          price: Number(v.salePrice || v.price || p.price || 0),
-          mrp: Number(v.mrp || (v.salePrice ? Math.round(v.salePrice * 1.25) : p.price)),
-          stock: Number(v.stock ?? p.stock ?? 20),
-          inStock: v.inStock !== false,
-          pack: v.pack || v.label
+      const c = p.category || 'Skincare';
+      if (categories.includes(c)) {
+        setCategory(c);
+        setCustomCategory('');
+      } else {
+        setCategory('__custom__');
+        setCustomCategory(c);
+      }
+
+      setPrice(p.price !== undefined ? p.price : 0);
+      setCompareAtPrice(p.compareAtPrice ? p.compareAtPrice : '');
+      setStock(p.stock !== undefined ? p.stock : 100);
+      setDescription(p.description || '');
+      setBodyHtml(p.bodyHtml || '');
+      setPhoto(p.photo || '');
+      setIsFeatured(Boolean(p.featured));
+      setIsActive(p.isActive !== false);
+      setTags(p.tags || []);
+
+      // Gallery images
+      if (Array.isArray(p.images) && p.images.length > 0) {
+        const urls = p.images.map((img: any) => typeof img === 'string' ? img : img.src).filter(Boolean);
+        setGalleryUrls(urls);
+      } else {
+        setGalleryUrls(p.photo ? [p.photo] : []);
+      }
+
+      // Variants
+      if (Array.isArray(p.variants) && p.variants.length > 0) {
+        const mapped: ProductVariantItem[] = p.variants.map((v: any, index: number) => ({
+          id: v.id || `var_${index}`,
+          title: v.title || v.name || `Option ${index + 1}`,
+          price: Number(v.price || v.salePrice || p.price || 0),
+          compare_at_price: v.compare_at_price ? Number(v.compare_at_price) : null,
+          stock: Number(v.stock !== undefined ? v.stock : p.stock ?? 50),
+          available: v.available !== false,
+          sku: v.sku || '',
+          featured_image: v.featured_image || '',
         }));
-        setVariantsState(normalized);
+        setVariants(mapped);
       } else {
-        setVariantsState([]);
+        setVariants([]);
       }
     }
-  }, [data]);
+  }, [data, brands, categories]);
 
-  const changeImageHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    const file: File | undefined = e.target.files?.[0];
-    if (file) {
-      setPhotoFileUpdate(file);
-      const reader: FileReader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setPhotoUpdate(reader.result);
-        }
-      };
-    }
-  };
+  // Cloudinary image upload
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Variant operations
-  const addCustomVariant = () => {
-    const newVar: CandleVariantItem = {
-      id: Date.now().toString(),
-      name: `Size ${variantsState.length + 1}`,
-      label: `Size ${variantsState.length + 1}`,
-      salePrice: Number(priceUpdate || 199),
-      price: Number(priceUpdate || 199),
-      mrp: Number(priceUpdate ? Number(priceUpdate) * 1.25 : 249),
-      stock: 25,
-      inStock: true
-    };
-    setVariantsState(prev => [...prev, newVar]);
-  };
-
-  const duplicateVariant = (index: number) => {
-    const target = variantsState[index];
-    const duplicated: CandleVariantItem = {
-      ...target,
-      id: Date.now().toString(),
-      name: `${target.name} (Copy)`,
-      label: `${target.label} (Copy)`,
-    };
-    setVariantsState(prev => [...prev, duplicated]);
-    notify('Variant duplicated', 'success');
-  };
-
-  const updateVariant = (index: number, field: keyof CandleVariantItem, value: any) => {
-    setVariantsState(prev => {
-      const updated = [...prev];
-      const current = { ...updated[index] };
-      (current as any)[field] = value;
-      if (field === 'salePrice') {
-        current.price = Number(value);
-      }
-      if (field === 'name' && !current.label) {
-        current.label = value;
-      }
-      updated[index] = current;
-      return updated;
-    });
-  };
-
-  const removeVariant = (index: number) => {
-    setVariantsState(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Submit Handler
-  const submitHandler = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-
-    if (!data || !data.product._id) {
-      notify('Product not found', 'error');
-      return;
-    }
-
+    setUploadingImage(true);
     try {
-      let uploadedPhotoUrl = photoUpdate;
-      if (photoFileUpdate) {
-        setUploadingImage(true);
-        const { url } = await uploadToCloudinary(photoFileUpdate);
-        uploadedPhotoUrl = url;
-      }
-
-      const formattedVariants = variantsState.map(v => ({
-        id: v.id,
-        name: v.name.trim() || v.label.trim(),
-        label: v.label.trim() || v.name.trim(),
-        salePrice: Number(v.salePrice || 0),
-        price: Number(v.salePrice || 0),
-        mrp: Number(v.mrp || v.salePrice || 0),
-        stock: Number(v.stock || 0),
-        inStock: v.inStock !== false,
-        pack: v.pack || v.label
-      }));
-
-      let calculatedBasePrice = Number(priceUpdate || 0);
-      let calculatedTotalStock = Number(stockUpdate || 0);
-
-      if (formattedVariants.length > 0) {
-        const prices = formattedVariants.map(v => v.salePrice);
-        calculatedBasePrice = Math.min(...prices);
-        calculatedTotalStock = formattedVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      }
-
-      const updateBody: Record<string, any> = {
-        name: nameUpdate.trim(),
-        category: categoryUpdate,
-        price: calculatedBasePrice,
-        stock: calculatedTotalStock,
-        description: descriptionUpdate.trim(),
-        photo: uploadedPhotoUrl,
-        variants: formattedVariants
-      };
-
-      const res = await updateProduct({
-        productId: data.product._id,
-        formData: updateBody as any,
-      });
-
-      if (res.error) {
-        notify('Failed to update product', 'error');
+      const result = await uploadToCloudinary(file, 'miikorean/products');
+      if (result && result.url) {
+        setPhoto(result.url);
+        if (!galleryUrls.includes(result.url)) {
+          setGalleryUrls(prev => [result.url, ...prev]);
+        }
+        notify('Image uploaded successfully to Cloudinary!', 'success');
       } else {
-        notify('Product & variants updated successfully!', 'success');
-        refetch();
-        navigate('/admin/products');
+        notify('Failed to upload image', 'error');
       }
     } catch (err: any) {
-      notify(err?.message || 'Failed to update product', 'error');
+      notify(err?.message || 'Error uploading image', 'error');
     } finally {
       setUploadingImage(false);
     }
   };
 
-  const deleteHandler = async (): Promise<void> => {
-    if (!data || !data.product._id) return;
-    if (!window.confirm(`Are you sure you want to permanently delete "${nameUpdate}"?`)) return;
+  // Tag helper
+  const addTag = (tagToAdd: string) => {
+    const cleaned = tagToAdd.trim();
+    if (cleaned && !tags.includes(cleaned)) {
+      setTags(prev => [...prev, cleaned]);
+    }
+    setTagInput('');
+  };
 
-    const res = await deleteProduct({ productId: data.product._id });
-    if (res.error) {
-      notify('Failed to delete product', 'error');
-    } else {
-      notify('Product deleted successfully', 'success');
-      navigate('/admin/products');
+  const removeTag = (tagToRemove: string) => {
+    setTags(prev => prev.filter(t => t !== tagToRemove));
+  };
+
+  // Gallery helpers
+  const addGalleryImage = () => {
+    const trimmed = newGalleryInput.trim();
+    if (trimmed && !galleryUrls.includes(trimmed)) {
+      setGalleryUrls(prev => [...prev, trimmed]);
+      setNewGalleryInput('');
+      if (!photo) setPhoto(trimmed);
     }
   };
 
-  const handleFeatureToggle = async () => {
-    if (!data || !data.product._id) return;
+  const removeGalleryImage = (index: number) => {
+    setGalleryUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Variant helpers
+  const addVariantRow = () => {
+    const newVariant: ProductVariantItem = {
+      id: Date.now(),
+      title: `Option ${variants.length + 1}`,
+      price: Number(price || 15),
+      compare_at_price: compareAtPrice ? Number(compareAtPrice) : null,
+      stock: 50,
+      available: true,
+    };
+    setVariants(prev => [...prev, newVariant]);
+  };
+
+  const updateVariantRow = (index: number, field: keyof ProductVariantItem, value: any) => {
+    setVariants(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeVariantRow = (index: number) => {
+    setVariants(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Save changes
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!name.trim()) {
+      notify('Product title is required', 'error');
+      return;
+    }
+
+    const finalVendor = vendor === '__custom__' ? customVendor.trim() : vendor;
+    const finalCategory = category === '__custom__' ? customCategory.trim() : category;
+
+    const payload = {
+      name: name.trim(),
+      vendor: finalVendor || 'Mii Korean',
+      category: finalCategory || 'Skincare',
+      price: Number(price || 0),
+      compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
+      stock: Number(stock || 0),
+      description: description.trim(),
+      bodyHtml: bodyHtml.trim() || `<p>${description.trim()}</p>`,
+      photo,
+      images: galleryUrls.map(url => ({ src: url })),
+      tags,
+      featured: isFeatured,
+      isActive,
+      variants: variants.length > 0 ? variants : undefined,
+    };
+
     try {
-      await featureProduct({ productId: data.product._id }).unwrap();
-      setIsFeatured(!isFeatured);
-      notify('Product featured status updated', 'success');
-    } catch (error) {
-      notify('Failed to toggle featured status', 'error');
+      const res = await updateProduct({
+        productId: productId!,
+        formData: payload,
+      }).unwrap();
+
+      notify(res.message || 'Product updated successfully!', 'success');
+      refetch();
+    } catch (err: any) {
+      notify(err?.data?.message || 'Failed to update product', 'error');
     }
   };
 
-  if (isError) return <Navigate to="/404" />;
+  // Delete product
+  const handleDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete "${name}"?\n\nThis will permanently delete this product from your Mii Korean catalog.`)) {
+      try {
+        const res = await deleteProduct({ productId: productId! }).unwrap();
+        notify(res.message || 'Product deleted successfully', 'success');
+        navigate('/admin/products');
+      } catch (err: any) {
+        notify(err?.data?.message || 'Failed to delete product', 'error');
+      }
+    }
+  };
+
+  // Toggle Featured
+  const handleFeatureToggle = async () => {
+    try {
+      const res = await featureProduct({ productId: productId! }).unwrap();
+      setIsFeatured(!isFeatured);
+      notify(res.message || `Product ${!isFeatured ? 'featured' : 'unfeatured'} successfully`, 'success');
+    } catch (err: any) {
+      notify(err?.data?.message || 'Failed to update featured status', 'error');
+    }
+  };
 
   if (isLoading) {
     return (
-      <div className="bg-white p-6 rounded-3xl border border-[#efe9db] shadow-sm max-w-4xl mx-auto">
-        <SkeletonLoader rows={8} />
+      <div className="space-y-6 max-w-6xl mx-auto p-4">
+        <SkeletonLoader rows={8} columns={4} height={50} />
+      </div>
+    );
+  }
+
+  if (isError || !data?.product) {
+    return (
+      <div className="bg-white p-10 rounded-3xl border border-neutral-200 shadow-sm text-center max-w-md mx-auto my-16">
+        <p className="text-rose-600 font-bold mb-2">Product Not Found</p>
+        <p className="text-xs text-neutral-500 mb-5">
+          The requested product could not be found in the Mii Korean catalog.
+        </p>
+        <button
+          onClick={() => navigate('/admin/products')}
+          className="inline-flex items-center text-white bg-neutral-900 hover:bg-neutral-800 px-5 py-2.5 rounded-xl font-semibold text-xs shadow-sm"
+        >
+          Return to Products Catalog
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      <div className="flex items-center justify-between">
-        <BackButton fallback="/admin/products" />
-        <a
-          href={`/product/${data?.product?._id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs font-semibold text-neutral-900 hover:text-[#E57A22] flex items-center gap-1.5 transition"
-        >
-          <span>View on Live Store</span> <FaExternalLinkAlt className="text-[10px]" />
-        </a>
+    <div className="space-y-6 font-sans max-w-6xl mx-auto pb-16">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <BackButton />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-neutral-900 tracking-tight truncate max-w-md">
+                Edit: {name}
+              </h1>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+              }`}>
+                {isActive ? 'Active' : 'Hidden'}
+              </span>
+            </div>
+            <p className="text-xs text-neutral-500 mt-0.5 font-mono">
+              Handle: {handle || productId}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <a
+            href={`/product/${handle || productId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 bg-white hover:bg-neutral-50 text-neutral-800 font-semibold px-4 py-2.5 rounded-xl text-xs transition border border-neutral-200 shadow-2xs"
+            title="Open product on storefront in new tab"
+          >
+            <FaExternalLinkAlt className="text-xs text-neutral-500" /> Preview on Store
+          </a>
+          <button
+            onClick={handleFeatureToggle}
+            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold transition border shadow-2xs ${
+              isFeatured 
+                ? 'bg-amber-50 text-amber-800 border-amber-300' 
+                : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200'
+            }`}
+          >
+            {isFeatured ? <FaStar className="text-amber-500" /> : <FaRegStar className="text-neutral-400" />}
+            {isFeatured ? 'Featured Item' : 'Mark as Featured'}
+          </button>
+          <button
+            onClick={handleUpdate}
+            disabled={isUpdating}
+            className="flex items-center gap-2 bg-[#111111] hover:bg-neutral-800 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-semibold text-xs transition shadow-xs"
+          >
+            <FaSave /> {isUpdating ? 'Saving Changes...' : 'Save Updates'}
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white p-6 md:p-8 rounded-3xl border border-neutral-200 shadow-2xs space-y-6">
-        <div className="flex flex-col md:flex-row gap-8">
-          
-          {/* Left Column: Image preview & Meta */}
-          <div className="w-full md:w-1/3 space-y-4">
-            <div className="relative group rounded-2xl border border-neutral-200 bg-neutral-50 overflow-hidden aspect-square flex items-center justify-center shadow-2xs">
-              <img 
-                src={photoUpdate} 
-                alt={nameUpdate} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png';
-                }}
-              />
-              <div className="absolute top-3 right-3">
-                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                  isFeatured ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                }`}>
-                  {isFeatured ? '★ Featured' : 'Standard'}
-                </span>
-              </div>
-            </div>
+      <form onSubmit={handleUpdate} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Form Fields */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Card 1: Essential Information */}
+          <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-2xs space-y-4">
+            <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3 flex items-center gap-2">
+              <FaLayerGroup className="text-neutral-500 text-xs" /> General Information
+            </h2>
 
-            {/* Replace Image Button */}
             <div>
-              <label className="cursor-pointer block text-center bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-200 px-4 py-2.5 rounded-xl font-semibold text-xs transition shadow-2xs">
-                <FaUpload className="inline mr-2" /> Upload New Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={changeImageHandler}
-                  className="hidden"
-                />
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Product Title <span className="text-rose-500">*</span>
               </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Product Title..."
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 text-neutral-900 font-semibold"
+                required
+              />
             </div>
 
-            {/* Metadata Card */}
-            <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80 space-y-2.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-neutral-400 font-semibold uppercase text-[10px]">Created</span>
-                <span className="text-neutral-700 font-medium">{dayjs(createdAt).format('DD MMM YYYY')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400 font-semibold uppercase text-[10px]">Last Update</span>
-                <span className="text-neutral-700 font-medium">{dayjs(updatedAt).format('DD MMM YYYY')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400 font-semibold uppercase text-[10px]">Total Stock</span>
-                <span className={`font-semibold ${stockUpdate <= 0 ? 'text-rose-600' : stockUpdate < 10 ? 'text-amber-600' : 'text-emerald-700'}`}>
-                  {stockUpdate <= 0 ? 'Out of Stock' : `${stockUpdate} units`}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400 font-semibold uppercase text-[10px]">Variants</span>
-                <span className="font-semibold text-neutral-900">{variantsState.length} active sizes</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Form fields */}
-          <div className="flex-1 space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
-                <FaBoxOpen className="text-neutral-700" /> Edit Product & Multi-Sizes
-              </h2>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Update product information, regional category, options, and pricing.
-              </p>
-            </div>
-
-            <form onSubmit={submitHandler} className="space-y-5">
-              {/* Product Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-neutral-600 tracking-wider">Product Name</label>
-                <input
-                  type="text"
-                  value={nameUpdate}
-                  onChange={(e) => setNameUpdate(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 bg-neutral-50 focus:bg-white font-medium text-neutral-900"
-                  required
-                />
-              </div>
-
-              {/* Category & Base Price */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase text-neutral-600 tracking-wider">Category</label>
-                  <select
-                    value={categoryUpdate}
-                    onChange={(e) => setCategoryUpdate(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 bg-neutral-50 focus:bg-white font-medium text-neutral-900"
-                    required
-                  >
-                    <option value="Tribal Araku Products">Tribal Araku Products</option>
-                    <option value="Mana Godavari Foods">Mana Godavari Foods</option>
-                    <option value="Eco-Friendly Products">Eco-Friendly Products</option>
-                    <option value="Swadesi Handlooms">Swadesi Handlooms</option>
-                    <option value="Kadiyam Plants">Kadiyam Plants</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase text-neutral-600 tracking-wider">
-                    Base Price (₹) {variantsState.length > 0 && <span className="text-[10px] text-neutral-400 font-normal lowercase">(auto lowest variant)</span>}
-                  </label>
-                  <div className="relative">
-                    <FaRupeeSign className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs" />
-                    <input
-                      type="number"
-                      value={priceUpdate}
-                      onChange={(e) => setPriceUpdate(parseFloat(e.target.value) || 0)}
-                      disabled={variantsState.length > 0}
-                      className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 bg-neutral-50 focus:bg-white font-medium text-neutral-900 disabled:opacity-50"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-neutral-600 tracking-wider">Description</label>
-                <textarea
-                  value={descriptionUpdate}
-                  onChange={(e) => setDescriptionUpdate(e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 bg-neutral-50 focus:bg-white text-neutral-900 resize-none"
-                />
-              </div>
-
-              {/* ═══════════════════════════════════════════════════════════════ */}
-              {/* SIZE & MULTI-VARIANTS MANAGER */}
-              {/* ═══════════════════════════════════════════════════════════════ */}
-              <div className="border border-neutral-200 bg-neutral-50/50 p-5 rounded-3xl space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-200/60 pb-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
-                      <FaLayerGroup className="text-neutral-500" /> Size & Pack Variants ({variantsState.length})
-                    </h3>
-                    <p className="text-[11px] text-neutral-500 mt-0.5">
-                      Configure multi-sizes, weights, or packaging options with distinct prices.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={addCustomVariant}
-                    className="bg-[#111111] hover:bg-neutral-800 text-white px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <FaPlus className="text-[10px]" /> Add Size
-                  </button>
-                </div>
-
-                {/* Variants List */}
-                {variantsState.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-neutral-200 p-6 text-center space-y-1">
-                    <p className="text-xs font-semibold text-neutral-700">No multi-sizes configured.</p>
-                    <p className="text-[10px] text-neutral-400">
-                      Product is selling at single base price ₹{priceUpdate}. Click "+ Add Size" to offer choices.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {variantsState.map((v, idx) => {
-                      const discount = v.mrp > v.salePrice 
-                        ? Math.round(((v.mrp - v.salePrice) / v.mrp) * 100) 
-                        : 0;
-
-                      return (
-                        <div
-                          key={v.id || idx}
-                          className={`bg-white rounded-2xl border p-3.5 transition-all shadow-2xs space-y-3 ${
-                            !v.inStock ? 'border-rose-200 bg-rose-50/20' : 'border-neutral-200'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between flex-wrap gap-2 border-b border-neutral-100 pb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-neutral-100 text-neutral-700 font-bold flex items-center justify-center text-[10px]">
-                                {idx + 1}
-                              </span>
-                              <span className="font-semibold text-neutral-900 text-xs">
-                                {v.name || `Variant ${idx + 1}`}
-                              </span>
-                              {discount > 0 && (
-                                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                                  {discount}% OFF
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {/* In Stock toggle */}
-                              <button
-                                type="button"
-                                onClick={() => updateVariant(idx, 'inStock', !v.inStock)}
-                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition flex items-center gap-1 ${
-                                  v.inStock
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                    : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                                }`}
-                              >
-                                {v.inStock ? <FaCheckCircle /> : <FaTimesCircle />}
-                                <span>{v.inStock ? 'In Stock' : 'Out of Stock'}</span>
-                              </button>
-
-                              {/* Duplicate */}
-                              <button
-                                type="button"
-                                onClick={() => duplicateVariant(idx)}
-                                className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition"
-                                title="Duplicate"
-                              >
-                                <FaCopy className="text-xs" />
-                              </button>
-
-                              {/* Delete */}
-                              <button
-                                type="button"
-                                onClick={() => removeVariant(idx)}
-                                className="p-1 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition"
-                                title="Remove"
-                              >
-                                <FaTrash className="text-xs" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Variant Inputs */}
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-                            <div className="col-span-2 sm:col-span-1 space-y-1">
-                              <label className="text-[10px] font-semibold uppercase text-neutral-400">Size / Pack Label</label>
-                              <input
-                                type="text"
-                                value={v.name}
-                                onChange={(e) => updateVariant(idx, 'name', e.target.value)}
-                                className="w-full px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium focus:outline-none focus:border-neutral-900 bg-neutral-50 focus:bg-white text-neutral-900"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-semibold uppercase text-neutral-400">Selling (₹)</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={v.salePrice}
-                                onChange={(e) => updateVariant(idx, 'salePrice', parseFloat(e.target.value) || 0)}
-                                className="w-full px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-bold text-neutral-900 focus:outline-none focus:border-neutral-900 bg-neutral-50 focus:bg-white"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-semibold uppercase text-neutral-400">MRP (₹)</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={v.mrp}
-                                onChange={(e) => updateVariant(idx, 'mrp', parseFloat(e.target.value) || 0)}
-                                className="w-full px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-600 focus:outline-none focus:border-neutral-900 bg-neutral-50 focus:bg-white"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-semibold uppercase text-neutral-400">Stock Qty</label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={v.stock}
-                                onChange={(e) => updateVariant(idx, 'stock', parseInt(e.target.value) || 0)}
-                                className="w-full px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-800 focus:outline-none focus:border-neutral-900 bg-neutral-50 focus:bg-white"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Brand */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Brand (K-Beauty Vendor) <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={vendor}
+                  onChange={(e) => setVendor(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs font-medium bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                >
+                  {brands.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                  <option value="__custom__">+ Custom Brand...</option>
+                </select>
+                {vendor === '__custom__' && (
+                  <input
+                    type="text"
+                    value={customVendor}
+                    onChange={(e) => setCustomVendor(e.target.value)}
+                    placeholder="Enter brand name..."
+                    className="mt-2 w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-white"
+                  />
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-neutral-100">
-                <button
-                  type="button"
-                  onClick={deleteHandler}
-                  disabled={isDeleting}
-                  className="inline-flex items-center gap-1.5 text-rose-600 border border-rose-200 hover:bg-rose-50 px-4 py-2.5 rounded-xl font-semibold text-xs transition disabled:opacity-50"
+              {/* Category */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Skincare Category <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs font-medium bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
                 >
-                  <FaTrash /> {isDeleting ? 'Deleting...' : 'Delete Product'}
-                </button>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                  <option value="__custom__">+ Custom Category...</option>
+                </select>
+                {category === '__custom__' && (
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Enter category name..."
+                    className="mt-2 w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-white"
+                  />
+                )}
+              </div>
+            </div>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleFeatureToggle}
-                    disabled={isFeaturing}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs border transition ${
-                      isFeatured 
-                        ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' 
-                        : 'text-neutral-700 border-neutral-200 hover:bg-neutral-50'
-                    }`}
-                  >
-                    <FaStar /> {isFeaturing ? 'Updating...' : isFeatured ? 'Featured Product' : 'Spotlight Product'}
-                  </button>
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Summary / Excerpt Description
+              </label>
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Short summary of key benefits and skin type recommendations..."
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs focus:outline-none focus:ring-2 focus:ring-neutral-900/10 text-neutral-900"
+              />
+            </div>
 
-                  <button
-                    type="submit"
-                    disabled={isUpdating || uploadingImage}
-                    className="inline-flex items-center gap-1.5 bg-[#111111] hover:bg-neutral-800 text-white px-6 py-2.5 rounded-xl font-semibold text-xs transition shadow-xs disabled:opacity-50"
-                  >
-                    <FaSave /> {uploadingImage ? 'Uploading Image...' : isUpdating ? 'Saving Changes...' : 'Save All Changes'}
-                  </button>
+            {/* Body HTML */}
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Complete Product Details (HTML description, key ingredients & routine)
+              </label>
+              <textarea
+                rows={6}
+                value={bodyHtml}
+                onChange={(e) => setBodyHtml(e.target.value)}
+                placeholder="Full HTML description from product packaging..."
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-neutral-900/10 text-neutral-900"
+              />
+            </div>
+          </div>
+
+          {/* Card 2: Pricing & Stock */}
+          <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-2xs space-y-4">
+            <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3 flex items-center gap-2">
+              <FaBoxes className="text-neutral-500 text-xs" /> Pricing & Inventory (GBP £)
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Sale Price (£ GBP) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-neutral-500 text-sm">£</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                    required
+                  />
                 </div>
               </div>
-            </form>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Compare At / MSRP (£ GBP)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-neutral-400 text-sm">£</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={compareAtPrice}
+                    onChange={(e) => setCompareAtPrice(e.target.value)}
+                    placeholder="None"
+                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Available Stock Level <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Sizing & Packaging Variants */}
+            <div className="pt-3 border-t border-neutral-100">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-xs font-bold text-neutral-900">Product Variants</h3>
+                  <p className="text-[11px] text-neutral-500">Volume, size options, or packaging combinations</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addVariantRow}
+                  className="px-3 py-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-xs font-semibold text-neutral-800 transition flex items-center gap-1.5"
+                >
+                  <FaPlus className="text-[10px]" /> Add Option
+                </button>
+              </div>
+
+              {variants.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-neutral-200">
+                  <table className="min-w-full divide-y divide-neutral-100 text-xs text-left">
+                    <thead className="bg-neutral-50 text-[10px] font-semibold text-neutral-500 uppercase">
+                      <tr>
+                        <th className="px-3 py-2">Option Name</th>
+                        <th className="px-3 py-2">Price (£)</th>
+                        <th className="px-3 py-2">Stock</th>
+                        <th className="px-3 py-2 text-right">Remove</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100 bg-white">
+                      {variants.map((v, i) => (
+                        <tr key={v.id}>
+                          <td className="px-3 py-2">
+                            <input
+                              type="text"
+                              value={v.title}
+                              onChange={(e) => updateVariantRow(i, 'title', e.target.value)}
+                              className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs w-full text-neutral-900"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">£</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={v.price}
+                                onChange={(e) => updateVariantRow(i, 'price', Number(e.target.value))}
+                                className="pl-5 pr-2 py-1.5 rounded-lg border border-neutral-200 text-xs w-28 text-neutral-900 font-semibold"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              value={v.stock}
+                              onChange={(e) => updateVariantRow(i, 'stock', Number(e.target.value))}
+                              className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs w-20 text-neutral-900 font-semibold"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => removeVariantRow(i)}
+                              className="text-rose-500 hover:text-rose-700 p-1 rounded"
+                            >
+                              <FaTrash className="text-xs" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-neutral-400 italic">No custom variants. This product uses its default single size.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: Images & Media */}
+          <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-2xs space-y-4">
+            <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3 flex items-center gap-2">
+              <FaImage className="text-neutral-500 text-xs" /> Product Imagery
+            </h2>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Primary Product Image URL
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={photo}
+                  onChange={(e) => setPhoto(e.target.value)}
+                  placeholder="Primary product image URL..."
+                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-neutral-200 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                />
+                <label className="cursor-pointer bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-semibold px-4 py-2.5 rounded-xl text-xs transition border border-neutral-200 flex items-center gap-1.5 shrink-0">
+                  <FaUpload className="text-xs" />
+                  <span>{uploadingImage ? 'Uploading...' : 'Upload File'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={uploadingImage}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Additional gallery URLs */}
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Gallery Photos
+              </label>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="url"
+                  value={newGalleryInput}
+                  onChange={(e) => setNewGalleryInput(e.target.value)}
+                  placeholder="Paste additional image URL..."
+                  className="flex-1 px-3.5 py-2 rounded-xl border border-neutral-200 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                />
+                <button
+                  type="button"
+                  onClick={addGalleryImage}
+                  className="px-4 py-2 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition shrink-0"
+                >
+                  Add
+                </button>
+              </div>
+
+              {galleryUrls.length > 0 && (
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5 pt-2">
+                  {galleryUrls.map((url, index) => (
+                    <div 
+                      key={index} 
+                      className={`relative group rounded-xl overflow-hidden border aspect-square bg-neutral-50 ${
+                        url === photo ? 'ring-2 ring-amber-500 border-amber-500' : 'border-neutral-200'
+                      }`}
+                    >
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeGalleryImage(index)}
+                        className="absolute top-1 right-1 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <FaTimes className="text-[10px]" />
+                      </button>
+                      {url !== photo && (
+                        <button
+                          type="button"
+                          onClick={() => setPhoto(url)}
+                          className="absolute bottom-1 left-1 right-1 bg-black/70 hover:bg-neutral-900 text-[9px] text-white py-0.5 rounded opacity-0 group-hover:opacity-100 transition text-center"
+                        >
+                          Set Main
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* Right Column: Publishing, Tags & Live Preview */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Card: Status & Featured */}
+          <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-2xs space-y-4">
+            <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3">
+              Visibility & Flags
+            </h2>
+
+            <div className="space-y-3">
+              <label className="flex items-center justify-between p-3 rounded-2xl border border-neutral-200 hover:bg-neutral-50 cursor-pointer transition">
+                <div className="flex items-center gap-2.5">
+                  <FaEye className={isActive ? 'text-emerald-600' : 'text-neutral-400'} />
+                  <div>
+                    <span className="text-xs font-bold text-neutral-900 block">Active on Storefront</span>
+                    <span className="text-[10px] text-neutral-500">Visible for UK customers</span>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="w-4 h-4 rounded text-neutral-900 focus:ring-0 accent-neutral-900"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-3 rounded-2xl border border-neutral-200 hover:bg-neutral-50 cursor-pointer transition">
+                <div className="flex items-center gap-2.5">
+                  <FaStar className={isFeatured ? 'text-amber-500' : 'text-neutral-400'} />
+                  <div>
+                    <span className="text-xs font-bold text-neutral-900 block">Featured on Homepage</span>
+                    <span className="text-[10px] text-neutral-500">Show in featured collections</span>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isFeatured}
+                  onChange={(e) => setIsFeatured(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-500 focus:ring-0 accent-amber-500"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Card: Tags */}
+          <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-2xs space-y-4">
+            <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3 flex items-center gap-2">
+              <FaTag className="text-neutral-500 text-xs" /> Product Tags
+            </h2>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTag(tagInput);
+                  }
+                }}
+                placeholder="Add tag and press Enter..."
+                className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+              />
+              <button
+                type="button"
+                onClick={() => addTag(tagInput)}
+                className="px-3 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold transition"
+              >
+                Add
+              </button>
+            </div>
+
+            {/* Selected Tags */}
+            <div className="flex flex-wrap gap-1.5 min-h-6">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-neutral-100 text-neutral-800 border border-neutral-200"
+                >
+                  {t}
+                  <button type="button" onClick={() => removeTag(t)} className="text-neutral-400 hover:text-neutral-700">
+                    <FaTimes className="text-[9px]" />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            {/* Suggested Tags */}
+            <div className="pt-2 border-t border-neutral-100">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-2">
+                Quick Suggestions:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {SUGGESTED_TAGS.filter(s => !tags.includes(s)).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => addTag(st)}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border border-neutral-200 transition"
+                  >
+                    + {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Live Storefront Card Preview */}
+          <div className="bg-white p-5 rounded-3xl border border-neutral-200 shadow-2xs space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+              Live Customer Preview
+            </h2>
+
+            <div className="border border-neutral-200 rounded-2xl p-3 bg-neutral-50/50">
+              <div className="aspect-square rounded-xl overflow-hidden bg-neutral-100 mb-3 border border-neutral-200 relative">
+                {photo ? (
+                  <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-neutral-400 text-xs">
+                    <FaImage size={24} className="mb-1" />
+                    <span>No Image</span>
+                  </div>
+                )}
+                {isFeatured && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-400 text-neutral-900 shadow-xs flex items-center gap-1">
+                    <FaStar size={8} /> Featured
+                  </span>
+                )}
+              </div>
+
+              <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">
+                {vendor === '__custom__' ? customVendor || 'Brand' : vendor}
+              </span>
+              <h3 className="font-bold text-neutral-900 text-xs mt-0.5 truncate">
+                {name || 'Product Title'}
+              </h3>
+              <p className="text-[11px] text-neutral-500 line-clamp-2 mt-1">
+                {description || 'Product description excerpt...'}
+              </p>
+
+              <div className="mt-3 flex items-center justify-between pt-2 border-t border-neutral-200/60">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-neutral-900">
+                    £{Number(price || 0).toFixed(2)}
+                  </span>
+                  {compareAtPrice && Number(compareAtPrice) > Number(price) && (
+                    <span className="text-xs text-neutral-400 line-through">
+                      £{Number(compareAtPrice).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                  Number(stock || 0) > 0 ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'
+                }`}>
+                  {Number(stock || 0) > 0 ? `In Stock (${stock})` : 'Out of Stock'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Danger Zone: Delete Product */}
+          <div className="bg-rose-50/40 p-6 rounded-3xl border border-rose-200 shadow-2xs space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-rose-700">
+              Danger Zone
+            </h2>
+            <p className="text-xs text-neutral-600">
+              Permanently remove this product from the Mii Korean catalog. This action cannot be undone.
+            </p>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition flex items-center justify-center gap-2 shadow-xs"
+            >
+              <FaTrash size={11} /> {isDeleting ? 'Deleting...' : 'Delete Product from Catalog'}
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 };

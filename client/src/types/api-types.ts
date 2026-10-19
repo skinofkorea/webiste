@@ -51,12 +51,19 @@ export interface UserReducerIntialState {
 export interface Product {
     name: string;
     _id: string;
+    id?: number | string;
+    handle?: string;
+    vendor?: string;
     category: string;
     stock: number;
     photo: string;
+    images?: Array<{ id?: number | string; src: string; alt?: string | null }>;
     price: number;
+    compareAtPrice?: number | null;
     currency?: string;
     description: string;
+    bodyHtml?: string;
+    tags?: string[];
     featured: boolean;
     isActive?: boolean;
     variants?: any[];
@@ -70,8 +77,17 @@ export interface ProductResponse {
     totalProducts: number;
     totalPages: number;
     currentPage: number;
+    totalActive?: number;
+    totalLowStock?: number;
+    totalOutOfStock?: number;
+    categories?: string[];
+    brands?: string[];
 }
 
+export type BrandsResponse = {
+    success: boolean;
+    brands: string[];
+}
 
 interface SortBy {
     id: string;
@@ -79,9 +95,14 @@ interface SortBy {
 }
 
 export interface ProductRequest {
-    page: number;
-    limit: number;
-    sortBy?: SortBy;
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    brand?: string;
+    stockFilter?: string;
+    featured?: string;
+    sortBy?: string | SortBy;
 }
 
 // New Product

@@ -66,12 +66,12 @@ const AdminLogin: React.FC = () => {
             <FaLock className="text-white text-2xl" />
           </div>
           <img 
-            src="https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png" 
-            alt="URVA" 
+            src="https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418" 
+            alt="Mii Korean" 
             className="h-10 w-auto mx-auto mb-3 object-contain" 
           />
           <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Admin Console</h1>
-          <p className="text-xs text-neutral-500 mt-1">URVA Merchant Management System</p>
+          <p className="text-xs text-neutral-500 mt-1">Mii Korean Skincare Management Console</p>
         </div>
 
         {/* Login Card */}
@@ -92,7 +92,7 @@ const AdminLogin: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900 outline-none transition text-sm text-neutral-900 bg-neutral-50 focus:bg-white"
-                  placeholder="admin@urvaa.in"
+                  placeholder="admin@miikorean.com"
                   required
                   autoComplete="email"
                 />
@@ -153,7 +153,7 @@ const AdminLogin: React.FC = () => {
           <div className="mt-6 p-3.5 bg-neutral-50 border border-neutral-200 rounded-xl">
             <p className="text-xs text-neutral-600 text-center flex items-center justify-center gap-1.5">
               <FaLock className="text-neutral-400 text-[10px]" />
-              Secure administrative access for URVA staff only.
+              Secure administrative access for Mii Korean staff only.
             </p>
           </div>
         </div>
