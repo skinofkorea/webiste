@@ -3,10 +3,10 @@
  */
 export const uploadToCloudinary = async (
   fileOrBase64: File | string,
-  folder: string = 'urvaa/banners'
+  folder: string = 'miikorean/products'
 ): Promise<{ url: string; publicId: string }> => {
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'idi6k3ue';
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'urvaa_unsigned'; // Or direct unsigned upload
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'rftuypfl';
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'miikorean_unsigned'; // Or direct unsigned upload
 
   const formData = new FormData();
   formData.append('file', fileOrBase64);

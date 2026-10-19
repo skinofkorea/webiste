@@ -8,15 +8,42 @@ import { createClient } from '@supabase/supabase-js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function loadEnvFromFile() {
+  try {
+    const envPaths = [
+      path.resolve(__dirname, '../.env'),
+      path.resolve(__dirname, '../client/.env'),
+      path.resolve(__dirname, '.env'),
+    ];
+    for (const p of envPaths) {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf8');
+        for (const line of content.split(/\r?\n/)) {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+            const idx = trimmed.indexOf('=');
+            const key = trimmed.slice(0, idx).trim();
+            const val = trimmed.slice(idx + 1).trim();
+            if (key) process.env[key] = val;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+loadEnvFromFile();
+
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://wwdkdaeeoyjwvaslcwgv.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGtkYWVlb3lqd3Zhc2xjd2d2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjQwODY2OCwiZXhwIjoyMTA3OTg0NjY4fQ.xPvcoG_dQ0NevQ9svxxbsDxyeC5IiWiNEy26qVgZ0DQ';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Cloudinary Configuration
 const CLOUDINARY_CONFIG = {
-  get CLOUD_NAME() { return process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME || 'idi6k3ue'; },
-  get API_KEY() { return process.env.CLOUDINARY_API_KEY || process.env.VITE_CLOUDINARY_API_KEY || '954494813469653'; },
-  get API_SECRET() { return process.env.CLOUDINARY_API_SECRET || 'jg0BD8eQYLH5knMr5E7NSb1LW7Q'; },
+  get CLOUD_NAME() { loadEnvFromFile(); return process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME || 'rftuypfl'; },
+  get API_KEY() { loadEnvFromFile(); return process.env.CLOUDINARY_API_KEY || process.env.VITE_CLOUDINARY_API_KEY || '783311347359328'; },
+  get API_SECRET() { loadEnvFromFile(); return process.env.CLOUDINARY_API_SECRET || '0Ge1sHOAF3ZojG2O7oj8TFwWMMw'; },
 };
 
 // Simple password hashing and comparison (use bcrypt in production)
@@ -685,7 +712,7 @@ export default async function handler(req, res) {
     // ─── CLOUDINARY: Generate Signature for Uploads ───
     if (url.includes('/api/v1/cloudinary/sign') || url.includes('/api/v1/upload/sign')) {
       const timestamp = Math.round(new Date().getTime() / 1000);
-      const folder = req.body?.folder || 'urvaa/products';
+      const folder = req.body?.folder || 'miikorean/products';
       const paramsToSign = `folder=${folder}&timestamp=${timestamp}${CLOUDINARY_CONFIG.API_SECRET}`;
       const signature = crypto.createHash('sha1').update(paramsToSign).digest('hex');
 
@@ -1646,16 +1673,30 @@ export default async function handler(req, res) {
       const { data: ordersData } = await supabase.from('orders').select('shipping_info');
 
       const customerMap = new Map();
-      (usersData || []).forEach(u => customerMap.set(u.email || u.id, u));
+      (usersData || []).forEach(u => customerMap.set(u.email || u.id, {
+        _id: u.id,
+        id: u.id,
+        name: u.name || (u.email ? u.email.split('@')[0] : 'Customer'),
+        email: u.email || '',
+        phone: u.phone || '',
+        role: u.role || 'user',
+        photoURL: u.avatar_url || '',
+        location: 'United Kingdom',
+        createdAt: u.created_at || new Date().toISOString(),
+      }));
 
       (ordersData || []).forEach(o => {
         const info = typeof o.shipping_info === 'string' ? JSON.parse(o.shipping_info) : o.shipping_info;
         if (info && info.email && !customerMap.has(info.email)) {
           customerMap.set(info.email, {
             _id: 'cust_' + (info.phone || Date.now()),
+            id: 'cust_' + (info.phone || Date.now()),
             name: info.name || 'Guest Customer',
             email: info.email,
-            gender: 'Customer',
+            phone: info.phone || '',
+            role: 'user',
+            location: [info.city, info.country || 'UK'].filter(Boolean).join(', ') || 'United Kingdom',
+            createdAt: o.created_at || new Date().toISOString(),
           });
         }
       });

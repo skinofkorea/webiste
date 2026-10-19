@@ -166,7 +166,7 @@ const AdminCustomers: React.FC = () => {
               <tbody className="divide-y divide-neutral-100 bg-white">
                 {filteredUsers.map((user) => {
                   const phone = (user as any).phone || '';
-                  const location = (user as any).location || 'India';
+                  const location = (user as any).location || 'United Kingdom';
                   const initials = (user.name || 'C').slice(0, 2).toUpperCase();
 
                   const uAny = user as any;
