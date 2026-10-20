@@ -5,7 +5,7 @@ import { FaBars, FaLock, FaExternalLinkAlt } from 'react-icons/fa';
 import { usePageSEO } from '../../hooks/usePageSEO';
 
 // ─── Admin password (client-side gate) ───────────────────────────────────────
-const ADMIN_PASSWORD = 'miikorean@2026';
+const ADMIN_PASSWORD = 'skinofkorea@2026';
 const SESSION_KEY = 'vh_admin_auth';
 
 // ─── Password Gate ────────────────────────────────────────────────────────────
@@ -26,10 +26,7 @@ const AdminLoginGate: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
     e.preventDefault();
     if (
       input === ADMIN_PASSWORD || 
-      input === 'urvaa@2026' || 
-      input === 'urvaa@Admin2026' || 
-      input === 'miikorean@Admin2026' || 
-      input === 'julinacandles@2026'
+      input === 'skinofkorea@Admin2026'
     ) {
       sessionStorage.setItem(SESSION_KEY, '1');
       // For local/dev convenience: set a temporary admin token so API-protected admin
@@ -63,8 +60,8 @@ const AdminLoginGate: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
             <FaLock className="text-white text-lg" />
           </div>
           <img 
-            src="https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418" 
-            alt="Mii Korean" 
+            src="/images/skin-of-korea-logo.png" 
+            alt="Skin of Korea" 
             className="h-10 w-auto mb-3 object-contain" 
           />
           <h1 className="text-lg font-bold text-neutral-900 tracking-tight">Admin Access</h1>
@@ -127,8 +124,8 @@ const AdminLoginGate: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
 // ─── Admin Layout ─────────────────────────────────────────────────────────────
 const AdminLayout: React.FC = () => {
   usePageSEO({
-    title: 'Admin Dashboard | Mii Korean',
-    description: 'Mii Korean Skincare product and order management',
+    title: 'Admin Dashboard | Skin of Korea',
+    description: 'Skin of Korea product and order management',
     canonical: '/admin',
     noIndex: true,
   });
@@ -168,7 +165,7 @@ const AdminLayout: React.FC = () => {
       return { section: 'Catalog', title: 'Edit Skincare Product' };
     }
     if (path.includes('/admin/products')) {
-      return { section: 'Catalog', title: 'Products Inventory (445)' };
+      return { section: 'Catalog', title: 'Products Catalog & Inventory' };
     }
     if (path.includes('/admin/orders')) {
       return { section: 'Sales & Fulfillment', title: 'Customer Orders' };
@@ -234,7 +231,7 @@ const AdminLayout: React.FC = () => {
             {/* Breadcrumb & Section Title */}
             <div>
               <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 font-medium leading-none mb-1">
-                <span>Mii Korean</span>
+                <span>Skin of Korea</span>
                 <span>/</span>
                 <span>{section}</span>
               </div>
@@ -265,8 +262,8 @@ const AdminLayout: React.FC = () => {
               <span className="block text-[10px] text-neutral-400 font-mono leading-tight">GBP Merchant</span>
             </div>
 
-            <div className="w-8 h-8 rounded-full bg-[#111111] flex items-center justify-center text-white text-xs font-bold shadow-xs border border-neutral-700 shrink-0">
-              <span>MK</span>
+            <div className="w-8 h-8 rounded-full bg-[#111111] flex items-center justify-center text-amber-300 text-xs font-bold shadow-xs border border-neutral-700 shrink-0">
+              <span>SK</span>
             </div>
 
             <button

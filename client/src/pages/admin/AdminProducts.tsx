@@ -21,7 +21,7 @@ import {
   FaFilter,
   FaTimes
 } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { 
   useAllProductsQuery, 
@@ -34,17 +34,38 @@ import { notify } from '../../utils/util';
 
 const AdminProducts: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  // Search & Filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedBrand, setSelectedBrand] = useState('All');
-  const [selectedStockFilter, setSelectedStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'disabled'>('all');
-  const [featuredOnly, setFeaturedOnly] = useState<boolean>(false);
+  // Search & Filter states initialized from URL params
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') || '');
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'All');
+  const [selectedBrand, setSelectedBrand] = useState(() => searchParams.get('brand') || 'All');
+  const [selectedStockFilter, setSelectedStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'disabled'>(
+    () => (searchParams.get('stockFilter') as any) || 'all'
+  );
+  const [featuredOnly, setFeaturedOnly] = useState<boolean>(() => searchParams.get('featured') === 'true');
   const [sortBy, setSortBy] = useState<'newest' | 'price-asc' | 'price-desc' | 'name-asc'>('newest');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+
+  // Sync state if URL query params change
+  useEffect(() => {
+    const brandParam = searchParams.get('brand');
+    const catParam = searchParams.get('category');
+    const stockParam = searchParams.get('stockFilter');
+    const featuredParam = searchParams.get('featured');
+    const qParam = searchParams.get('search');
+
+    if (brandParam) setSelectedBrand(brandParam);
+    if (catParam) setSelectedCategory(catParam);
+    if (stockParam) setSelectedStockFilter(stockParam as any);
+    if (featuredParam !== null) setFeaturedOnly(featuredParam === 'true');
+    if (qParam !== null) {
+      setSearchQuery(qParam);
+      setDebouncedSearch(qParam);
+    }
+  }, [searchParams]);
 
   // Debounce search
   useEffect(() => {
@@ -91,7 +112,7 @@ const AdminProducts: React.FC = () => {
   }, [isError, error]);
 
   const handleDelete = async (productId: string, productName: string) => {
-    if (window.confirm(`Are you sure you want to delete "${productName}"?\n\nThis will permanently remove it from the Mii Korean catalog.`)) {
+    if (window.confirm(`Are you sure you want to delete "${productName}"?\n\nThis will permanently remove it from the Skin of Korea catalog.`)) {
       try {
         const res = await deleteProduct({ productId }).unwrap();
         notify(res.message || 'Product deleted successfully', 'success');
@@ -134,7 +155,7 @@ const AdminProducts: React.FC = () => {
       ID: p.id || p._id,
       Handle: p.handle || p._id,
       Title: p.name,
-      Brand: p.vendor || 'Mii Korean',
+      Brand: p.vendor || 'Skin of Korea',
       Category: p.category,
       Price_GBP: Number(p.price || 0).toFixed(2),
       Compare_At_Price_GBP: p.compareAtPrice ? Number(p.compareAtPrice).toFixed(2) : '',
@@ -148,7 +169,7 @@ const AdminProducts: React.FC = () => {
     const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `miikorean-products-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `skinofkorea-products-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     notify(`Exported ${exportData.length} products to CSV`, 'success');
   };
@@ -448,7 +469,7 @@ const AdminProducts: React.FC = () => {
             <p className="text-xs text-neutral-500 max-w-sm mx-auto mb-4">
               {hasActiveFilters 
                 ? 'No catalog items match your search or filter criteria. Try clearing some filters.'
-                : 'The Mii Korean product catalog is currently loading or empty.'}
+                : 'The Skin of Korea product catalog is currently loading or empty.'}
             </p>
             {hasActiveFilters && (
               <button
@@ -489,11 +510,11 @@ const AdminProducts: React.FC = () => {
                         <div className="flex items-center gap-3.5">
                           <div className="relative w-12 h-12 shrink-0 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50 shadow-2xs">
                             <img
-                              src={p.photo || 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418'}
+                              src={p.photo || '/images/skin-of-korea-logo.png'}
                               alt={p.name}
                               className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-200"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+                                (e.target as HTMLImageElement).src = '/images/skin-of-korea-logo.png';
                               }}
                             />
                           </div>
@@ -518,7 +539,7 @@ const AdminProducts: React.FC = () => {
                       {/* Brand (Vendor) */}
                       <td className="px-4 py-3">
                         <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-neutral-100 text-neutral-800 border border-neutral-200 whitespace-nowrap">
-                          {p.vendor || 'Mii Korean'}
+                          {p.vendor || 'Skin of Korea'}
                         </span>
                       </td>
 
@@ -626,10 +647,25 @@ const AdminProducts: React.FC = () => {
         {/* Pagination Bar */}
         {totalProducts > 0 && (
           <div className="p-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 bg-neutral-50/50">
-            <div>
-              Showing <span className="font-semibold text-neutral-900">{Math.min((page - 1) * pageSize + 1, totalProducts)}</span> to{' '}
-              <span className="font-semibold text-neutral-900">{Math.min(page * pageSize, totalProducts)}</span> of{' '}
-              <span className="font-semibold text-neutral-900">{totalProducts}</span> products
+            <div className="flex items-center gap-3 flex-wrap">
+              <div>
+                Showing <span className="font-semibold text-neutral-900">{Math.min((page - 1) * pageSize + 1, totalProducts)}</span> to{' '}
+                <span className="font-semibold text-neutral-900">{Math.min(page * pageSize, totalProducts)}</span> of{' '}
+                <span className="font-semibold text-neutral-900">{totalProducts}</span> products
+              </div>
+              <div className="flex items-center gap-1.5 border-l border-neutral-200 pl-3">
+                <span className="text-[11px] text-neutral-400">Show:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="px-2 py-0.5 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-800"
+                >
+                  <option value={25}>25 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                  <option value={250}>250 / page</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5">

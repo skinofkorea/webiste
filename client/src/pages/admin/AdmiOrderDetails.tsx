@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import BackButton from '../../components/common/BackBtn';
 import { useDeleteOrderMutation, useOrderDetailsQuery, useUpdateOrderStatusMutation } from '../../redux/api/order.api';
 import { notify } from '../../utils/util';
-import { FaTrash, FaTimes } from 'react-icons/fa';
-import { formatStorePrice } from '../../data/miikoreanStorefront';
+import { FaTrash } from 'react-icons/fa';
+import { formatStorePrice } from '../../data/storefront';
 
 const AdminOrderDetails: React.FC = () => {
     const { orderId } = useParams<{ orderId: string }>();
@@ -13,74 +13,14 @@ const AdminOrderDetails: React.FC = () => {
     const [deleteOrder] = useDeleteOrderMutation();
     const navigate = useNavigate();
 
-    // Tracking Modal State
-    const [showTrackingModal, setShowTrackingModal] = useState(false);
-    const [selectedStatus, setSelectedStatus] = useState('');
-    const [awbNumber, setAwbNumber] = useState('');
-    const [senderMobile, setSenderMobile] = useState('');
-    const [receiverMobile, setReceiverMobile] = useState(data?.order?.shippingInfo?.phone || '');
-
-    const handleStatusChange = (status: string) => {
-        // If status is "Shipped", show tracking modal
-        if (status === 'Shipped') {
-            setSelectedStatus(status);
-            setReceiverMobile(data?.order?.shippingInfo?.phone || '');
-            setShowTrackingModal(true);
-        } else {
-            // For other statuses, update directly
-            handleStatusUpdate(status);
-        }
-    };
-
-    const handleStatusUpdate = async (status: string, trackingData?: { awbNumber: string; senderMobile: string; receiverMobile: string }) => {
+    const handleStatusChange = async (status: string) => {
         try {
-            const updatePayload: any = { 
-                orderId: orderId!, 
-                status 
-            };
-            
-            // Add tracking data if provided
-            if (trackingData) {
-                updatePayload.awbNumber = trackingData.awbNumber;
-                updatePayload.senderMobile = trackingData.senderMobile;
-                updatePayload.receiverMobile = trackingData.receiverMobile;
-            }
-
-            await updateOrderStatus(updatePayload).unwrap();
+            await updateOrderStatus({ orderId: orderId!, status }).unwrap();
             notify('Order status updated successfully', 'success');
             refetch();
         } catch (error) {
             notify('Failed to update order status', 'error');
         }
-    };
-
-    const handleTrackingSubmit = () => {
-        // Validate inputs
-        if (!awbNumber.trim()) {
-            notify('Please enter AWB Number', 'error');
-            return;
-        }
-        if (!senderMobile.trim() || senderMobile.length !== 10) {
-            notify('Please enter valid 10-digit Sender Mobile Number', 'error');
-            return;
-        }
-        if (!receiverMobile.trim() || receiverMobile.length !== 10) {
-            notify('Please enter valid 10-digit Receiver Mobile Number', 'error');
-            return;
-        }
-
-        // Update status with tracking data
-        handleStatusUpdate(selectedStatus, {
-            awbNumber: awbNumber.trim(),
-            senderMobile: senderMobile.trim(),
-            receiverMobile: receiverMobile.trim()
-        });
-
-        // Close modal and reset
-        setShowTrackingModal(false);
-        setAwbNumber('');
-        setSenderMobile('');
-        setReceiverMobile('');
     };
 
     const handleDeleteOrder = async () => {
@@ -214,8 +154,8 @@ const AdminOrderDetails: React.FC = () => {
                                     <tr key={item.productId} className="hover:bg-neutral-50/70 transition-colors">
                                         <td className="px-5 py-3.5 font-semibold text-neutral-900">{item.name}</td>
                                         <td className="px-5 py-3.5 text-neutral-700 font-medium">{item.quantity} units</td>
-                                        <td className="px-5 py-3.5 text-neutral-500">{formatStorePrice(item.price, data?.order?.currency || 'INR')}</td>
-                                        <td className="px-5 py-3.5 font-bold text-neutral-900">{formatStorePrice(item.quantity * item.price, data?.order?.currency || 'INR')}</td>
+                                        <td className="px-5 py-3.5 text-neutral-500">{formatStorePrice(item.price, data?.order?.currency || 'GBP')}</td>
+                                        <td className="px-5 py-3.5 font-bold text-neutral-900">{formatStorePrice(item.quantity * item.price, data?.order?.currency || 'GBP')}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -245,118 +185,7 @@ const AdminOrderDetails: React.FC = () => {
                         <FaTrash size={11} /> Delete Order Record
                     </button>
                 </div>
-
-                {/* Display Tracking Info if Available */}
-                {data?.order?.awbNumber && (
-                    <div className="mt-4 p-4 rounded-2xl bg-neutral-50 border border-neutral-200">
-                        <h4 className="text-xs font-bold text-neutral-900 mb-2">📦 Shipment Tracking Details</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                            <div>
-                                <span className="text-neutral-500 font-medium text-[11px]">AWB Number:</span>
-                                <p className="text-neutral-900 font-mono font-semibold mt-0.5">{data.order.awbNumber}</p>
-                            </div>
-                            <div>
-                                <span className="text-neutral-500 font-medium text-[11px]">Sender Mobile:</span>
-                                <p className="text-neutral-900 font-mono font-semibold mt-0.5">{data.order.senderMobile}</p>
-                            </div>
-                            <div>
-                                <span className="text-neutral-500 font-medium text-[11px]">Receiver Mobile:</span>
-                                <p className="text-neutral-900 font-mono font-semibold mt-0.5">{data.order.receiverMobile}</p>
-                            </div>
-                        </div>
-                        {data.order.trackingUrl && (
-                            <a 
-                                href={data.order.trackingUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="inline-block mt-3 text-neutral-900 hover:underline text-xs font-semibold"
-                            >
-                                🔗 Track Shipment Online
-                            </a>
-                        )}
-                    </div>
-                )}
             </div>
-
-            {/* Tracking Modal */}
-            {showTrackingModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-sans">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-neutral-200">
-                        <div className="flex items-center justify-between mb-4 border-b border-neutral-100 pb-3">
-                            <h3 className="text-base font-bold text-neutral-900">📦 Enter Shipment Tracking Details</h3>
-                            <button
-                                onClick={() => setShowTrackingModal(false)}
-                                className="text-neutral-400 hover:text-neutral-600 transition"
-                            >
-                                <FaTimes size={16} />
-                            </button>
-                        </div>
-                        
-                        <p className="text-xs text-neutral-500 mb-4">
-                            Provide the carrier AWB number and mobile numbers to enable live shipment tracking.
-                        </p>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-semibold text-neutral-600 mb-1 uppercase tracking-wider">
-                                    AWB Number *
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g., 79732207"
-                                    value={awbNumber}
-                                    onChange={(e) => setAwbNumber(e.target.value)}
-                                    className="w-full border border-neutral-200 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900/10 focus:outline-none rounded-xl p-2.5 text-xs font-mono bg-neutral-50 focus:bg-white text-neutral-900"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-[10px] font-semibold text-neutral-600 mb-1 uppercase tracking-wider">
-                                    Sender Mobile Number *
-                                </label>
-                                <input
-                                    type="tel"
-                                    placeholder="10-digit mobile number"
-                                    maxLength={10}
-                                    value={senderMobile}
-                                    onChange={(e) => setSenderMobile(e.target.value.replace(/\D/g, ''))}
-                                    className="w-full border border-neutral-200 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900/10 focus:outline-none rounded-xl p-2.5 text-xs font-mono bg-neutral-50 focus:bg-white text-neutral-900"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-[10px] font-semibold text-neutral-600 mb-1 uppercase tracking-wider">
-                                    Receiver Mobile Number *
-                                </label>
-                                <input
-                                    type="tel"
-                                    placeholder="10-digit mobile number"
-                                    maxLength={10}
-                                    value={receiverMobile}
-                                    onChange={(e) => setReceiverMobile(e.target.value.replace(/\D/g, ''))}
-                                    className="w-full border border-neutral-200 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900/10 focus:outline-none rounded-xl p-2.5 text-xs font-mono bg-neutral-50 focus:bg-white text-neutral-900"
-                                />
-                                <p className="text-[10px] text-neutral-400 mt-1">Pre-filled from order details</p>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => setShowTrackingModal(false)}
-                                className="flex-1 border border-neutral-200 text-neutral-700 hover:bg-neutral-50 px-4 py-2.5 rounded-xl font-semibold text-xs transition"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleTrackingSubmit}
-                                className="flex-1 bg-[#111111] text-white hover:bg-neutral-800 px-4 py-2.5 rounded-xl font-semibold text-xs transition shadow-xs"
-                            >
-                                Save & Dispatch
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

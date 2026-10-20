@@ -5,7 +5,7 @@ import { addToCart, incrementCartItem, decrementCartItem } from '../redux/reduce
 import { RootState } from '../redux/store';
 import { Product } from '../types/api-types';
 import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
-import { formatStorePrice } from '../data/miikoreanStorefront';
+import { formatStorePrice } from '../data/storefront';
 import { toast } from 'react-toastify';
 
 interface ProductCardProps {
@@ -54,46 +54,56 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, tone = 'default', ho
 
   const formattedPrice = priceLabel || formatStorePrice(displayPrice, product.currency);
   const isOutOfStock = product.stock <= 0;
-  const cartItem = cartItems.find((item) => item.productId === product._id);
+  const cartItem = cartItems.find((item) =>
+    item.productId === product._id || item.productId.startsWith(`${product._id}__`)
+  );
   const isPeachTone = tone === 'peach';
 
   const handleAddToCart = (event: React.MouseEvent) => {
     event.stopPropagation();
     if (isOutOfStock) return;
 
-    if (hasVariants) {
-      navigate(`/product/${product._id}`);
-      return;
-    }
-
-    const currentCurrency = cartItems[0]?.currency || 'INR';
-    if (cartItems.length > 0 && currentCurrency !== (product.currency || 'INR')) {
+    const currentCurrency = cartItems[0]?.currency || 'GBP';
+    if (cartItems.length > 0 && currentCurrency !== (product.currency || 'GBP')) {
       toast.error('Your basket contains items in a different currency. Clear it before adding this product.');
       navigate('/cart');
       return;
     }
 
+    const availableVariants = Array.isArray(product.variants)
+      ? product.variants.filter((variant: any) => variant.available !== false)
+      : [];
+    const selectedVariant = availableVariants[0] || product.variants?.[0];
+    const option = selectedVariant?.title && selectedVariant.title !== 'Default Title' ? ` — ${selectedVariant.title}` : '';
+    const variantId = selectedVariant ? `${product._id}__${selectedVariant.id}` : product._id;
+    const finalPrice = Number(selectedVariant?.price ?? displayPrice);
+
     dispatch(
       addToCart({
-        productId: product._id,
-        name: product.name,
-        price: displayPrice,
-        currency: product.currency || 'INR',
+        productId: variantId,
+        name: `${product.name}${option}`,
+        price: finalPrice,
+        currency: product.currency || 'GBP',
         quantity: 1,
-        stock: product.stock,
-        photo: product.photo,
+        stock: product.stock || 9999,
+        photo: selectedVariant?.featured_image || product.photo,
       })
     );
+    toast.success('Added to your bag');
   };
 
   const handleIncrement = (event: React.MouseEvent) => {
     event.stopPropagation();
-    dispatch(incrementCartItem(product._id));
+    if (cartItem) {
+      dispatch(incrementCartItem(cartItem.productId));
+    }
   };
 
   const handleDecrement = (event: React.MouseEvent) => {
     event.stopPropagation();
-    dispatch(decrementCartItem(product._id));
+    if (cartItem) {
+      dispatch(decrementCartItem(cartItem.productId));
+    }
   };
 
   const handleGoToCart = (event: React.MouseEvent) => {
@@ -102,14 +112,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, tone = 'default', ho
   };
 
   const getPhotoUrl = (photoUrl?: string) => {
-    if (!photoUrl) return 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+    if (!photoUrl) return '/images/skin-of-korea-logo.png';
     return optimizeProductImageUrl(photoUrl, 400);
   };
 
   return (
     <div
       onClick={() => navigate(`/product/${product._id}`)}
-      className={`miikorean-product-card rounded-2xl p-3 sm:p-4 transition-all duration-300 flex flex-col justify-between h-full group relative cursor-pointer font-sans ${
+      className={`skinofkorea-product-card rounded-2xl p-3 sm:p-4 transition-all duration-300 flex flex-col justify-between h-full group relative cursor-pointer font-sans ${
         isPeachTone
           ? 'border border-[#ead3bd] bg-gradient-to-b from-[#fffaf4] to-[#f8e9db] shadow-[0_8px_24px_rgba(116,71,39,0.07)] hover:-translate-y-1 hover:border-[#c98b58] hover:shadow-[0_14px_32px_rgba(116,71,39,0.15)]'
           : 'border border-neutral-200 bg-white hover:border-neutral-500 hover:shadow-md'
@@ -162,9 +172,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, tone = 'default', ho
           </p>
         )}
 
-        {/* Action Button & More Details */}
+        {/* Action Button */}
         <div className="mt-auto pt-2">
-          {!hasVariants && cartItem ? (
+          {cartItem ? (
             <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-1.5">
                 <button
@@ -206,24 +216,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, tone = 'default', ho
                     : 'bg-neutral-950 hover:bg-neutral-800 text-white shadow-xs'
               }`}
             >
-              <span>
-                {isOutOfStock
-                  ? 'Out of Stock'
-                  : hasVariants && !homepage
-                    ? 'Select Options'
-                    : homepage
-                      ? 'Add to Bag'
-                      : 'Add to Cart'}
-              </span>
+              <span>{isOutOfStock ? 'Out of Stock' : 'Add to Cart'}</span>
             </button>
-          )}
-
-          {!homepage && (
-            <div className="mt-3 text-center">
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-neutral-800 transition-colors group-hover:text-black group-hover:underline underline-offset-4">
-                More details &rarr;
-              </span>
-            </div>
           )}
         </div>
       </div>

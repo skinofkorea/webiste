@@ -1,6 +1,6 @@
 import { Product } from '../types/api-types';
 
-export interface MiikoreanImage {
+export interface StoreImage {
   id: number;
   src: string;
   alt: string | null;
@@ -8,7 +8,7 @@ export interface MiikoreanImage {
   height: number | null;
 }
 
-export interface MiikoreanVariant {
+export interface StoreVariant {
   id: number;
   title: string;
   option1: string | null;
@@ -21,18 +21,18 @@ export interface MiikoreanVariant {
   featured_image: string | null;
 }
 
-export interface MiikoreanProduct extends Product {
+export interface StoreProduct extends Product {
   id: number;
   handle: string;
   vendor: string;
   tags: string[];
   bodyHtml: string;
   currency: 'GBP';
-  images: MiikoreanImage[];
-  variants: MiikoreanVariant[];
+  images: StoreImage[];
+  variants: StoreVariant[];
 }
 
-export interface MiikoreanCollection {
+export interface StoreCollection {
   id: number;
   title: string;
   handle: string;
@@ -42,7 +42,7 @@ export interface MiikoreanCollection {
   product_handles?: string[];
 }
 
-export interface MiikoreanPage {
+export interface StorePage {
   id: number;
   title: string;
   handle: string;
@@ -50,15 +50,15 @@ export interface MiikoreanPage {
   published_at: string;
 }
 
-export interface MiikoreanStorefrontData {
+export interface StorefrontData {
   source: string;
   exported_at: string;
   product_count: number;
   collection_count: number;
   page_count: number;
-  products: MiikoreanProduct[];
-  collections: MiikoreanCollection[];
-  pages: MiikoreanPage[];
+  products: StoreProduct[];
+  collections: StoreCollection[];
+  pages: StorePage[];
 }
 
 interface ShopifyProduct {
@@ -70,22 +70,22 @@ interface ShopifyProduct {
   product_type: string;
   published_at: string;
   tags: string[];
-  variants: MiikoreanVariant[];
-  images: MiikoreanImage[];
+  variants: StoreVariant[];
+  images: StoreImage[];
 }
 
-interface ShopifyStorefrontFile extends Omit<MiikoreanStorefrontData, 'products'> {
+interface ShopifyStorefrontFile extends Omit<StorefrontData, 'products'> {
   products: ShopifyProduct[];
 }
 
-let storefrontRequest: Promise<MiikoreanStorefrontData> | undefined;
+let storefrontRequest: Promise<StorefrontData> | undefined;
 
 function toPlainText(html: string): string {
   const document = new DOMParser().parseFromString(html, 'text/html');
   return (document.body.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
-function toProduct(product: ShopifyProduct): MiikoreanProduct {
+export function toProduct(product: ShopifyProduct): StoreProduct {
   const variants = product.variants || [];
   const availableVariants = variants.filter((variant) => variant.available);
   const pricedVariants = (availableVariants.length > 0 ? availableVariants : variants)
@@ -110,7 +110,7 @@ function toProduct(product: ShopifyProduct): MiikoreanProduct {
     isActive: true,
     createdAt: product.published_at,
     updatedAt: product.published_at,
-    vendor: product.vendor || 'Mii Korean',
+    vendor: product.vendor || 'Skin of Korea',
     tags: product.tags || [],
     currency: 'GBP',
     images,
@@ -118,23 +118,45 @@ function toProduct(product: ShopifyProduct): MiikoreanProduct {
   };
 }
 
-export function loadMiikoreanStorefront(): Promise<MiikoreanStorefrontData> {
+export function loadStorefront(): Promise<StorefrontData> {
   if (!storefrontRequest) {
-    storefrontRequest = fetch('/miikorean-storefront.json')
+    storefrontRequest = fetch('/api/v1/storefront')
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error(`Could not load the Miikorean catalog (${response.status}).`);
+          throw new Error(`Could not load the Skin of Korea catalog (${response.status}).`);
         }
         return response.json() as Promise<ShopifyStorefrontFile>;
       })
       .then((data) => {
         if (!Array.isArray(data.products) || !Array.isArray(data.collections) || !Array.isArray(data.pages)) {
-          throw new Error('The Miikorean catalog file is missing products, collections, or pages.');
+          throw new Error('The Skin of Korea catalog file is missing products, collections, or pages.');
         }
 
         return {
           ...data,
-          products: data.products.map(toProduct),
+          products: data.products.map((p: any) => ({
+            ...p,
+            _id: p.handle || p._id || String(p.id),
+            id: p.id,
+            name: p.name || p.title,
+            handle: p.handle || String(p.id),
+            category: p.category || p.product_type || 'Skincare',
+            stock: Number(p.stock !== undefined ? p.stock : 9999),
+            photo: p.photo || p.images?.[0]?.src || '',
+            price: Number(p.price || 0),
+            compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
+            description: p.description || '',
+            bodyHtml: p.bodyHtml || p.body_html || '',
+            featured: Boolean(p.featured),
+            isActive: p.isActive !== false,
+            createdAt: p.createdAt || p.published_at || new Date().toISOString(),
+            updatedAt: p.updatedAt || p.published_at || new Date().toISOString(),
+            vendor: p.vendor || 'Skin of Korea',
+            tags: p.tags || [],
+            currency: 'GBP' as const,
+            images: p.images || [],
+            variants: p.variants || [],
+          })),
         };
       })
       .catch((error: unknown) => {
@@ -146,7 +168,7 @@ export function loadMiikoreanStorefront(): Promise<MiikoreanStorefrontData> {
   return storefrontRequest;
 }
 
-export function findMiikoreanProduct(products: MiikoreanProduct[], id: string): MiikoreanProduct | undefined {
+export function findStoreProduct(products: StoreProduct[], id: string): StoreProduct | undefined {
   return products.find((product) => product.handle === id || product._id === id || String(product.id) === id);
 }
 
@@ -184,9 +206,9 @@ export function sanitizeStoreHtml(html: string): string {
 }
 
 export function getCollectionProducts(
-  products: MiikoreanProduct[],
-  collection: MiikoreanCollection,
-): MiikoreanProduct[] {
+  products: StoreProduct[],
+  collection: StoreCollection,
+): StoreProduct[] {
   if (Array.isArray(collection.product_handles)) {
     const productHandles = new Set(collection.product_handles);
     return products.filter((product) => productHandles.has(product.handle));

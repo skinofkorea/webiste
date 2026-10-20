@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
-const API_URL = import.meta.env.VITE_SERVER || 'https://urvaa.in';
+const API_URL = import.meta.env.VITE_SERVER || '';
 
 export interface AdminLoginRequest {
   email: string;

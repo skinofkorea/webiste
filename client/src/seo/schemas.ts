@@ -1,9 +1,9 @@
 /**
- * Centralised JSON-LD schema builders for Mii Korean.
+ * Centralised JSON-LD schema builders for Skin of Korea.
  * Every function returns a plain object ready for JSON.stringify.
  */
 
-const BASE = 'https://www.miikorean.com';
+const BASE = 'https://www.skinofkorea.com';
 const ORG_ID = `${BASE}/#organization`;
 
 // BREADCRUMB
@@ -78,13 +78,13 @@ export function productSchema({
     sku: sku || `JCM-${Math.random().toString(36).substr(2, 6)}`,
     brand: {
       '@type': 'Brand',
-      name: 'Mii Korean',
+      name: 'Skin of Korea',
     },
     manufacturer: {
       '@id': ORG_ID,
     },
     category: 'Korean Skincare',
-    keywords: 'Korean skincare, beauty, Mii Korean',
+    keywords: 'Korean skincare, beauty, Skin of Korea',
     offers: {
       '@type': 'Offer',
       url: `${BASE}${url}`,
@@ -122,7 +122,7 @@ export function itemListSchema(
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'Mii Korean Products',
+    name: 'Skin of Korea Products',
     url: `${BASE}/products`,
     itemListElement: items.map((item) => ({
       '@type': 'ListItem',

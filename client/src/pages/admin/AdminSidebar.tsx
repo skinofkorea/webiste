@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   FaBox, 
   FaClipboardList, 
-  FaMoneyCheckAlt, 
+  FaTicketAlt, 
   FaTachometerAlt, 
   FaTimes, 
   FaUsers, 
@@ -12,9 +12,11 @@ import {
   FaImage,
   FaChevronLeft,
   FaChevronRight,
-  FaPlus
+  FaCreditCard
 } from 'react-icons/fa';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useAllProductsQuery } from '../../redux/api/product.api';
+import { useGetStatsQuery } from '../../redux/api/stats.api';
 
 interface AdminSidebarProps {
   isSidebarOpen: boolean;
@@ -31,6 +33,14 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  // Dynamic counts for live badges
+  const { data: productsData } = useAllProductsQuery({ page: 1, limit: 10 });
+  const { data: statsData } = useGetStatsQuery();
+
+  const totalProducts = productsData?.totalProducts ?? 0;
+  const totalOrders = statsData?.stats?.totalOrders ?? 0;
+  const totalCoupons = statsData?.stats?.totalCoupons ?? 0;
+
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     sessionStorage.removeItem('vh_admin_auth');
@@ -39,31 +49,66 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const navSections = [
     {
-      title: 'Store Overview',
+      title: 'Store',
       items: [
-        { to: '/admin/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
+        { 
+          to: '/admin/dashboard', 
+          label: 'Dashboard', 
+          icon: FaTachometerAlt 
+        },
       ]
     },
     {
-      title: 'Catalog & Merchandising',
+      title: 'Catalog',
       items: [
-        { to: '/admin/products', label: 'Products (445)', icon: FaBox },
-        { to: '/admin/featured', label: 'Featured & Bestsellers', icon: FaStar },
-        { to: '/admin/products/new', label: 'Add Skincare Product', icon: FaPlus },
+        { 
+          to: '/admin/products', 
+          label: 'Products', 
+          icon: FaBox,
+          badge: totalProducts > 0 ? totalProducts : undefined,
+        },
+        { 
+          to: '/admin/featured', 
+          label: 'Featured Products', 
+          icon: FaStar,
+        },
       ]
     },
     {
-      title: 'Orders & Sales',
+      title: 'Sales',
       items: [
-        { to: '/admin/orders', label: 'Customer Orders', icon: FaClipboardList },
-        { to: '/admin/customers', label: 'Customer Directory', icon: FaUsers },
+        { 
+          to: '/admin/orders', 
+          label: 'Orders', 
+          icon: FaClipboardList,
+          badge: totalOrders > 0 ? totalOrders : undefined,
+        },
+        { 
+          to: '/admin/customers', 
+          label: 'Customers', 
+          icon: FaUsers 
+        },
+        { 
+          to: '/admin/transactions', 
+          label: 'Transactions', 
+          icon: FaCreditCard 
+        },
       ]
     },
     {
-      title: 'Marketing & Storefront',
+      title: 'Marketing',
       items: [
-        { to: '/admin/banners', label: 'Hero Banners & Campaigns', icon: FaImage },
-        { to: '/admin/coupons', label: 'Coupons & Promos', icon: FaMoneyCheckAlt },
+        { 
+          to: '/admin/banners', 
+          label: 'Hero Banners', 
+          icon: FaImage 
+        },
+        { 
+          to: '/admin/coupons', 
+          label: 'Coupons & Promos', 
+          icon: FaTicketAlt,
+          badge: totalCoupons > 0 ? totalCoupons : undefined,
+        },
       ]
     }
   ];
@@ -74,7 +119,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {isSidebarOpen && (
         <div 
           onClick={toggleSidebar}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity"
+          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-30 md:hidden transition-opacity"
         />
       )}
 
@@ -82,12 +127,13 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         className={`fixed top-0 left-0 h-screen ${
           isCollapsed ? 'md:w-20' : 'md:w-64'
         } w-64 bg-[#111111] text-neutral-200 ${
-          isCollapsed ? 'p-3' : 'p-5'
-        } flex flex-col justify-between border-r border-neutral-800 shadow-2xl z-40 transform transition-all duration-300 ease-in-out md:translate-x-0 font-sans ${
+          isCollapsed ? 'p-3' : 'p-4'
+        } flex flex-col justify-between border-r border-neutral-800 shadow-2xl z-40 transform transition-all duration-300 ease-in-out md:translate-x-0 font-sans select-none ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex-1 overflow-y-auto no-scrollbar">
+        {/* Scrollable Navigation Container without any scrollbar */}
+        <div className="flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex flex-col min-h-0">
           {/* Mobile close button */}
           <div className="md:hidden flex justify-end mb-2">
             <button 
@@ -100,36 +146,36 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
           
           {/* Brand Header */}
-          <div className={`mb-6 pb-5 border-b border-neutral-800 ${isCollapsed ? 'text-center' : ''}`}>
+          <div className={`mb-4 pb-4 border-b border-neutral-800 ${isCollapsed ? 'text-center' : ''}`}>
             <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
               <Link 
                 to="/admin/dashboard" 
                 onClick={() => { if (isSidebarOpen) toggleSidebar(); }} 
                 className="group block"
-                title="Mii Korean Admin Dashboard"
+                title="Skin of Korea Admin"
               >
                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-                  <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center border border-neutral-700 shadow-xs shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center border border-neutral-700 shadow-xs shrink-0 group-hover:scale-105 transition-transform">
                     <img
-                      src="https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418"
-                      alt="Mii Korean Logo"
+                      src="/images/skin-of-korea-logo.png"
+                      alt="Skin of Korea Logo"
                       className="w-full h-full object-contain"
                     />
                   </div>
                   {!isCollapsed && (
-                    <div>
-                      <h1 className="text-base font-bold text-white tracking-tight group-hover:text-neutral-300 transition-colors leading-tight font-sans">
-                        Mii Korean
+                    <div className="min-w-0">
+                      <h1 className="text-sm font-bold text-white tracking-tight group-hover:text-amber-300 transition-colors leading-tight truncate">
+                        Skin of Korea
                       </h1>
-                      <span className="text-[10px] text-neutral-400 tracking-[0.2em] uppercase font-semibold block mt-0.5">
-                        Skincare Admin
+                      <span className="text-[10px] text-neutral-400 tracking-[0.16em] uppercase font-semibold block mt-0.5">
+                        Admin Console
                       </span>
                     </div>
                   )}
                 </div>
               </Link>
 
-              {/* Desktop toggle button in header when expanded */}
+              {/* Desktop collapse button in header */}
               {!isCollapsed && (
                 <button
                   onClick={toggleCollapse}
@@ -137,56 +183,60 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   title="Collapse sidebar"
                   aria-label="Collapse sidebar"
                 >
-                  <FaChevronLeft size={13} />
+                  <FaChevronLeft size={12} />
                 </button>
               )}
             </div>
             
-            {/* Quick link to storefront */}
+            {/* Quick link to live customer storefront */}
             <a
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className={`mt-3.5 relative group flex items-center ${
+              className={`mt-3 relative group flex items-center ${
                 isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
               } rounded-xl bg-neutral-900 hover:bg-neutral-800 text-[11px] text-neutral-300 hover:text-white transition border border-neutral-800`}
-              title="View Live Store"
+              title="Open customer live storefront in new tab"
             >
               {isCollapsed ? (
                 <>
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <div className="hidden md:group-hover:flex absolute left-full ml-3 px-2.5 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    <span>View Live Store</span>
+                  <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>View Customer Storefront</span>
                   </div>
                 </>
               ) : (
                 <>
                   <span className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>View Live Store</span>
+                    <span className="font-medium">Live Storefront</span>
                   </span>
-                  <FaExternalLinkAlt className="text-[10px] text-neutral-500 group-hover:text-white transition" />
+                  <span className="flex items-center gap-1 text-[10px] text-neutral-400 group-hover:text-amber-300">
+                    <span>GBP £</span>
+                    <FaExternalLinkAlt className="text-[9px]" />
+                  </span>
                 </>
               )}
             </a>
           </div>
 
           {/* Navigation Sections */}
-          <nav className="space-y-4">
+          <nav className="space-y-4 flex-1">
             {navSections.map((section, sIdx) => (
-              <div key={section.title || sIdx} className="space-y-1">
+              <div key={section.title} className="space-y-1">
                 {!isCollapsed ? (
-                  <p className="px-3.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500 select-none">
+                  <p className="px-3 pt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500 select-none">
                     {section.title}
                   </p>
                 ) : (
                   sIdx > 0 && <div className="w-6 h-px bg-neutral-800 mx-auto my-2" />
                 )}
 
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {section.items.map((item) => {
                     const Icon = item.icon;
+
                     return (
                       <NavLink
                         key={item.to}
@@ -194,23 +244,47 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                         onClick={() => { if (isSidebarOpen) toggleSidebar(); }}
                         className={({ isActive }) =>
                           `relative group flex items-center ${
-                            isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3.5 py-2.5'
+                            isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
                           } rounded-xl transition-all duration-200 text-xs font-medium ${
                             isActive
-                              ? 'bg-white text-black font-semibold shadow-xs'
-                              : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+                              ? 'bg-white text-neutral-950 font-semibold shadow-xs'
+                              : 'text-neutral-400 hover:bg-neutral-850 hover:text-white'
                           }`
                         }
                         title={isCollapsed ? item.label : undefined}
                       >
-                        <Icon className={`${isCollapsed ? 'text-base' : 'text-sm'} shrink-0`} />
-                        {!isCollapsed && <span>{item.label}</span>}
+                        {({ isActive }) => (
+                          <>
+                            <div className="flex items-center gap-2.5 truncate">
+                              <Icon className={`${isCollapsed ? 'text-base' : 'text-sm'} shrink-0 ${
+                                isActive ? 'text-neutral-950' : 'text-neutral-400 group-hover:text-white'
+                              }`} />
+                              {!isCollapsed && <span className="truncate">{item.label}</span>}
+                            </div>
 
-                        {/* Floating tooltip when collapsed */}
-                        {isCollapsed && (
-                          <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-1.5 bg-neutral-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center">
-                            {item.label}
-                          </div>
+                            {/* Badge */}
+                            {!isCollapsed && item.badge !== undefined && (
+                              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${
+                                isActive 
+                                  ? 'bg-neutral-900 text-white' 
+                                  : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
+                              }`}>
+                                {item.badge}
+                              </span>
+                            )}
+
+                            {/* Floating tooltip when sidebar is collapsed */}
+                            {isCollapsed && (
+                              <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-xl shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center gap-2">
+                                <span>{item.label}</span>
+                                {item.badge !== undefined && (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-neutral-800 text-neutral-300 border border-neutral-700">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </>
                         )}
                       </NavLink>
                     );
@@ -221,40 +295,19 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </nav>
         </div>
 
-        {/* Footer / Account section */}
-        <div className="pt-4 border-t border-neutral-800 space-y-2 shrink-0">
-          <div
-            className={`relative group ${
-              isCollapsed ? 'flex justify-center p-2' : 'px-3 py-2 flex items-center gap-3'
-            } rounded-xl bg-neutral-900 border border-neutral-800/80`}
-          >
-            <div className="w-8 h-8 rounded-full bg-neutral-800 text-white font-bold flex items-center justify-center text-xs border border-neutral-700 shrink-0">
-              MK
-            </div>
-            {!isCollapsed && (
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-white truncate">Administrator</p>
-                <p className="text-[10px] text-neutral-400 truncate">Store Manager</p>
-              </div>
-            )}
-            {isCollapsed && (
-              <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-1.5 bg-neutral-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center">
-                Administrator
-              </div>
-            )}
-          </div>
-
+        {/* Footer / Account Section */}
+        <div className="pt-3 border-t border-neutral-800 space-y-1.5 shrink-0">
           <button
             onClick={handleLogout}
             className={`relative group flex items-center ${
-              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3.5 py-2.5'
-            } rounded-xl transition duration-200 text-xs font-medium text-red-400 hover:bg-red-950/30 hover:text-red-300 w-full`}
+              isCollapsed ? 'justify-center p-2.5' : 'gap-2.5 px-3 py-2'
+            } rounded-xl transition duration-200 text-xs font-medium text-rose-400 hover:bg-rose-950/30 hover:text-rose-300 w-full cursor-pointer`}
             title="Sign Out"
           >
             <FaSignOutAlt className="text-xs shrink-0" />
             {!isCollapsed && <span>Sign Out</span>}
             {isCollapsed && (
-              <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-1.5 bg-neutral-900 text-red-400 text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center">
+              <div className="hidden md:group-hover:flex absolute left-full ml-3 px-3 py-1.5 bg-neutral-900 text-rose-400 text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap z-50 border border-neutral-700 pointer-events-none items-center">
                 Sign Out
               </div>
             )}
@@ -264,8 +317,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           <button
             onClick={toggleCollapse}
             className={`hidden md:flex items-center ${
-              isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2'
-            } rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors text-xs font-medium w-full border border-neutral-800/60 mt-1`}
+              isCollapsed ? 'justify-center p-2' : 'justify-between px-3 py-1.5'
+            } rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors text-xs font-medium w-full border border-neutral-800 mt-1 cursor-pointer`}
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -285,5 +338,3 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
 };
 
 export default AdminSidebar;
-
-

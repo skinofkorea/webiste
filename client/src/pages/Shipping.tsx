@@ -10,8 +10,8 @@ import { usePageSEO } from '../hooks/usePageSEO';
 
 const Shipping: React.FC = () => {
     usePageSEO({
-        title: 'Delivery Address | Mii Korean Skincare',
-        description: 'Enter your delivery address for your Mii Korean order.',
+        title: 'Delivery Address | Skin of Korea',
+        description: 'Enter your delivery address for your Skin of Korea order.',
         canonical: '/shipping',
         noIndex: true,
     });

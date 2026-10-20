@@ -9,19 +9,19 @@ const faqs = [
   },
   {
     question: 'What is your returns policy?',
-    answer: 'For UK orders, email hello@miikorean.com within 14 days of receiving your order to request a return. Approved items must be unopened, unused and in their original packaging. International orders are not eligible for returns.',
+    answer: 'For UK orders, email hello@skinofkorea.com within 14 days of receiving your order to request a return. Approved items must be unopened, unused and in their original packaging. International orders are not eligible for returns.',
     href: '/pages/return-policy',
     linkLabel: 'Read our returns policy',
   },
   {
     question: 'What should I do if my order arrives damaged or faulty?',
-    answer: 'Email hello@miikorean.com within 30 days of delivery and include clear photos. The store policy provides a replacement for faulty items.',
+    answer: 'Email hello@skinofkorea.com within 30 days of delivery and include clear photos. The store policy provides a replacement for faulty items.',
     href: '/pages/return-policy',
     linkLabel: 'View the full policy',
   },
   {
     question: 'Can I cancel my order?',
-    answer: 'Cancellations can only be processed before an order has shipped. Email hello@miikorean.com with your order number as soon as possible.',
+    answer: 'Cancellations can only be processed before an order has shipped. Email hello@skinofkorea.com with your order number as soon as possible.',
   },
   {
     question: 'Where can I find product information?',
@@ -31,7 +31,7 @@ const faqs = [
   },
 ];
 
-const MiikoreanHomeFAQ: React.FC = () => (
+const HomeFAQ: React.FC = () => (
   <section aria-labelledby="home-faq-heading" className="bg-[#fff8ef] px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
     <div className="mx-auto max-w-4xl">
       <header className="mb-6 text-center sm:mb-8">
@@ -42,7 +42,7 @@ const MiikoreanHomeFAQ: React.FC = () => (
           Frequently asked <span className="italic text-[#8b451f]">questions</span>
         </h2>
         <p className="mt-2 text-xs text-[#2b211c]/65 sm:text-sm">
-          Quick answers about shopping with Mii Korean.
+          Quick answers about shopping with Skin of Korea.
         </p>
       </header>
 
@@ -74,4 +74,4 @@ const MiikoreanHomeFAQ: React.FC = () => (
   </section>
 );
 
-export default MiikoreanHomeFAQ;
+export default HomeFAQ;

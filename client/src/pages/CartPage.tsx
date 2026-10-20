@@ -7,13 +7,13 @@ import { calculatePrice, decrementCartItem, discountApplied, incrementCartItem, 
 import { RootState } from '../redux/store';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
-import { formatStorePrice } from '../data/miikoreanStorefront';
+import { formatStorePrice } from '../data/storefront';
 import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
 const Cart: React.FC = () => {
   usePageSEO({
-    title: 'Your Bag | Mii Korean Skincare',
-    description: 'Review your Mii Korean skincare basket before checkout.',
+    title: 'Your Bag | Skin of Korea',
+    description: 'Review your Skin of Korea basket before checkout.',
     canonical: '/cart',
     noIndex: true,
   });
@@ -73,7 +73,7 @@ const Cart: React.FC = () => {
   };
 
   const getPhotoUrl = (photoUrl?: string) => {
-    if (!photoUrl) return 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+    if (!photoUrl) return '/images/skin-of-korea-logo.png';
     return optimizeProductImageUrl(photoUrl, 160);
   };
 
@@ -121,7 +121,7 @@ const Cart: React.FC = () => {
                             alt={item.name}
                             className="h-16 w-16 object-contain rounded-lg bg-white p-1 border border-neutral-200"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+                              (e.target as HTMLImageElement).src = '/images/skin-of-korea-logo.png';
                             }}
                           />
                         </Link>
@@ -188,7 +188,7 @@ const Cart: React.FC = () => {
                                 alt={item.name}
                                 className="h-14 w-14 object-contain rounded-lg bg-white p-1 border border-neutral-200"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+                                  (e.target as HTMLImageElement).src = '/images/skin-of-korea-logo.png';
                                 }}
                               />
                               <span className="font-semibold text-sm text-[#111111] group-hover:underline">{item.name}</span>

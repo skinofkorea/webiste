@@ -4,11 +4,11 @@ import BackButton from '../components/common/BackBtn';
 import { useMyOrdersQuery } from '../redux/api/order.api';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
-import { formatStorePrice } from '../data/miikoreanStorefront';
+import { formatStorePrice } from '../data/storefront';
 
 const MyOrders: React.FC = () => {
     usePageSEO({
-        title: 'Guest Orders | Mii Korean Skincare',
+        title: 'Guest Orders | Skin of Korea',
         description: 'View and track guest orders placed on this device.',
         canonical: '/my-orders',
         noIndex: true,

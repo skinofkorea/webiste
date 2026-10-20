@@ -8,10 +8,10 @@ import GlobalLoadingOverlay from './components/common/GlobalLoadingOverlay';
 
 // Lazy load public components
 const Layout = lazy(() => import('./components/layout/Layout'));
-const ProductsPage = lazy(() => import('./pages/MiikoreanProductsPage'));
-const HomePageMiikorean = lazy(() => import('./pages/MiikoreanHomePage'));
-const MiikoreanProductPage = lazy(() => import('./pages/MiikoreanProductPage'));
-const MiikoreanContentPage = lazy(() => import('./pages/MiikoreanContentPage'));
+const ProductsPage = lazy(() => import('./pages/ProductsPage'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const ProductPage = lazy(() => import('./pages/ProductPage'));
+const ContentPage = lazy(() => import('./pages/ContentPage'));
 const CartPage = lazy(() => import('./pages/CartPage'));
 const CheckoutForm = lazy(() => import('./components/CheckoutForm'));
 const Shipping = lazy(() => import('./pages/Shipping'));
@@ -48,22 +48,20 @@ const App: React.FC = () => {
                         <Routes>
                             {/* Public routes */}
                             <Route path="/" element={<Layout />}>
-                                <Route index element={<HomePageMiikorean />} />
+                                <Route index element={<HomePage />} />
                                 <Route path="about" element={<Navigate to="/pages/about-us" replace />} />
                                 <Route path="contact" element={<Navigate to="/pages/contact" replace />} />
                                 <Route path="collections" element={<Navigate to="/pages/collections" replace />} />
                                 <Route path="collections/:collectionHandle" element={<ProductsPage />} />
                                 <Route path="products" element={<ProductsPage />} />
                                 <Route path="category/:categorySlug" element={<ProductsPage />} />
-                                <Route path="product/:productId" element={<MiikoreanProductPage />} />
+                                <Route path="product/:productId" element={<ProductPage />} />
                                 <Route path="search" element={<ProductsPage />} />
-                                <Route path="pages/:pageHandle" element={<MiikoreanContentPage />} />
-                                <Route path="skin-analysis" element={<Navigate to="/pages/renude-analysis" replace />} />
+                                <Route path="pages/:pageHandle" element={<ContentPage />} />
                                 <Route path="shipping-policy" element={<Navigate to="/pages/shipping-policy" replace />} />
                                 <Route path="refund-policy" element={<Navigate to="/pages/return-policy" replace />} />
-                                <Route path="terms" element={<a className="block p-10 text-center text-neutral-900 underline" href="https://www.miikorean.com/policies/terms-of-service">Read Mii Korean's terms of service</a>} />
-                                <Route path="privacy" element={<a className="block p-10 text-center text-neutral-900 underline" href="https://www.miikorean.com/policies/privacy-policy">Read Mii Korean's privacy policy</a>} />
-                                <Route path="track-shipment" element={<Navigate to="/my-orders" replace />} />
+                                <Route path="terms" element={<a className="block p-10 text-center text-neutral-900 underline" href="/pages/terms">Terms and Conditions</a>} />
+                                <Route path="privacy" element={<a className="block p-10 text-center text-neutral-900 underline" href="/pages/privacy-policy">Privacy Policy</a>} />
                                 <Route path="cart" element={<CartPage />} />
                                 <Route path="my-orders" element={<MyOrders />} />
                                 <Route path="/order/:id" element={<OrderDetails />} />

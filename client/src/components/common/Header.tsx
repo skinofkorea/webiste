@@ -1,97 +1,146 @@
-import React from 'react';
-import { FaBox, FaHome, FaShoppingCart } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { FaBars, FaSearch, FaShoppingBag, FaTimes } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { RootState } from '../../redux/store';
-import { useGetBannersQuery } from '../../redux/api/banner.api';
+import MobileSidebarDrawer from './MobileSidebarDrawer';
 
-const defaultPromoOffers = [
-  '🌾 URVA — Delivering the Authentic Rural Aura',
-  '✨ Festive Season Sale: Use Code URVA10 for 10% Off',
-  '🌱 Discover regional products, makers, and traditions',
-  '🚚 Free Shipping across India on orders over ₹999',
-  '🛍️ One Village – One Product',
+const logo = '/images/skin-of-korea-logo.png';
+const announcements = [
+  {
+    icon: 'https://www.justmylook.com/cdn/shop/files/Trustpilot-05_7863b31f-1bbf-4657-85d3-de5dcd0dc26d.svg?v=1785851510',
+    iconClass: 'h-4 w-auto',
+    text: 'Excellent 4.5 out of 5',
+  },
+  {
+    icon: 'https://www.justmylook.com/cdn/shop/files/delivery.svg?v=1733758420',
+    iconClass: 'h-4 w-auto brightness-0 invert',
+    text: 'Free delivery when you spend £35',
+  },
+  {
+    icon: '',
+    iconClass: '',
+    text: 'Next-day delivery available',
+  },
+  {
+    icon: '',
+    iconClass: '',
+    text: 'Visit us at Meadowhall or Trafford Centre',
+  },
 ];
 
 const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
   const cartItems = useSelector((state: RootState) => state.cart.cartItems);
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
 
-  const { data: announcementData } = useGetBannersQuery('announcement');
-  const dynamicOffers =
-    announcementData?.banners && announcementData.banners.length > 0
-      ? announcementData.banners.filter((b) => b.isActive !== false).map((b) => b.title)
-      : defaultPromoOffers;
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setAnnouncementIndex((current) => (current + 1) % announcements.length);
+    }, 4000);
+    return () => window.clearInterval(interval);
+  }, []);
 
-  const promoOffers = dynamicOffers.length > 0 ? dynamicOffers : defaultPromoOffers;
-
-  const linkClass = "flex flex-col items-center gap-1 text-neutral-800 hover:text-black transition duration-200";
+  const searchProducts = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = search.trim();
+    navigate(query ? `/products?q=${encodeURIComponent(query)}` : '/products');
+    setSearchOpen(false);
+    setMenuOpen(false);
+  };
 
   return (
     <>
-      {/* ─── Top Offer & Promo Announcement Marquee Bar (Dynamic Admin Managed) ─── */}
-      <div className="w-full bg-[#111111] text-white font-medium text-xs py-2 px-4 overflow-hidden relative z-50 border-b border-neutral-800">
-        <div className="relative w-full flex overflow-hidden">
-          <div className="animate-marquee flex items-center gap-12 whitespace-nowrap">
-            {[...promoOffers, ...promoOffers].map((offer, idx) => (
-              <span key={idx} className="flex items-center gap-2 tracking-wide font-sans text-neutral-200">
-                <span>{offer}</span>
-                <span className="text-neutral-600 ml-6">•</span>
-              </span>
-            ))}
+      <div className="skinofkorea-announcement overflow-hidden bg-[#111111] py-2 text-white">
+        <div className="announcement-marquee hidden w-max text-[10px] font-bold uppercase tracking-[0.15em] md:flex sm:text-xs">
+          {[0, 1].map((copy) => (
+            <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center gap-10 px-5">
+              {announcements.map((announcement, index) => (
+                <React.Fragment key={announcement.text}>
+                  {index > 0 && <span aria-hidden="true" className="text-emerald-400">✦</span>}
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    {announcement.icon && <img src={announcement.icon} alt="" className={announcement.iconClass} />}
+                    <span>{announcement.text}</span>
+                  </div>
+                </React.Fragment>
+              ))}
+              <span aria-hidden="true" className="text-emerald-400">✦</span>
+            </div>
+          ))}
+        </div>
+        <div className="mx-auto flex min-h-5 items-center justify-center px-4 text-[10px] font-bold uppercase tracking-[0.12em] md:hidden sm:text-xs" aria-live="polite" aria-atomic="true">
+          <div key={announcementIndex} className="announcement-slide flex items-center gap-2 whitespace-nowrap">
+            <span aria-hidden="true" className="text-emerald-400">✦</span>
+            {announcements[announcementIndex].icon && (
+              <img
+                src={announcements[announcementIndex].icon}
+                alt=""
+                className={announcements[announcementIndex].iconClass}
+              />
+            )}
+            <span>{announcements[announcementIndex].text}</span>
+            <span aria-hidden="true" className="text-emerald-400">✦</span>
           </div>
         </div>
       </div>
 
-      <header className="bg-white text-[#111111] border-b border-neutral-200 shadow-xs p-3.5 px-4 md:px-12 relative z-40 transition-all duration-300">
-        <div className="container mx-auto flex justify-between items-center">
-          {/* Logo */}
-          <div className="absolute left-1/2 flex -translate-x-1/2 items-center md:static md:translate-x-0">
-            <Link to="/" className="flex items-center gap-2.5">
-              <img src="https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png" alt="URVA — Delivering the Authentic Rural Aura" className="h-11 w-11 md:h-13 md:w-13 object-contain" />
-              <span className="hidden flex-col text-[#111111] md:flex">
-                <span className="text-lg font-bold tracking-tight md:text-2xl font-sans">URVA</span>
-                <span className="hidden text-[9px] font-medium uppercase tracking-[0.14em] text-neutral-500 md:block">Delivering the Authentic Rural Aura</span>
-              </span>
-            </Link>
+      <header className="sticky top-0 z-40 border-b border-amber-100 bg-[#fff8ee]/95 shadow-sm backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-3 sm:h-[76px] sm:px-6 lg:px-8">
+          <div className="flex items-center gap-1 sm:gap-4">
+            <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} className="p-2 text-lg text-[#111111] sm:text-xl">
+              {menuOpen ? <FaTimes /> : <FaBars />}
+            </button>
+            <button type="button" onClick={() => setSearchOpen((open) => !open)} aria-label="Search products" className="p-2 text-lg text-[#111111] sm:text-xl lg:hidden">
+              <FaSearch />
+            </button>
           </div>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-7">
-            <Link to="/" className={linkClass}>
-              <FaHome className="text-base" />
-              <span className="text-xs font-sans font-medium">Home</span>
-            </Link>
+          <Link to="/" aria-label="Skin of Korea home" className="absolute left-1/2 -translate-x-1/2">
+            <img src={logo} alt="Skin of Korea" className="h-12 w-auto object-contain sm:h-16" />
+          </Link>
 
-            <Link to="/products" className={linkClass}>
-              <FaBox className="text-base" />
-              <span className="text-xs font-sans font-medium">Products</span>
-            </Link>
-
-            <Link to="/cart" className={`${linkClass} relative`}>
-              <FaShoppingCart className="text-base" />
-              <span className="text-xs font-sans font-medium">Cart</span>
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-2.5 font-bold text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center bg-black text-white">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-          </div>
-
-          {/* Mobile Quick Action Buttons */}
-          <div className="md:hidden flex items-center gap-4">
-            <Link to="/cart" className="text-neutral-900 hover:text-black transition-colors p-1 relative" aria-label="Cart">
-              <FaShoppingCart className="text-lg" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center bg-black text-white">
-                  {cartCount}
-                </span>
-              )}
+          <div className="flex items-center gap-1 sm:gap-4">
+            <form onSubmit={searchProducts} role="search" className="hidden w-[min(28vw,360px)] items-center gap-2 rounded-full border border-amber-200 bg-white/80 px-3 py-2 transition focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-100 lg:flex">
+              <FaSearch aria-hidden="true" className="shrink-0 text-sm text-neutral-400" />
+              <label htmlFor="header-product-search" className="sr-only">Search products</label>
+              <input
+                id="header-product-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search skincare, brands..."
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+              />
+              <button type="submit" aria-label="Submit product search" className="rounded-full bg-neutral-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-700">
+                Search
+              </button>
+            </form>
+            <Link to="/cart" aria-label={`Shopping bag, ${cartCount} items`} className="relative p-2 text-lg text-[#111111] transition hover:text-neutral-500 sm:text-xl">
+              <FaShoppingBag />
+              <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#111111] px-1 text-[9px] font-semibold text-white sm:-right-1 sm:-top-1 sm:h-5 sm:min-w-5 sm:text-[10px]">{cartCount}</span>
             </Link>
           </div>
         </div>
+
+        {searchOpen && (
+          <form onSubmit={searchProducts} className="border-t border-amber-100 bg-[#fff8ee] px-4 py-3 sm:px-8">
+            <label className="mx-auto flex min-h-11 max-w-3xl items-center gap-3 rounded-full border border-neutral-300 px-4 py-2.5 transition focus-within:border-neutral-500 focus-within:ring-2 focus-within:ring-neutral-200">
+              <FaSearch className="text-neutral-400" />
+              <span className="sr-only">Search products</span>
+              <input autoFocus type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search skincare, brands and ingredients" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+              <button type="submit" className="rounded-full bg-neutral-950 px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-700 sm:text-sm">Search</button>
+            </label>
+          </form>
+        )}
+
       </header>
+
+      <MobileSidebarDrawer isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+
     </>
   );
 };

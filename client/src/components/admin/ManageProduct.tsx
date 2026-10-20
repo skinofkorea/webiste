@@ -40,41 +40,20 @@ export interface ProductVariantItem {
 }
 
 const DEFAULT_BRANDS = [
-  'COSRX',
   'Beauty of Joseon',
+  'COSRX',
   'Anua',
-  'Laneige',
-  'Dr. Jart+',
-  'Dr. Althea',
-  'Haruharu Wonder',
-  'Innisfree',
-  'Isntree',
-  'Medicube',
-  'Round Lab',
-  'Torriden',
-  'Arencia',
   'SKIN1004',
-  'Purito Seoul',
-  'I\'m From',
-  'iUNIK',
-  'Mary & May',
-  'Mii Korean Skincare'
+  'Haruharu Wonder'
 ];
 
 const DEFAULT_CATEGORIES = [
   'Cleanser',
   'Toner',
-  'Serum & Essence',
-  'Moisturizer',
-  'Sunscreen',
-  'Mask',
-  'Eye Care',
-  'Lip Care',
-  'Exfoliator',
-  'Treatment',
-  'Skincare Sets & Bundles',
-  'Body & Hair',
-  'Makeup'
+  'Moisturiser',
+  'SPF',
+  'Masks',
+  'Eye Cream'
 ];
 
 const SUGGESTED_TAGS = [
@@ -135,7 +114,7 @@ const AdminManageProduct: React.FC = () => {
       setName(p.name || '');
       setHandle(p.handle || p._id || '');
       
-      const v = p.vendor || 'Mii Korean';
+      const v = p.vendor || 'Skin of Korea';
       if (brands.includes(v)) {
         setVendor(v);
         setCustomVendor('');
@@ -197,7 +176,7 @@ const AdminManageProduct: React.FC = () => {
 
     setUploadingImage(true);
     try {
-      const result = await uploadToCloudinary(file, 'miikorean/products');
+      const result = await uploadToCloudinary(file, 'skinofkorea/products');
       if (result && result.url) {
         setPhoto(result.url);
         if (!galleryUrls.includes(result.url)) {
@@ -280,7 +259,7 @@ const AdminManageProduct: React.FC = () => {
 
     const payload = {
       name: name.trim(),
-      vendor: finalVendor || 'Mii Korean',
+      vendor: finalVendor || 'Skin of Korea',
       category: finalCategory || 'Skincare',
       price: Number(price || 0),
       compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
@@ -310,7 +289,7 @@ const AdminManageProduct: React.FC = () => {
 
   // Delete product
   const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete "${name}"?\n\nThis will permanently delete this product from your Mii Korean catalog.`)) {
+    if (window.confirm(`Are you sure you want to delete "${name}"?\n\nThis will permanently delete this product from your Skin of Korea catalog.`)) {
       try {
         const res = await deleteProduct({ productId: productId! }).unwrap();
         notify(res.message || 'Product deleted successfully', 'success');
@@ -345,7 +324,7 @@ const AdminManageProduct: React.FC = () => {
       <div className="bg-white p-10 rounded-3xl border border-neutral-200 shadow-sm text-center max-w-md mx-auto my-16">
         <p className="text-rose-600 font-bold mb-2">Product Not Found</p>
         <p className="text-xs text-neutral-500 mb-5">
-          The requested product could not be found in the Mii Korean catalog.
+          The requested product could not be found in the Skin of Korea catalog.
         </p>
         <button
           onClick={() => navigate('/admin/products')}
@@ -907,7 +886,7 @@ const AdminManageProduct: React.FC = () => {
               Danger Zone
             </h2>
             <p className="text-xs text-neutral-600">
-              Permanently remove this product from the Mii Korean catalog. This action cannot be undone.
+              Permanently remove this product from the Skin of Korea catalog. This action cannot be undone.
             </p>
             <button
               type="button"

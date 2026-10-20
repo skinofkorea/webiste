@@ -1,64 +1,68 @@
 import React, { useState } from 'react';
-import { 
-  FaBullhorn, 
-  FaCloudUploadAlt, 
-  FaEdit, 
-  FaEye, 
-  FaGift, 
-  FaImage, 
+import {
+  FaBullhorn,
+  FaCloudUploadAlt,
+  FaEdit,
+  FaEye,
+  FaGift,
+  FaImage,
   FaPlay,
-  FaPlus, 
-  FaRedo, 
-  FaSlidersH, 
-  FaTrash, 
+  FaPlus,
+  FaRedo,
+  FaSlidersH,
+  FaTrash,
   FaTimes,
   FaToggleOff,
   FaToggleOn,
   FaVideo
 } from 'react-icons/fa';
-import { 
-  useCreateBannerMutation, 
-  useDeleteBannerMutation, 
-  useGetAdminBannersQuery, 
-  useSeedDefaultBannersMutation, 
-  useToggleBannerMutation, 
-  useUpdateBannerMutation 
+import {
+  useCreateBannerMutation,
+  useDeleteBannerMutation,
+  useGetAdminBannersQuery,
+  useSeedDefaultBannersMutation,
+  useToggleBannerMutation,
+  useUpdateBannerMutation
 } from '../../redux/api/banner.api';
 import { BannerType, StoreBanner } from '../../types/api-types';
 import { uploadToCloudinary } from '../../utils/cloudinary';
 import { notify } from '../../utils/util';
-import { getYouTubeId } from '../../components/CommunityVideos';
+function getYouTubeId(url?: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  return match ? match[1] : null;
+}
 
 const BANNER_TYPES: { type: BannerType; label: string; icon: any; description: string }[] = [
-  { 
-    type: 'hero', 
-    label: 'Hero Slides', 
-    icon: FaImage, 
-    description: 'Rotating full-width showcase carousel at top of homepage' 
+  {
+    type: 'hero',
+    label: 'Hero Slides',
+    icon: FaImage,
+    description: 'Rotating full-width showcase carousel at top of homepage'
   },
-  { 
-    type: 'festival_banner', 
-    label: 'Festival & Seasonal', 
-    icon: FaGift, 
-    description: 'High-impact seasonal promotion cards with festive coupons' 
+  {
+    type: 'festival_banner',
+    label: 'Seasonal & Promos',
+    icon: FaGift,
+    description: 'High-impact seasonal promotion cards with discount coupons'
   },
-  { 
-    type: 'showcase_banner', 
-    label: 'Marketplace Showcase', 
-    icon: FaSlidersH, 
-    description: 'Full-width visual artisan brand showcase near page footer' 
+  {
+    type: 'showcase_banner',
+    label: 'Brand Showcase',
+    icon: FaSlidersH,
+    description: 'Full-width visual brand showcase near page footer'
   },
-  { 
-    type: 'story_video', 
-    label: 'Village Videos', 
-    icon: FaVideo, 
-    description: 'YouTube Shorts and vertical reels displayed in the Village Stories reel' 
+  {
+    type: 'story_video',
+    label: 'UGC & Reels',
+    icon: FaVideo,
+    description: 'YouTube Shorts and vertical reels displayed in the video carousel'
   },
-  { 
-    type: 'announcement', 
-    label: 'Announcement Ticker', 
-    icon: FaBullhorn, 
-    description: 'Top scrolling marquee banner for shipping & store alerts' 
+  {
+    type: 'announcement',
+    label: 'Announcement Ticker',
+    icon: FaBullhorn,
+    description: 'Top scrolling marquee banner for shipping & store alerts'
   },
 ];
 
@@ -125,7 +129,7 @@ const AdminBanners: React.FC = () => {
     else setIsUploading(true);
 
     try {
-      const res = await uploadToCloudinary(file, 'urvaa/banners');
+      const res = await uploadToCloudinary(file, 'skinofkorea/banners');
       if (isMobile) {
         setEditingBanner((prev) => ({ ...prev, mobileImageUrl: res.url }));
       } else {
@@ -201,7 +205,7 @@ const AdminBanners: React.FC = () => {
   };
 
   const handleSeedDefaults = async () => {
-    if (!window.confirm('Reset all campaigns to curated default URVA templates?')) return;
+    if (!window.confirm('Reset all campaigns to curated default Skin of Korea templates?')) return;
     try {
       await seedDefaults().unwrap();
       notify('Default campaign templates restored!', 'success');
@@ -226,10 +230,10 @@ const AdminBanners: React.FC = () => {
               STOREFRONT CUSTOMIZER
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Banners & Festival Campaigns
+              Banners & Seasonal Campaigns
             </h1>
             <p className="text-xs sm:text-sm text-neutral-400 max-w-xl">
-              Control hero carousels, festive seasonal announcements, bottom showcases, and top alerts instantly without altering code.
+              Control hero carousels, seasonal promotional cards, brand showcases, and top alert tickers instantly without altering code.
             </p>
           </div>
 
@@ -245,7 +249,7 @@ const AdminBanners: React.FC = () => {
               onClick={handleSeedDefaults}
               disabled={isSeeding}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-semibold border border-neutral-700 transition"
-              title="Restore standard URVA templates"
+              title="Restore standard Skin of Korea templates"
             >
               <FaRedo className={isSeeding ? 'animate-spin' : ''} />
               <span>Reset Defaults</span>
@@ -267,11 +271,10 @@ const AdminBanners: React.FC = () => {
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
         <button
           onClick={() => setSelectedTypeFilter('all')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-            selectedTypeFilter === 'all'
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${selectedTypeFilter === 'all'
               ? 'bg-[#111111] text-white shadow-sm'
               : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200'
-          }`}
+            }`}
         >
           All ({banners.length})
         </button>
@@ -283,11 +286,10 @@ const AdminBanners: React.FC = () => {
             <button
               key={t.type}
               onClick={() => setSelectedTypeFilter(t.type)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                isActiveTab
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${isActiveTab
                   ? 'bg-[#111111] text-white shadow-sm'
                   : 'bg-white text-neutral-600 hover:bg-neutral-100 border border-neutral-200'
-              }`}
+                }`}
             >
               <Icon className="text-xs" />
               <span>{t.label}</span>
@@ -336,9 +338,8 @@ const AdminBanners: React.FC = () => {
             return (
               <div
                 key={banner.id}
-                className={`bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between ${
-                  !banner.isActive ? 'opacity-70 grayscale-[20%]' : ''
-                }`}
+                className={`bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between ${!banner.isActive ? 'opacity-70 grayscale-[20%]' : ''
+                  }`}
               >
                 <div>
                   {/* Visual Header / Image Preview */}
@@ -370,7 +371,7 @@ const AdminBanners: React.FC = () => {
                       </div>
                       <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
                         <span className="px-2 py-0.5 rounded-full bg-red-600 text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1 shadow-xs">
-                          <FaVideo size={10} /> Village Reel
+                          <FaVideo size={10} /> UGCReel
                         </span>
                         <span className="text-[11px] font-mono font-bold text-white drop-shadow">
                           #{banner.displayOrder}
@@ -493,314 +494,324 @@ const AdminBanners: React.FC = () => {
 
       {/* ─── Create / Edit Modal ─── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl border border-neutral-200 w-full max-w-3xl overflow-hidden animate-fadeIn my-8">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 overflow-hidden"
+          onClick={handleCloseModal}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl border border-neutral-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header - Fixed at Top */}
+            <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between shrink-0 bg-white">
               <div>
-                <h2 className="text-xl font-bold text-neutral-900 tracking-tight">
+                <h2 className="text-lg sm:text-xl font-bold text-neutral-900 tracking-tight">
                   {editingBanner.id && !editingBanner.id.startsWith('banner_')
                     ? 'Edit Campaign Banner'
                     : 'Create New Campaign Banner'}
                 </h2>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Directly manageable storefront element linked with Cloudinary
+                  Directly manageable storefront element for Skin of Korea
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleCloseModal}
                 className="text-neutral-400 hover:text-neutral-900 p-2 rounded-full hover:bg-neutral-100 transition"
+                title="Close"
               >
-                <FaTimes size={16} />
+                <FaTimes size={18} />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSaveBanner} className="p-6 space-y-6">
-              {/* Type Selector */}
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
-                  Campaign Area & Placement
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {BANNER_TYPES.map((t) => {
-                    const isSelected = editingBanner.type === t.type;
-                    const Icon = t.icon;
-                    return (
-                      <button
-                        type="button"
-                        key={t.type}
-                        onClick={() => setEditingBanner((prev) => ({ ...prev, type: t.type }))}
-                        className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between gap-2 ${
-                          isSelected
-                            ? 'bg-[#111111] text-white border-[#111111] shadow-sm'
-                            : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border-neutral-200'
-                        }`}
-                      >
-                        <Icon className="text-sm" />
-                        <div>
-                          <p className="text-xs font-bold leading-tight">{t.label}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
+            {/* Modal Form - Scrollable Body */}
+            <form onSubmit={handleSaveBanner} className="flex-1 overflow-hidden flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 [scrollbar-width:thin]">
+                {/* Type Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
+                    Campaign Area & Placement
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {BANNER_TYPES.map((t) => {
+                      const isSelected = editingBanner.type === t.type;
+                      const Icon = t.icon;
+                      return (
+                        <button
+                          type="button"
+                          key={t.type}
+                          onClick={() => setEditingBanner((prev) => ({ ...prev, type: t.type }))}
+                          className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between gap-2 ${
+                            isSelected
+                              ? 'bg-[#111111] text-white border-[#111111] shadow-sm'
+                              : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border-neutral-200'
+                          }`}
+                        >
+                          <Icon className="text-sm" />
+                          <div>
+                            <p className="text-xs font-bold leading-tight">{t.label}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              {/* Story Video Input (Dedicated YouTube section) */}
-              {editingBanner.type === 'story_video' && (
-                <div className="space-y-4 bg-neutral-50 p-5 rounded-2xl border border-neutral-200">
-                  <div>
+                {/* Story Video Input (Dedicated YouTube section) */}
+                {editingBanner.type === 'story_video' && (
+                  <div className="space-y-4 bg-neutral-50 p-5 rounded-2xl border border-neutral-200">
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                        YouTube Video / Shorts Link or Video ID *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. https://www.youtube.com/shorts/aN2sDNVf-Js or aN2sDNVf-Js"
+                        value={editingBanner.linkUrl || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const ytid = getYouTubeId(val);
+                          setEditingBanner((prev) => ({
+                            ...prev,
+                            linkUrl: val,
+                            imageUrl: ytid ? `https://img.youtube.com/vi/${ytid}/hqdefault.jpg` : prev.imageUrl,
+                          }));
+                        }}
+                        className="w-full px-4 py-2.5 text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 transition font-mono"
+                      />
+                      <p className="text-[11px] text-neutral-500 mt-1">
+                        Paste any YouTube Shorts URL or 11-character video ID. Video ID will be extracted automatically.
+                      </p>
+                    </div>
+
+                    {/* Live Video Preview in Modal */}
+                    {editingBanner.linkUrl && (
+                      <div className="pt-2">
+                        <label className="block text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2 text-center">
+                          Live Embedded Player Preview
+                        </label>
+                        <div className="aspect-[9/16] w-44 mx-auto rounded-2xl overflow-hidden bg-black border border-neutral-300 shadow-md">
+                          <iframe
+                            src={`https://www.youtube-nocookie.com/embed/${getYouTubeId(editingBanner.linkUrl)}?autoplay=0&controls=1`}
+                            title="Video Preview"
+                            className="w-full h-full border-0"
+                            allow="encrypted-media"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Image Upload Area */}
+                {editingBanner.type !== 'announcement' && editingBanner.type !== 'story_video' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
+                        Desktop Banner Image
+                      </label>
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        {/* Image Preview */}
+                        <div className="w-full sm:w-48 h-28 rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0 relative group">
+                          {editingBanner.imageUrl ? (
+                            <img
+                              src={editingBanner.imageUrl}
+                              alt="Banner Preview"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="text-center p-3 text-neutral-400">
+                              <FaImage size={24} className="mx-auto mb-1" />
+                              <span className="text-[10px]">No image uploaded</span>
+                            </div>
+                          )}
+                          {isUploading && (
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold">
+                              Uploading...
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Upload Controls */}
+                        <div className="flex-1 space-y-2 w-full">
+                          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#111111] hover:bg-[#1f5133] text-white text-xs font-semibold cursor-pointer transition shadow-xs">
+                            <FaCloudUploadAlt />
+                            <span>Upload Banner Image</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleFileUpload(e, false)}
+                              className="hidden"
+                            />
+                          </label>
+                          <p className="text-[11px] text-neutral-400">
+                            Recommended: 1920x800px (Hero) or 1600x600px (Promotions).
+                          </p>
+                          <input
+                            type="text"
+                            placeholder="Or paste image URL directly..."
+                            value={editingBanner.imageUrl || ''}
+                            onChange={(e) =>
+                              setEditingBanner((prev) => ({ ...prev, imageUrl: e.target.value }))
+                            }
+                            className="w-full px-3 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Optional Mobile Image */}
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                        Mobile Banner Image (Optional)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="text"
+                          placeholder="Mobile optimized image URL (optional)..."
+                          value={editingBanner.mobileImageUrl || ''}
+                          onChange={(e) =>
+                            setEditingBanner((prev) => ({ ...prev, mobileImageUrl: e.target.value }))
+                          }
+                          className="flex-1 px-3 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900"
+                        />
+                        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-xs font-semibold cursor-pointer transition">
+                          <FaCloudUploadAlt />
+                          <span>{isUploadingMobile ? 'Uploading...' : 'Upload'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, true)}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Text Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
                     <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                      YouTube Video / Shorts Link or Video ID *
+                      Campaign Headline / Title *
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. https://www.youtube.com/shorts/aN2sDNVf-Js or aN2sDNVf-Js"
-                      value={editingBanner.linkUrl || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const ytid = getYouTubeId(val);
-                        setEditingBanner((prev) => ({
-                          ...prev,
-                          linkUrl: val,
-                          imageUrl: ytid ? `https://img.youtube.com/vi/${ytid}/hqdefault.jpg` : prev.imageUrl,
-                        }));
-                      }}
-                      className="w-full px-4 py-2.5 text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 transition font-mono"
+                      placeholder="e.g. ✨ Glass Skin Radiance: Curated Autumn Essentials"
+                      value={editingBanner.title || ''}
+                      onChange={(e) => setEditingBanner((prev) => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
                     />
-                    <p className="text-[11px] text-neutral-500 mt-1">
-                      Paste any YouTube Shorts URL or 11-character video ID. Video ID will be extracted automatically.
-                    </p>
                   </div>
 
-                  {/* Live Video Preview in Modal */}
-                  {editingBanner.linkUrl && (
-                    <div className="pt-2">
-                      <label className="block text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2 text-center">
-                        Live Embedded Player Preview
-                      </label>
-                      <div className="aspect-[9/16] w-44 mx-auto rounded-2xl overflow-hidden bg-black border border-neutral-300 shadow-md">
-                        <iframe
-                          src={`https://www.youtube-nocookie.com/embed/${getYouTubeId(editingBanner.linkUrl)}?autoplay=0&controls=1`}
-                          title="Video Preview"
-                          className="w-full h-full border-0"
-                          allow="encrypted-media"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Image Upload Area (Not needed for announcement marquee or story_video) */}
-              {editingBanner.type !== 'announcement' && editingBanner.type !== 'story_video' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
-                      Desktop Banner Image (Cloudinary)
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                      Subtitle / Promotional Description
                     </label>
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                      {/* Image Preview */}
-                      <div className="w-full sm:w-48 h-28 rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 flex items-center justify-center overflow-hidden shrink-0 relative group">
-                        {editingBanner.imageUrl ? (
-                          <img
-                            src={editingBanner.imageUrl}
-                            alt="Banner Preview"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="text-center p-3 text-neutral-400">
-                            <FaImage size={24} className="mx-auto mb-1" />
-                            <span className="text-[10px]">No image uploaded</span>
-                          </div>
-                        )}
-                        {isUploading && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold">
-                            Uploading...
-                          </div>
-                        )}
-                      </div>
+                    <textarea
+                      rows={2}
+                      placeholder="e.g. Deep hydration with COSRX Snail Mucin, Anua Heartleaf, and Beauty of Joseon Relief Sun. Use coupon GLOW15 for 15% off!"
+                      value={editingBanner.subtitle || ''}
+                      onChange={(e) => setEditingBanner((prev) => ({ ...prev, subtitle: e.target.value }))}
+                      className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
+                    />
+                  </div>
 
-                      {/* Upload Controls */}
-                      <div className="flex-1 space-y-2 w-full">
-                        <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#111111] hover:bg-[#E57A22] text-white text-xs font-semibold cursor-pointer transition shadow-xs">
-                          <FaCloudUploadAlt />
-                          <span>Upload Image to Cloudinary</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleFileUpload(e, false)}
-                            className="hidden"
-                          />
+                  {editingBanner.type !== 'story_video' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                          Badge Text (e.g. BESTSELLER, CODE: GLOW15)
                         </label>
-                        <p className="text-[11px] text-neutral-400">
-                          Recommended: 1920x800px (Hero) or 1600x600px (Festival).
-                        </p>
                         <input
                           type="text"
-                          placeholder="Or paste Cloudinary image URL directly..."
-                          value={editingBanner.imageUrl || ''}
-                          onChange={(e) =>
-                            setEditingBanner((prev) => ({ ...prev, imageUrl: e.target.value }))
-                          }
-                          className="w-full px-3 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900"
+                          placeholder="e.g. K-BEAUTY SPECIAL"
+                          value={editingBanner.badge || ''}
+                          onChange={(e) => setEditingBanner((prev) => ({ ...prev, badge: e.target.value }))}
+                          className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
                         />
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Optional Mobile Image */}
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                          Tagline / Sub-note
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. CODE: GLOW15 • UP TO 15% OFF"
+                          value={editingBanner.tagline || ''}
+                          onChange={(e) => setEditingBanner((prev) => ({ ...prev, tagline: e.target.value }))}
+                          className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                          Destination Link URL
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. /products or /products?category=Serums"
+                          value={editingBanner.linkUrl || ''}
+                          onChange={(e) => setEditingBanner((prev) => ({ ...prev, linkUrl: e.target.value }))}
+                          className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
+                          Button CTA Text
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Shop K-Beauty Now"
+                          value={editingBanner.buttonText || ''}
+                          onChange={(e) => setEditingBanner((prev) => ({ ...prev, buttonText: e.target.value }))}
+                          className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
+                        />
+                      </div>
+                    </>
+                  )}
+
                   <div>
                     <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                      Mobile Banner Image (Optional)
+                      Display Order (Rank)
                     </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="text"
-                        placeholder="Mobile optimized image URL (optional)..."
-                        value={editingBanner.mobileImageUrl || ''}
-                        onChange={(e) =>
-                          setEditingBanner((prev) => ({ ...prev, mobileImageUrl: e.target.value }))
-                        }
-                        className="flex-1 px-3 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900"
-                      />
-                      <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-xs font-semibold cursor-pointer transition">
-                        <FaCloudUploadAlt />
-                        <span>{isUploadingMobile ? 'Uploading...' : 'Upload'}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleFileUpload(e, true)}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Text Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                    Campaign Headline / Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 🎉 Grand Festive Season: Pure Godavari Delicacies"
-                    value={editingBanner.title || ''}
-                    onChange={(e) => setEditingBanner((prev) => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                    Subtitle / Promotional Description
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="e.g. Celebrate with wood-fired palm jaggery, Bellam Putharekulu, and organic Araku honey. Use coupon URVA10 for 10% off!"
-                    value={editingBanner.subtitle || ''}
-                    onChange={(e) => setEditingBanner((prev) => ({ ...prev, subtitle: e.target.value }))}
-                    className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
-                  />
-                </div>
-
-                {editingBanner.type !== 'story_video' && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                        Badge Text (e.g. FESTIVE SPECIAL, CODE: URVA10)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. DIWALI SPECIAL"
-                        value={editingBanner.badge || ''}
-                        onChange={(e) => setEditingBanner((prev) => ({ ...prev, badge: e.target.value }))}
-                        className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                        Tagline / Sub-note
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. CODE: URVA10 • FLAT 10% OFF"
-                        value={editingBanner.tagline || ''}
-                        onChange={(e) => setEditingBanner((prev) => ({ ...prev, tagline: e.target.value }))}
-                        className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                        Destination Link URL
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. /category/mana-godavari-foods or /products"
-                        value={editingBanner.linkUrl || ''}
-                        onChange={(e) => setEditingBanner((prev) => ({ ...prev, linkUrl: e.target.value }))}
-                        className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                        Button CTA Text
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Shop Festive Specials"
-                        value={editingBanner.buttonText || ''}
-                        onChange={(e) => setEditingBanner((prev) => ({ ...prev, buttonText: e.target.value }))}
-                        className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-1">
-                    Display Order (Rank)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editingBanner.displayOrder || 1}
-                    onChange={(e) =>
-                      setEditingBanner((prev) => ({ ...prev, displayOrder: parseInt(e.target.value, 10) || 1 }))
-                    }
-                    className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 pt-6">
-                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
-                      type="checkbox"
-                      checked={editingBanner.isActive !== false}
+                      type="number"
+                      min="1"
+                      value={editingBanner.displayOrder || 1}
                       onChange={(e) =>
-                        setEditingBanner((prev) => ({ ...prev, isActive: e.target.checked }))
+                        setEditingBanner((prev) => ({ ...prev, displayOrder: parseInt(e.target.value, 10) || 1 }))
                       }
-                      className="sr-only peer"
+                      className="w-full px-4 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:bg-white transition"
                     />
-                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  </label>
-                  <span className="text-xs font-bold text-neutral-800">
-                    Campaign is Active & Visible
-                  </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-6">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingBanner.isActive !== false}
+                        onChange={(e) =>
+                          setEditingBanner((prev) => ({ ...prev, isActive: e.target.checked }))
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                    <span className="text-xs font-bold text-neutral-800">
+                      Campaign is Active & Visible
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Modal Buttons */}
-              <div className="p-4 bg-neutral-50 -mx-6 -mb-6 border-t border-neutral-100 flex items-center justify-end gap-3">
+              {/* Modal Buttons - Fixed at Bottom */}
+              <div className="p-4 px-6 bg-neutral-50 border-t border-neutral-100 flex items-center justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={handleCloseModal}
@@ -811,7 +822,7 @@ const AdminBanners: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isCreating || isUpdating}
-                  className="px-6 py-2.5 rounded-xl bg-[#111111] hover:bg-[#E57A22] text-white text-xs font-bold transition shadow-sm"
+                  className="px-6 py-2.5 rounded-xl bg-[#111111] hover:bg-[#1f5133] text-white text-xs font-bold transition shadow-sm"
                 >
                   {isCreating || isUpdating ? 'Saving Campaign...' : 'Publish Campaign'}
                 </button>

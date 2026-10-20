@@ -28,7 +28,7 @@ import {
   FaChevronRight
 } from 'react-icons/fa';
 
-const FALLBACK_LOGO = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+const FALLBACK_LOGO = '/images/skin-of-korea-logo.png';
 
 const AdminFeaturedProducts: React.FC = () => {
   const navigate = useNavigate();
@@ -229,7 +229,7 @@ const AdminFeaturedProducts: React.FC = () => {
       i + 1,
       `"${(p.name || '').replace(/"/g, '""')}"`,
       p.handle || p._id || '',
-      `"${p.vendor || 'Mii Korean'}"`,
+      `"${p.vendor || 'Skin of Korea'}"`,
       `"${p.category || 'Skincare'}"`,
       Number(p.price || 0).toFixed(2),
       p.stock || 0,
@@ -239,7 +239,7 @@ const AdminFeaturedProducts: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `miikorean-featured-products-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `skinofkorea-featured-products-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -653,7 +653,7 @@ const AdminFeaturedProducts: React.FC = () => {
                       {/* Brand */}
                       <td className="px-4 py-3.5">
                         <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-neutral-100 text-neutral-800 border border-neutral-200 whitespace-nowrap">
-                          {product.vendor || 'Mii Korean'}
+                          {product.vendor || 'Skin of Korea'}
                         </span>
                       </td>
 
@@ -753,7 +753,7 @@ const AdminFeaturedProducts: React.FC = () => {
                   <FaStar className="text-amber-500 text-sm" /> Add Products to Featured Showcase
                 </h3>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Select products from the Mii Korean catalog to display prominently on your storefront homepage.
+                  Select products from the Skin of Korea catalog to display prominently on your storefront homepage.
                 </p>
               </div>
               <button
@@ -867,7 +867,7 @@ const AdminFeaturedProducts: React.FC = () => {
                         <div className="min-w-0">
                           <p className="font-semibold text-xs text-neutral-900 truncate">{p.name}</p>
                           <div className="flex items-center gap-2 mt-0.5 text-[10px] text-neutral-500">
-                            <span className="font-medium text-neutral-700">{p.vendor || 'Mii Korean'}</span>
+                            <span className="font-medium text-neutral-700">{p.vendor || 'Skin of Korea'}</span>
                             <span>•</span>
                             <span>{p.category || 'Skincare'}</span>
                             <span>•</span>

@@ -3,13 +3,13 @@ import { useParams } from 'react-router-dom';
 import BackButton from '../components/common/BackBtn';
 import { useOrderDetailsQuery } from '../redux/api/order.api';
 import { usePageSEO } from '../hooks/usePageSEO';
-import { formatStorePrice } from '../data/miikoreanStorefront';
+import { formatStorePrice } from '../data/storefront';
 import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
 const OrderDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     usePageSEO({
-        title: `Order #${id || ''} | Mii Korean Skincare`,
+        title: `Order #${id || ''} | Skin of Korea`,
         description: 'View order details and status.',
         canonical: `/order/${id || ''}`,
         noIndex: true,

@@ -11,8 +11,8 @@ interface SEOProps {
   schema?: object | object[];
 }
 
-const BASE_URL = 'https://www.miikorean.com';
-const DEFAULT_IMAGE = 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418';
+const BASE_URL = 'https://www.skinofkorea.com';
+const DEFAULT_IMAGE = '/images/skin-of-korea-logo.png';
 
 /**
  * usePageSEO – sets <title>, all meta tags, canonical, and injects
@@ -69,7 +69,7 @@ export function usePageSEO({
     setMeta('og:type', ogType, true);
     setMeta('og:image', ogImage, true);
     setMeta('og:image:alt', title, true);
-    setMeta('og:site_name', 'Mii Korean Skincare', true);
+    setMeta('og:site_name', 'Skin of Korea', true);
     setMeta('og:locale', 'en_GB', true);
 
     // ─── Twitter / X ───
@@ -95,7 +95,7 @@ export function usePageSEO({
 
     // Cleanup on unmount — restore defaults
     return () => {
-      document.title = 'Mii Korean Skincare';
+      document.title = 'Skin of Korea';
       document.querySelectorAll('script[data-page-schema]').forEach((el) => el.remove());
     };
   }, [title, description, canonical, ogType, ogImage, keywords, noIndex, schema]);

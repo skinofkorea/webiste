@@ -3,15 +3,15 @@ import { FaHeart, FaRegHeart, FaStar, FaTruck, FaShieldAlt } from 'react-icons/f
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { findMiikoreanProduct, formatStorePrice, sanitizeStoreHtml } from '../data/miikoreanStorefront';
-import { useMiikoreanStorefront } from '../hooks/useMiikoreanStorefront';
+import { findStoreProduct, formatStorePrice, sanitizeStoreHtml } from '../data/storefront';
+import { useStorefront } from '../hooks/useStorefront';
 import { addToCart } from '../redux/reducers/cart.reducer';
 import { RootState } from '../redux/store';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
 function readWishlist(): string[] {
-  const stored = localStorage.getItem('miikorean-wishlist');
+  const stored = localStorage.getItem('skinofkorea-wishlist');
   if (!stored) return [];
 
   try {
@@ -24,13 +24,13 @@ function readWishlist(): string[] {
   return [];
 }
 
-const MiikoreanProductPage: React.FC = () => {
+const ProductPage: React.FC = () => {
   const { productId = '' } = useParams<{ productId: string }>();
-  const { storefront, isLoading, error } = useMiikoreanStorefront();
+  const { storefront, isLoading, error } = useStorefront();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const cartItems = useSelector((state: RootState) => state.cart.cartItems);
-  const product = storefront ? findMiikoreanProduct(storefront.products, productId) : undefined;
+  const product = storefront ? findStoreProduct(storefront.products, productId) : undefined;
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const availableVariants = variants.filter((variant) => variant.available);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
@@ -68,8 +68,8 @@ const MiikoreanProductPage: React.FC = () => {
   const isWishlisted = product ? wishlist.includes(product.handle) : false;
 
   usePageSEO({
-    title: product ? `${product.name} | Mii Korean Skincare` : 'Korean Skincare | Mii Korean',
-    description: product?.description || 'Shop authentic Korean skincare at Mii Korean.',
+    title: product ? `${product.name} | Skin of Korea` : 'Korean Skincare | Skin of Korea',
+    description: product?.description || 'Shop authentic Korean skincare at Skin of Korea.',
     canonical: product ? `/product/${product.handle}` : `/product/${productId}`,
     ogImage: selectedImage || product?.photo,
   });
@@ -80,7 +80,7 @@ const MiikoreanProductPage: React.FC = () => {
       ? wishlist.filter((handle) => handle !== product.handle)
       : [...wishlist, product.handle];
     try {
-      localStorage.setItem('miikorean-wishlist', JSON.stringify(next));
+      localStorage.setItem('skinofkorea-wishlist', JSON.stringify(next));
       setWishlist(next);
       toast.success(isWishlisted ? 'Removed from your wishlist' : 'Added to your wishlist');
     } catch (storageError) {
@@ -93,7 +93,7 @@ const MiikoreanProductPage: React.FC = () => {
     if (!product || !selectedVariant || !selectedVariant.available) return;
     const currentCurrency = cartItems[0]?.currency || 'INR';
     if (cartItems.length > 0 && currentCurrency !== 'GBP') {
-      toast.error('Your basket contains items priced in a different currency. Clear it before adding Miikorean products.');
+      toast.error('Your basket contains items priced in a different currency. Clear it before adding Skin of Korea products.');
       navigate('/cart');
       return;
     }
@@ -124,7 +124,7 @@ const MiikoreanProductPage: React.FC = () => {
   }
 
   return (
-    <div className="miikorean-page mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="skinofkorea-page mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <nav aria-label="Breadcrumb" className="mb-6 text-xs text-neutral-500">
         <Link to="/" className="hover:text-neutral-900">Home</Link><span className="mx-2">/</span>
         <Link to="/products" className="hover:text-neutral-900">Shop</Link><span className="mx-2">/</span>
@@ -132,18 +132,40 @@ const MiikoreanProductPage: React.FC = () => {
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-14">
-        <div className="grid gap-3 sm:grid-cols-[76px_1fr]">
+        <div className={imageList.length > 1 ? "grid gap-3 sm:grid-cols-[76px_1fr]" : "w-full"}>
           {imageList.length > 1 && (
             <div className="order-2 flex gap-2 overflow-x-auto sm:order-1 sm:flex-col">
               {imageList.map((image, index) => (
-                <button key={`${image}-${index}`} type="button" onClick={() => setSelectedImage(image)} aria-label={`Show product image ${index + 1}`} aria-pressed={selectedImage === image} className={`h-[68px] w-[68px] shrink-0 overflow-hidden rounded-lg border ${selectedImage === image ? 'border-neutral-950' : 'border-neutral-200'}`}>
-                  <img src={optimizeProductImageUrl(image, 160)} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  onClick={() => setSelectedImage(image)}
+                  aria-label={`Show product image ${index + 1}`}
+                  aria-pressed={selectedImage === image}
+                  className={`h-[68px] w-[68px] shrink-0 overflow-hidden rounded-xl border-2 transition ${
+                    selectedImage === image ? 'border-neutral-950 shadow-sm' : 'border-neutral-200 hover:border-neutral-400'
+                  }`}
+                >
+                  <img
+                    src={optimizeProductImageUrl(image, 160)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </button>
               ))}
             </div>
           )}
-          <div className="order-1 aspect-square overflow-hidden rounded-2xl bg-neutral-100 sm:order-2">
-            <img src={optimizeProductImageUrl(selectedImage || product.photo, 1000)} alt={product.name} className="h-full w-full object-contain mix-blend-multiply" loading="eager" fetchPriority="high" decoding="async" />
+          <div className="order-1 w-full aspect-square overflow-hidden rounded-2xl bg-[#faf7f2] border border-neutral-100 flex items-center justify-center p-6 sm:p-10 sm:order-2 shadow-sm">
+            <img
+              src={optimizeProductImageUrl(selectedImage || product.photo, 1000)}
+              alt={product.name}
+              className="max-h-full max-w-full object-contain transition duration-300 hover:scale-105"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+            />
           </div>
         </div>
 
@@ -195,7 +217,7 @@ const MiikoreanProductPage: React.FC = () => {
           {product.bodyHtml && (
             <details className="mt-6 border-b border-neutral-200 py-4" open>
               <summary className="cursor-pointer text-sm font-semibold">Product details & how to use</summary>
-              <div className="miikorean-rich-text mt-4 text-sm leading-7 text-neutral-700" dangerouslySetInnerHTML={{ __html: sanitizeStoreHtml(product.bodyHtml) }} />
+              <div className="skinofkorea-rich-text mt-4 text-sm leading-7 text-neutral-700" dangerouslySetInnerHTML={{ __html: sanitizeStoreHtml(product.bodyHtml) }} />
             </details>
           )}
           {product.tags.length > 0 && (
@@ -227,4 +249,4 @@ const MiikoreanProductPage: React.FC = () => {
   );
 };
 
-export default MiikoreanProductPage;
+export default ProductPage;

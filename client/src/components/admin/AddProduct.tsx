@@ -29,41 +29,20 @@ export interface ProductVariantItem {
 }
 
 const DEFAULT_BRANDS = [
-  'COSRX',
   'Beauty of Joseon',
+  'COSRX',
   'Anua',
-  'Laneige',
-  'Dr. Jart+',
-  'Dr. Althea',
-  'Haruharu Wonder',
-  'Innisfree',
-  'Isntree',
-  'Medicube',
-  'Round Lab',
-  'Torriden',
-  'Arencia',
   'SKIN1004',
-  'Purito Seoul',
-  'I\'m From',
-  'iUNIK',
-  'Mary & May',
-  'Mii Korean Skincare'
+  'Haruharu Wonder'
 ];
 
 const DEFAULT_CATEGORIES = [
   'Cleanser',
   'Toner',
-  'Serum & Essence',
-  'Moisturizer',
-  'Sunscreen',
-  'Mask',
-  'Eye Care',
-  'Lip Care',
-  'Exfoliator',
-  'Treatment',
-  'Skincare Sets & Bundles',
-  'Body & Hair',
-  'Makeup'
+  'Moisturiser',
+  'SPF',
+  'Masks',
+  'Eye Cream'
 ];
 
 const SUGGESTED_TAGS = [
@@ -123,7 +102,7 @@ const AdminAddProduct: React.FC = () => {
 
     setUploadingImage(true);
     try {
-      const result = await uploadToCloudinary(file, 'miikorean/products');
+      const result = await uploadToCloudinary(file, 'skinofkorea/products');
       if (result && result.url) {
         setPhotoUrl(result.url);
         notify('Image uploaded successfully to Cloudinary!', 'success');

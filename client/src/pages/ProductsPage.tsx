@@ -1,194 +1,199 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import ReactPaginate from 'react-paginate';
-import { FaSearch } from 'react-icons/fa';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FaSearch, FaSlidersH } from 'react-icons/fa';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import { useCategoriesQuery, useSearchProductsQuery } from '../redux/api/product.api';
-import { Product } from '../types/api-types';
+import { getCollectionProducts, StoreCollection, normalizeStoreHandle } from '../data/storefront';
+import { useStorefront } from '../hooks/useStorefront';
 import { usePageSEO } from '../hooks/usePageSEO';
+
+const PAGE_SIZE = 24;
 
 const ProductsPage: React.FC = () => {
   const location = useLocation();
-  const [selectedCategory, setSelectedCategory] = useState(
-    new URLSearchParams(location.search).get('category') || '',
-  );
-  const [sort, setSort] = useState<'asc' | 'desc' | 'relevance'>('relevance');
+  const { collectionHandle, categorySlug } = useParams<{ collectionHandle?: string; categorySlug?: string }>();
+  const { storefront, isLoading, error } = useStorefront();
+  const query = new URLSearchParams(location.search);
+  const [search, setSearch] = useState(query.get('q') || '');
+  const [category, setCategory] = useState(query.get('category') || categorySlug || '');
+  const [brand, setBrand] = useState(query.get('brand') || '');
+  const [collection, setCollection] = useState(query.get('collection') || collectionHandle || '');
+  const [sort, setSort] = useState<'recommended' | 'price-asc' | 'price-desc' | 'newest'>('recommended');
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    setSelectedCategory(new URLSearchParams(location.search).get('category') || '');
+    const params = new URLSearchParams(location.search);
+    setSearch(params.get('q') || '');
+    setCategory(params.get('category') || categorySlug || '');
+    setBrand(params.get('brand') || '');
+    setCollection(params.get('collection') || collectionHandle || '');
     setPage(1);
-  }, [location.search]);
+  }, [location.search, collectionHandle, categorySlug]);
+
+  const products = useMemo(() => storefront?.products ?? [], [storefront]);
+  const categories = useMemo(() => Array.from(new Set(products.map((product) => product.category).filter(Boolean)).values()).sort(), [products]);
+  const brands = useMemo(() => Array.from(new Set(products.map((product) => product.vendor).filter(Boolean)).values()).sort(), [products]);
+  const selectedCollection = storefront?.collections.find((item) => item.handle === collection);
+
+  const isWishlistFilter = query.get('wishlist') === 'true';
+
+  const filteredProducts = useMemo(() => {
+    let result = products.filter((product) => {
+      if (isWishlistFilter) {
+        const stored = localStorage.getItem('skinofkorea-wishlist');
+        const wishlistIds: string[] = stored ? JSON.parse(stored) : [];
+        if (!wishlistIds.includes(product.handle)) return false;
+      }
+
+      const matchesCategory = !category || 
+        normalizeStoreHandle(product.category) === normalizeStoreHandle(category) ||
+        (normalizeStoreHandle(category) === 'spf' && /sun|spf/i.test(product.category)) ||
+        (normalizeStoreHandle(category) === 'eyecream' && /eye/i.test(product.category));
+
+      const matchesBrand = !brand || 
+        product.vendor.toLowerCase() === brand.toLowerCase() ||
+        normalizeStoreHandle(product.vendor) === normalizeStoreHandle(brand);
+
+      let matchesCollection = true;
+      if (collection) {
+        if (selectedCollection) {
+          matchesCollection = getCollectionProducts([product], selectedCollection).length > 0;
+        } else if (normalizeStoreHandle(collection) === 'bestsellers') {
+          matchesCollection = Boolean(product.featured || (product.stock > 0 && product.price > 0));
+        } else {
+          const normColl = normalizeStoreHandle(collection);
+          const normVendor = normalizeStoreHandle(product.vendor);
+          const normCat = normalizeStoreHandle(product.category);
+          matchesCollection = normVendor === normColl || 
+            normCat === normColl || 
+            (normColl === 'spf' && (/sun|spf/i.test(product.category) || /sun|spf/i.test(product.name))) ||
+            (normColl === 'eyecream' && (/eye/i.test(product.category) || /eye/i.test(product.name))) ||
+            product.tags.some((t) => normalizeStoreHandle(t) === normColl);
+        }
+      }
+
+      const searchText = `${product.name} ${product.description} ${product.vendor} ${product.category} ${product.tags.join(' ')}`.toLowerCase();
+      const matchesSearch = !search.trim() || searchText.includes(search.trim().toLowerCase());
+
+      return matchesCategory && matchesBrand && matchesCollection && matchesSearch;
+    });
+
+    if (sort === 'price-asc') result = [...result].sort((a, b) => a.price - b.price);
+    if (sort === 'price-desc') result = [...result].sort((a, b) => b.price - a.price);
+    if (sort === 'newest') result = [...result].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    return result;
+  }, [brand, category, collection, isWishlistFilter, products, search, selectedCollection, sort]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [brand, category, collection, search, sort]);
 
   usePageSEO({
-    title: 'Explore Products | URVA',
-    description:
-      'Browse products from URVA, a growing collection inspired by regional foods, rural makers, handlooms, plants, and thoughtful everyday goods.',
+    title: selectedCollection ? `${selectedCollection.title} | Skin of Korea` : 'Shop Korean Skincare | Skin of Korea',
+    description: 'Explore authentic Korean skincare, makeup, masks, SPF and more from Skin of Korea.',
     canonical: '/products',
   });
 
-  const { data: categoriesData } = useCategoriesQuery('');
-  const { data, isLoading, isError } = useSearchProductsQuery({
-    search,
-    category: selectedCategory || undefined,
-    price: undefined,
-    sort: sort !== 'relevance' ? sort : undefined,
-    page,
-  });
-
-  const categories = categoriesData?.categories || [];
-
-  const handleCategoryClick = (category: string) => {
-    setSelectedCategory(category === selectedCategory ? '' : category);
-    setPage(1);
+  const clearFilters = () => {
+    setSearch('');
+    setCategory('');
+    setBrand('');
+    setCollection('');
   };
 
-  const handlePageClick = (selectedItem: { selected: number }) => {
-    setPage(selectedItem.selected + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const visibleProducts = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageCount = Math.ceil(filteredProducts.length / PAGE_SIZE);
+  const title = isWishlistFilter
+    ? 'My Wish List'
+    : selectedCollection?.title ||
+      (collection ? collection.replace(/-/g, ' ').toUpperCase() : '') ||
+      (category ? (categories.find((item) => normalizeStoreHandle(item) === normalizeStoreHandle(category)) || category.toUpperCase()) : '') ||
+      'Shop all Korean skincare';
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] px-4 py-8 sm:px-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <header className="rounded-2xl bg-[#111111] px-6 py-10 text-white sm:px-10 border border-neutral-800">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
-            One Village – One Product
-          </p>
-          <h1 className="mt-2 font-sans text-3xl font-semibold sm:text-4xl text-white tracking-tight">
-            Explore the URVA Collection
-          </h1>
-          <p className="mt-2.5 max-w-2xl text-xs sm:text-sm leading-relaxed text-neutral-400">
-            Discover authentic regional foods, tribal harvests, handlooms, and everyday essentials.
-          </p>
+    <div className="skinofkorea-page min-h-screen bg-white px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <nav aria-label="Breadcrumb" className="mb-5 text-xs text-neutral-500"><Link to="/" className="hover:text-neutral-900">Home</Link><span className="mx-2">/</span><span className="text-neutral-800">Shop</span></nav>
+        <header className="mb-7 rounded-2xl bg-neutral-100 px-6 py-8 sm:px-10 sm:py-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-600">Skin of Korea</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">{title}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-700">Discover authentic Korean skincare favourites, with products for every step of your routine.</p>
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <aside className="rounded-xl border border-neutral-200 bg-white p-5 self-start shadow-xs">
-            <h2 className="border-b border-neutral-200 pb-3 font-sans text-sm font-semibold uppercase tracking-wider text-[#111111]">
-              Categories
-            </h2>
-            <ul className="mt-3 space-y-1">
-              <li>
-                <button
-                  onClick={() => handleCategoryClick('')}
-                  className={`w-full text-left text-xs py-2 px-3 rounded-lg transition-colors ${
-                    selectedCategory === ''
-                      ? 'bg-black text-white font-medium'
-                      : 'text-neutral-600 hover:bg-neutral-100 hover:text-black'
-                  }`}
-                >
-                  All Products
-                </button>
-              </li>
-              {categories.map((category) => (
-                <li key={category}>
-                  <button
-                    onClick={() => handleCategoryClick(category)}
-                    className={`w-full text-left text-xs py-2 px-3 rounded-lg transition-colors ${
-                      selectedCategory === category
-                        ? 'bg-black text-white font-medium'
-                        : 'text-neutral-600 hover:bg-neutral-100 hover:text-black'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                </li>
-              ))}
-            </ul>
+          <aside className="self-start rounded-2xl border border-neutral-200 bg-white p-5">
+            <div className="mb-4 flex items-center gap-2"><FaSlidersH className="text-neutral-900" /><h2 className="text-sm font-semibold">Filter products</h2></div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-neutral-500" htmlFor="category-filter">Category</label>
+            <select id="category-filter" value={category} onChange={(event) => setCategory(event.target.value)} className="mb-5 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+              <option value="">All categories</option>
+              {categories.map((item) => <option key={item} value={normalizeStoreHandle(item)}>{item}</option>)}
+            </select>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-neutral-500" htmlFor="brand-filter">Brand</label>
+            <select id="brand-filter" value={brand} onChange={(event) => setBrand(event.target.value)} className="mb-5 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
+              <option value="">All brands</option>
+              {brands.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            {(category || brand || collection || search) && <button type="button" onClick={clearFilters} className="text-sm font-medium text-neutral-900 hover:underline">Clear filters</button>}
+            {storefront && <p className="mt-5 border-t border-neutral-100 pt-4 text-xs text-neutral-500">Browse {products.length} products across {brands.length} Korean beauty brands.</p>}
           </aside>
 
-          <main className="space-y-6">
-            <div className="flex flex-col items-center justify-between gap-4 rounded-xl border border-neutral-200 bg-white p-3.5 sm:flex-row shadow-xs">
-              <label className="relative w-full max-w-md">
-                <FaSearch aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-neutral-400" />
+          <main className="min-w-0">
+            <div className="mb-5 flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="relative block w-full sm:max-w-md">
+                <FaSearch aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
                 <span className="sr-only">Search products</span>
-                <input
-                  type="search"
-                  placeholder="Search products..."
-                  value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full rounded-full border border-neutral-200 bg-[#FAFAFA] py-2 pl-9 pr-4 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-                />
+                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products, ingredients or brands" className="w-full rounded-full border border-neutral-200 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-neutral-800" />
               </label>
-              <label className="flex items-center gap-2 text-xs text-neutral-500">
-                <span>Sort by:</span>
-                <select
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as 'asc' | 'desc' | 'relevance')}
-                  className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-[#111111] focus:outline-none focus:border-black"
-                >
-                  <option value="relevance">Recommended</option>
-                  <option value="asc">Price: Low to High</option>
-                  <option value="desc">Price: High to Low</option>
-                </select>
-              </label>
+              <div className="flex items-center justify-between gap-3">
+                <p aria-live="polite" className="text-xs text-neutral-500">{isLoading ? 'Loading products…' : `${filteredProducts.length} products`}</p>
+                <label className="flex items-center gap-2 text-xs text-neutral-600">
+                  <span className="sr-only">Sort products</span>
+                  <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
+                    <option value="recommended">Recommended</option>
+                    <option value="newest">Newest</option>
+                    <option value="price-asc">Price: low to high</option>
+                    <option value="price-desc">Price: high to low</option>
+                  </select>
+                </label>
+              </div>
             </div>
 
             {isLoading ? (
-              <div className="flex min-h-[40vh] items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-200 border-t-black" />
-                  <p className="text-xs text-neutral-500">Loading products...</p>
-                </div>
-              </div>
-            ) : isError ? (
-              <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center">
-                <p className="mb-2 text-3xl">🌾</p>
-                <h2 className="font-sans text-base font-semibold text-neutral-800">Unable to load products</h2>
-                <p className="mt-1 text-xs text-neutral-500">Please check your connection and try again.</p>
-              </div>
-            ) : !data?.products || data.products.length === 0 ? (
-              <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center">
-                <p className="mb-2 text-3xl">📦</p>
-                <h2 className="font-sans text-base font-semibold text-neutral-800">No products found</h2>
-                <button
-                  onClick={() => {
-                    setSelectedCategory('');
-                    setSearch('');
-                    setPage(1);
-                  }}
-                  className="mt-4 rounded-full bg-black px-5 py-2 text-xs font-medium text-white hover:bg-neutral-800 transition-colors"
-                >
-                  View all products
-                </button>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }, (_, index) => <div key={index} className="aspect-[4/5] animate-pulse rounded-xl bg-neutral-200" />)}</div>
+            ) : error ? (
+              <div role="alert" className="rounded-xl border border-red-200 bg-white p-8 text-center text-sm text-red-800">{error}</div>
+            ) : visibleProducts.length === 0 ? (
+              <div className="rounded-xl border border-neutral-200 bg-white px-6 py-16 text-center">
+                <h2 className="text-xl font-semibold text-neutral-950">No products found</h2>
+                <p className="mt-2 text-sm text-neutral-500">Try a different search or clear your filters.</p>
+                <button type="button" onClick={clearFilters} className="mt-5 rounded-full bg-neutral-950 px-6 py-3 text-sm font-semibold text-white">Show all products</button>
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
-                  {data.products.map((product: Product) => (
-                    <ProductCard key={product._id} product={product} />
-                  ))}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
+                  {visibleProducts.map((product) => <ProductCard key={product.handle} product={product} />)}
                 </div>
-                {data.totalPage > 1 && (
-                  <div className="mt-10 flex justify-center">
-                    <ReactPaginate
-                      pageCount={data.totalPage}
-                      pageRangeDisplayed={2}
-                      marginPagesDisplayed={1}
-                      onPageChange={handlePageClick}
-                      containerClassName="flex items-center space-x-1 sm:space-x-2 bg-white px-4 py-2 rounded-full shadow-xs border border-neutral-200 text-xs"
-                      pageClassName="rounded-full overflow-hidden"
-                      pageLinkClassName="w-8 h-8 flex items-center justify-center text-xs font-medium text-neutral-600 hover:bg-neutral-100"
-                      previousClassName="rounded-full overflow-hidden"
-                      previousLinkClassName="px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100"
-                      nextClassName="rounded-full overflow-hidden"
-                      nextLinkClassName="px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100"
-                      activeClassName="bg-black text-white"
-                      activeLinkClassName="text-white hover:bg-black"
-                      disabledClassName="opacity-30 cursor-not-allowed"
-                      forcePage={page - 1}
-                    />
-                  </div>
+                {pageCount > 1 && (
+                  <nav aria-label="Product pages" className="mt-8 flex items-center justify-center gap-3">
+                    <button type="button" disabled={page === 1} onClick={() => { setPage((value) => value - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="rounded-full border border-neutral-300 px-4 py-2 text-sm disabled:opacity-40">Previous</button>
+                    <span className="text-sm text-neutral-600">Page {page} of {pageCount}</span>
+                    <button type="button" disabled={page === pageCount} onClick={() => { setPage((value) => value + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="rounded-full border border-neutral-300 px-4 py-2 text-sm disabled:opacity-40">Next</button>
+                  </nav>
                 )}
               </>
             )}
           </main>
         </div>
+
+        {storefront?.collections && (
+          <section className="mt-14 border-t border-neutral-200 pt-8">
+            <h2 className="mb-4 text-xl font-semibold text-neutral-950">Shop by collection</h2>
+            <div className="flex flex-wrap gap-2">
+              {storefront.collections
+                .filter((item) => getCollectionProducts(products, item).length > 0)
+                .map((item: StoreCollection) => <Link key={item.handle} to={`/products?collection=${encodeURIComponent(item.handle)}`} className={`rounded-full border px-3 py-2 text-xs transition ${collection === item.handle ? 'border-neutral-950 bg-neutral-100 text-neutral-950' : 'border-neutral-200 bg-white hover:border-neutral-500'}`}>{item.title}</Link>)}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

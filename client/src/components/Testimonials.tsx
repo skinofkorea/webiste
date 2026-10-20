@@ -29,7 +29,7 @@ const testimonials = [
   },
 ];
 
-const MiikoreanTestimonials: React.FC = () => {
+const Testimonials: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const prefersReducedMotion = useReducedMotion();
 
@@ -83,11 +83,11 @@ const MiikoreanTestimonials: React.FC = () => {
   };
 
   return (
-    <section aria-labelledby="customer-stories-heading" className="miikorean-testimonials">
+    <section aria-labelledby="customer-stories-heading" className="skinofkorea-testimonials">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <header className="mx-auto mb-8 max-w-2xl text-center sm:mb-10">
           <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#8b451f] sm:text-[10px]">
-            Mii Korean community
+            Skin of Korea community
           </p>
           <h2 id="customer-stories-heading" className="mt-2 text-2xl font-medium text-[#2b211c] sm:text-3xl">
             Real stories, <span className="italic text-[#8b451f]">real glow.</span>
@@ -97,14 +97,14 @@ const MiikoreanTestimonials: React.FC = () => {
           </p>
         </header>
 
-        <div className="miikorean-testimonial-grid mx-auto max-w-5xl rounded-3xl border border-[#ead4be] bg-gradient-to-br from-[#fffaf4] to-[#f8e8d8] p-5 shadow-[0_8px_24px_rgba(116,71,39,0.06)] sm:p-8 lg:p-10">
-          <div className="miikorean-testimonial-images" aria-hidden="true">
+        <div className="skinofkorea-testimonial-grid mx-auto max-w-5xl rounded-3xl border border-[#ead4be] bg-gradient-to-br from-[#fffaf4] to-[#f8e8d8] p-5 shadow-[0_8px_24px_rgba(116,71,39,0.06)] sm:p-8 lg:p-10">
+          <div className="skinofkorea-testimonial-images" aria-hidden="true">
             {testimonials.map((testimonial, index) => (
               <img
                 key={testimonial.image}
                 src={testimonial.image}
                 alt=""
-                className="miikorean-testimonial-image"
+                className="skinofkorea-testimonial-image"
                 loading={index < 3 ? 'eager' : 'lazy'}
                 decoding="async"
                 style={getImageStyle(index)}
@@ -112,7 +112,7 @@ const MiikoreanTestimonials: React.FC = () => {
             ))}
           </div>
 
-          <div className="miikorean-testimonial-content" aria-live="polite" aria-atomic="true">
+          <div className="skinofkorea-testimonial-content" aria-live="polite" aria-atomic="true">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeIndex}
@@ -166,4 +166,4 @@ const MiikoreanTestimonials: React.FC = () => {
   );
 };
 
-export default MiikoreanTestimonials;
+export default Testimonials;

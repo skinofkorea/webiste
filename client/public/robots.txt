@@ -17,7 +17,6 @@ Disallow: /cart
 Disallow: /my-orders
 Disallow: /order/
 Disallow: /shipping
-Disallow: /track-shipment
 
 # Block legacy WordPress and WooCommerce paths
 Disallow: /index.php/
@@ -135,4 +134,4 @@ Disallow: /
 # ============================================
 # SITEMAP
 # ============================================
-Sitemap: https://urvaa.in/sitemap.xml
+Sitemap: https://skinofkorea.co.uk/sitemap.xml

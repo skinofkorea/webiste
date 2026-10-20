@@ -28,24 +28,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           },
         });
 
-        if (response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
           const data = await response.json();
           if (data.success && data.admin) {
             setIsAuthenticated(true);
-          } else {
-            // Invalid token
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminData');
-            setIsAuthenticated(false);
+            return;
           }
-        } else {
-          // Token expired or invalid
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminData');
-          setIsAuthenticated(false);
         }
+        
+        // Token invalid, expired, or non-JSON returned
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminData');
+        setIsAuthenticated(false);
       } catch (error) {
         console.error('Auth verification error:', error);
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminData');
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);

@@ -19,7 +19,7 @@ export const FestivalCampaignSection: React.FC = () => {
     activeBanner.subtitle?.match(/CODE:\s*([A-Z0-9]+)/i) ||
     (activeBanner.badge?.includes('CODE') ? activeBanner.badge.match(/([A-Z0-9]{4,10})/) : null);
 
-  const promoCode = promoCodeMatch ? promoCodeMatch[1] : 'URVA10';
+  const promoCode = promoCodeMatch ? promoCodeMatch[1] : 'GLOW15';
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(promoCode);
@@ -39,7 +39,7 @@ export const FestivalCampaignSection: React.FC = () => {
               )}
               <img
                 src={activeBanner.imageUrl}
-                alt={activeBanner.title || 'Festive Campaign'}
+                alt={activeBanner.title || 'Seasonal Campaign'}
                 className="w-full h-full object-cover opacity-25 filter blur-[1px] scale-105"
               />
             </picture>
@@ -51,11 +51,11 @@ export const FestivalCampaignSection: React.FC = () => {
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           <div className="max-w-2xl space-y-3">
-            {/* Festive Badge */}
+            {/* Seasonal Badge */}
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#E57A22]/20 border border-[#E57A22]/40 text-[#E57A22] text-xs font-bold tracking-wider uppercase">
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold tracking-wider uppercase">
                 <FaGift className="text-xs" />
-                {activeBanner.badge || 'FESTIVE SEASON SPECIAL'}
+                {activeBanner.badge || 'K-BEAUTY SEASONAL SPECIAL'}
               </span>
               {activeBanner.tagline && (
                 <span className="hidden sm:inline-block text-[11px] uppercase tracking-widest text-neutral-400 font-semibold">

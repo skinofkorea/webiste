@@ -1,6 +1,6 @@
-# Mii Korean — Skincare Storefront
+# Skin of Korea — Skincare Storefront
 
-Miikorean storefront conversion of the existing React/Vercel commerce app. The customer-facing catalog, collections, content pages, delivery policies, and Renude skin-analysis experience are based on [miikorean.com](https://www.miikorean.com/). Cart and order records remain in this application; checkout is configured for GBP.
+Skin of Korea storefront conversion of the existing React/Vercel commerce app. The customer-facing catalog, collections, content pages, and delivery policies are based on [skinofkorea.com](https://www.skinofkorea.com/). Cart and order records remain in this application; checkout is configured for GBP.
 
 ---
 
@@ -11,12 +11,12 @@ The project is structured as a streamlined full-stack application optimized for 
 ```
 ├── api/                       # Vercel Serverless Function Endpoints
 │   ├── data/                  # Local fallback and checkout catalog data
-│   │   ├── miikorean-storefront.json
+│   │   ├── storefront.json
 │   │   └── store_banners.json
 │   └── index.js               # Unified Serverless REST API router
 │
 ├── client/                    # Frontend React 18 + TypeScript Application
-│   ├── public/                # Static assets and imported Miikorean catalog
+│   ├── public/                # Static assets and curated Skin of Korea catalog
 │   ├── src/
 │   │   ├── assets/            # Local images, logos, and vector assets
 │   │   ├── components/        # Reusable UI components (Navbar, Footer, Cart, Checkout)
@@ -58,9 +58,8 @@ The project is structured as a streamlined full-stack application optimized for 
 ## 🚀 Key Features
 
 ### 🛒 Customer Storefront
-- **Imported catalog**: All 445 published products, variants, product descriptions, and image galleries, plus the published collections and store pages.
-- **Product discovery**: Search, brand/category/collection filters, sorting, pagination, product variants, related products, and a persistent wishlist.
-- **Renude skin analysis**: Embedded skin quiz, three-photo upload, and personalised routine recommendations.
+- **Curated catalog**: Exactly 5 top brands (Beauty of Joseon, COSRX, Anua, SKIN1004, Haruharu Wonder) and 5 best-in-class products per category (30 products total).
+- **Product discovery**: Search, brand and category filtering, pagination, product variants, and persistent wishlist.
 - **GBP cart and checkout**: UK delivery details, £3.75 shipping below £35, and free delivery from £35. Checkout validates catalog prices and the GBP Razorpay payment before saving an order.
 
 ### ⚙️ Admin CMS Dashboard
@@ -87,15 +86,15 @@ npm install
 cd client && npm install && cd ..
 ```
 
-### 2. Refreshing the Miikorean Store Data
+### 2. Refreshing the Skin of Korea Store Data
 
-The committed snapshot is used by both the storefront and the order API. Refresh both copies from the public Miikorean Shopify feeds before publishing catalog changes:
+The committed snapshot is used by both the storefront and the order API. Refresh both copies from the public Skin of Korea Shopify feeds before publishing catalog changes:
 
 ```powershell
-.\scripts\sync-miikorean-storefront.ps1
+.\scripts\sync_catalog_to_supabase.mjs
 ```
 
-The script exports product variants and images, collection metadata, and published pages to `client/public/miikorean-storefront.json` and `api/data/miikorean-storefront.json`.
+The script exports product variants and images, collection metadata, and published pages to `client/public/storefront.json` and `api/data/storefront.json`.
 
 ### 3. Environment Variables
 
@@ -137,7 +136,7 @@ The storefront is accessible at **`http://localhost:5173`**. The Vercel `/api/*`
 | `npm run dev` | Starts the Vite development server with HMR |
 | `npm run build` | Runs TypeScript compiler checks (`tsc`) and compiles production assets |
 | `npm run lint` | Runs ESLint over the client source tree |
-| `.\scripts\sync-miikorean-storefront.ps1` | Refreshes the catalog snapshot for the storefront and API |
+| `.\scripts\sync_catalog_to_supabase.mjs` | Refreshes the catalog snapshot for the storefront and API |
 
 ---
 
@@ -154,4 +153,4 @@ The storefront is accessible at **`http://localhost:5173`**. The Vercel `/api/*`
 
 This project is licensed under the [MIT License](./LICENSE).
 
-**Mii Korean** — Korean skincare, curated for your routine.
+**Skin of Korea** — Korean skincare, curated for your routine.

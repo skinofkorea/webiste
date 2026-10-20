@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
-import { loadMiikoreanStorefront, MiikoreanStorefrontData } from '../data/miikoreanStorefront';
+import { loadStorefront, StorefrontData } from '../data/storefront';
 
-export function useMiikoreanStorefront() {
-  const [storefront, setStorefront] = useState<MiikoreanStorefrontData | null>(null);
+export function useStorefront() {
+  const [storefront, setStorefront] = useState<StorefrontData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    loadMiikoreanStorefront()
+    loadStorefront()
       .then((data) => {
         if (active) setStorefront(data);
       })
       .catch((loadError: unknown) => {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'The Miikorean catalog could not be loaded.');
+          setError(loadError instanceof Error ? loadError.message : 'The Skin of Korea catalog could not be loaded.');
         }
       });
 
@@ -28,3 +28,5 @@ export function useMiikoreanStorefront() {
     error,
   };
 }
+
+export default useStorefront;

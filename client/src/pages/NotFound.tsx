@@ -4,7 +4,7 @@ import { usePageSEO } from '../hooks/usePageSEO';
 
 const NotFoundPage: React.FC = () => {
   usePageSEO({
-    title: '404 Page Not Found | Mii Korean Skincare',
+    title: '404 Page Not Found | Skin of Korea',
     description: 'The page you are looking for does not exist or has been moved.',
     noIndex: true,
   });

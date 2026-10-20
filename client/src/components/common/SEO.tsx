@@ -12,14 +12,14 @@ interface SEOProps {
   jsonLd?: object | object[];
 }
 
-const DOMAIN = 'https://urvaa.in';
+const DOMAIN = 'https://skinofkorea.co.uk';
 
-const DEFAULT_TITLE = 'URVA | Delivering the Authentic Rural Aura';
+const DEFAULT_TITLE = 'Skin of Korea | Authentic Korean Skincare & Beauty';
 const DEFAULT_DESCRIPTION =
-  'Discover regional products, traditional foods, indigenous craftsmanship, handlooms, plants, and thoughtful everyday goods with URVA.';
+  'Discover 100% authentic Korean skincare products, top K-Beauty brands, daily SPF essentials, and glass-skin routines in the UK.';
 const DEFAULT_KEYWORDS =
-  'URVA, rural products India, regional products, One Village One Product, Indian artisans, regional foods, handlooms, nursery plants';
-const DEFAULT_OG_IMAGE = `${DOMAIN}https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png`;
+  'Skin of Korea, Korean skincare, K-Beauty UK, Beauty of Joseon, Anua, COSRX, Haruharu Wonder, SKIN1004, glass skin, Korean sunscreens';
+const DEFAULT_OG_IMAGE = `${DOMAIN}/images/skin-of-korea-logo.png`;
 
 export const SEO: React.FC<SEOProps> = ({
   title = DEFAULT_TITLE,
@@ -41,7 +41,7 @@ export const SEO: React.FC<SEOProps> = ({
       <title>{title}</title>
       <meta name="description" content={description} />
       {keywords && <meta name="keywords" content={keywords} />}
-      
+
       {/* Robots Directive */}
       {noindex ? (
         <meta name="robots" content="noindex, nofollow" />

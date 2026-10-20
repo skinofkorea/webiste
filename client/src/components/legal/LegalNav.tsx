@@ -5,8 +5,7 @@ import {
   FaShieldHalved, 
   FaTruckFast, 
   FaArrowRotateLeft, 
-  FaEnvelope, 
-  FaWhatsapp
+  FaEnvelope
 } from 'react-icons/fa6';
 
 interface LegalNavProps {
@@ -66,21 +65,11 @@ export const LegalContactCard: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           <a
-            href="mailto:urvaaofficial@gmail.com"
+            href="mailto:support@skinofkorea.co.uk"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-neutral-50 text-neutral-900 text-xs font-semibold border border-neutral-300 transition shadow-xs"
           >
-            <FaEnvelope className="text-[#E57A22]" />
-            <span>urvaaofficial@gmail.com</span>
-          </a>
-
-          <a
-            href="https://wa.me/919494957576"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold transition shadow-xs"
-          >
-            <FaWhatsapp />
-            <span>+91 94949 57576</span>
+            <FaEnvelope className="text-amber-700" />
+            <span>support@skinofkorea.co.uk</span>
           </a>
         </div>
       </div>

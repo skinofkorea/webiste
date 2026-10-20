@@ -6,8 +6,8 @@ import { FaArrowRotateLeft, FaCircleCheck } from 'react-icons/fa6';
 
 const RefundPolicy: React.FC = () => {
   usePageSEO({
-    title: 'Refund & Returns Policy | URVA',
-    description: 'Explore URVA 7-day hassle-free replacement, return, and refund policy for traditional Indian food, handlooms, and handicrafts.',
+    title: 'Refund & Returns Policy | Skin of Korea UK',
+    description: 'Explore Skin of Korea 14-day hassle-free replacement, return, and refund policy for authentic Korean skincare products in the UK.',
     canonical: '/refund-policy',
     noIndex: false,
   });
@@ -24,7 +24,7 @@ const RefundPolicy: React.FC = () => {
           <div className="border-b border-neutral-100 pb-8 mb-8">
             <div className="flex items-center gap-2 mb-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-[#111111] text-white">
-                <FaArrowRotateLeft className="text-[#E57A22]" /> RETURNS & REFUND COMMITMENT
+                <FaArrowRotateLeft className="text-[#1f5133]" /> RETURNS & REFUND COMMITMENT
               </span>
               <span className="text-xs text-neutral-400">Effective from October 2026</span>
             </div>
@@ -32,7 +32,7 @@ const RefundPolicy: React.FC = () => {
               Refund & Return Policy
             </h1>
             <p className="text-xs sm:text-sm text-neutral-500 mt-2 max-w-2xl leading-relaxed">
-              At <strong>URVA</strong>, our mission is to deliver authentic rural traditions with uncompromising quality. We want you to experience complete satisfaction with every product delivered from our artisan and farmer cooperatives.
+              At <strong>Skin of Korea</strong>, your skincare journey and absolute satisfaction are our highest priorities. We ensure that every product you receive is fresh, 100% authentic, and arrives in pristine condition.
             </p>
           </div>
 
@@ -44,10 +44,10 @@ const RefundPolicy: React.FC = () => {
               </div>
               <div>
                 <h4 className="font-bold text-neutral-900 text-xs sm:text-sm">
-                  7-Day Hassle-Free Resolution Guarantee
+                  14-Day UK Return & Replacement Guarantee
                 </h4>
                 <p className="text-xs text-neutral-600 mt-0.5">
-                  If any product arrives damaged, leaked, defective, or incorrect, report it within <strong>7 days of delivery</strong> for a prompt replacement or 100% full refund.
+                  If any item arrives damaged, leaking, defective, or incorrect, notify us within <strong>14 days of delivery</strong> for an immediate replacement or 100% full refund.
                 </p>
               </div>
             </div>
@@ -58,154 +58,69 @@ const RefundPolicy: React.FC = () => {
             {/* Section 1 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-neutral-900">
-                1. Return & Replacement Eligibility
+                1. Eligibility for Returns
               </h2>
-              <p>You are fully eligible for a free replacement or 100% refund under the following conditions:</p>
+              <p>
+                To maintain the highest hygiene standards for cosmetics and skincare:
+              </p>
               <ul className="list-disc pl-5 space-y-1.5 text-neutral-600">
-                <li>
-                  <strong>Transit Damage:</strong> The product package, glass container, pottery, or plant arrived broken, leaked, or shattered during shipping.
-                </li>
-                <li>
-                  <strong>Wrong Item Delivered:</strong> You received an item distinct from what was confirmed on your invoice.
-                </li>
-                <li>
-                  <strong>Perishable Spoilage:</strong> Traditional food, sweet, or jaggery items arrived spoiled, compromised, or expired.
-                </li>
-                <li>
-                  <strong>Manufacturing Defect:</strong> Handlooms or craft items have severe structural tears, defects, or missing components.
-                </li>
+                <li>Items must be unopened, unused, in original packaging with intact protective seals or cellophane wrapping.</li>
+                <li>Products must have been purchased directly from <a href="https://skinofkorea.co.uk" className="text-[#1f5133] underline">skinofkorea.co.uk</a>.</li>
+                <li>Return requests must be initiated within 14 calendar days of confirmed carrier delivery.</li>
               </ul>
             </section>
 
             {/* Section 2 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-neutral-900">
-                2. Category-Specific Return Guidelines
+                2. Damaged, Leaking, or Incorrect Deliveries
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-2">
-                <div className="p-4 rounded-xl border border-neutral-200 bg-white space-y-1.5">
-                  <h4 className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
-                    🍯 Foods, Sweets & Honey (Perishables)
-                  </h4>
-                  <p className="text-xs text-neutral-600 leading-relaxed">
-                    Due to food safety and hygiene protocols, food items do not need to be physically returned. If damaged or spoiled in transit, we issue an immediate replacement or full refund upon photographic verification.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl border border-neutral-200 bg-white space-y-1.5">
-                  <h4 className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
-                    🧵 Handlooms, Sarees & Textiles
-                  </h4>
-                  <p className="text-xs text-neutral-600 leading-relaxed">
-                    Eligible for replacement within 7 days. Textiles must remain unused, unwashed, and in original condition with intact folds and brand tags.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl border border-neutral-200 bg-white space-y-1.5">
-                  <h4 className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
-                    🏺 Terracotta, Pottery & Handicrafts
-                  </h4>
-                  <p className="text-xs text-neutral-600 leading-relaxed">
-                    If an artisan craft arrives cracked or shattered during courier transit, a replacement or refund is promptly authorized with photo/video proof.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl border border-neutral-200 bg-white space-y-1.5">
-                  <h4 className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
-                    🌱 Live Nursery Plants
-                  </h4>
-                  <p className="text-xs text-neutral-600 leading-relaxed">
-                    If a live botanical arrives completely withered or dead on delivery, submit an unboxing picture within 48 hours for a prompt healthy replacement.
-                  </p>
-                </div>
-              </div>
+              <p>
+                If your parcel arrives visibly damaged during transit or contains an incorrect item:
+              </p>
+              <ol className="list-decimal pl-5 space-y-1.5 text-neutral-600">
+                <li>Take a clear photo of the shipping box, shipping label, and damaged item(s).</li>
+                <li>Email our dedicated support team at <a href="mailto:support@skinofkorea.co.uk" className="text-[#1f5133] font-semibold underline">support@skinofkorea.co.uk</a> with your Order ID.</li>
+                <li>Our concierge will respond within 24 hours to issue a complimentary prepaid return label and dispatch an express replacement or process a full refund.</li>
+              </ol>
             </section>
 
             {/* Section 3 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-neutral-900">
-                3. How to Initiate a Return or Replacement (Simple 3 Steps)
+                3. Refund Processing Timelines
               </h2>
-              <ol className="list-decimal pl-5 space-y-2 text-neutral-600">
-                <li>
-                  <strong>Contact Us within 7 Days:</strong> Email us at{' '}
-                  <a href="mailto:urvaaofficial@gmail.com" className="text-[#E57A22] font-semibold hover:underline">
-                    urvaaofficial@gmail.com
-                  </a>{' '}
-                  or WhatsApp us at{' '}
-                  <a href="https://wa.me/919494957576" className="text-[#E57A22] font-semibold hover:underline">
-                    +91 94949 57576
-                  </a>
-                  .
-                </li>
-                <li>
-                  <strong>Share Order Details:</strong> Mention your <strong>Order ID</strong> along with clear photos or a short video showing the outer shipping label and the damaged/defective product.
-                </li>
-                <li>
-                  <strong>Resolution within 24 Hours:</strong> Our customer support desk verifies the claim and will either dispatch a fresh replacement parcel immediately or initiate an online refund.
-                </li>
-              </ol>
+              <p>
+                Once your returned parcel is received and inspected at our UK fulfilment depot:
+              </p>
+              <ul className="list-disc pl-5 space-y-1.5 text-neutral-600">
+                <li>Refunds are approved and initiated within 1 to 2 business days.</li>
+                <li>Funds will be automatically credited to your original payment method (Debit/Credit Card, Apple Pay, Google Pay, Klarna).</li>
+                <li>Depending on your banking provider, refunds typically appear in your account within 3 to 5 business days.</li>
+              </ul>
             </section>
 
             {/* Section 4 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-neutral-900">
-                4. Refund Timelines & Payment Method
+                4. Non-Returnable Items
               </h2>
               <p>
-                Once an authorized refund is approved:
+                Due to strict UK cosmetic safety and hygiene regulations, items that have been opened, sampled, unsealed, or purchased as clearance final-sale items cannot be returned unless proven defective or damaged upon arrival.
               </p>
-              <ul className="list-disc pl-5 space-y-1.5 text-neutral-600">
-                <li>
-                  <strong>Original Payment Mode:</strong> The refund is credited directly to the original source (Credit/Debit Card, UPI ID, Net Banking, or Wallet) through Razorpay.
-                </li>
-                <li>
-                  <strong>Bank Clearance Duration:</strong> Refunds typically reflect in your bank account within <strong>5 to 7 business days</strong> depending on your issuing bank&rsquo;s clearing protocols.
-                </li>
-                <li>
-                  <strong>Confirmation:</strong> You will receive an automated refund transaction reference ID via SMS/Email once initiated.
-                </li>
-              </ul>
-            </section>
-
-            {/* Section 5 */}
-            <section className="space-y-3">
-              <h2 className="text-base sm:text-lg font-bold text-neutral-900">
-                5. Order Cancellation Guidelines
-              </h2>
-              <p>
-                You may request an immediate 100% order cancellation at any time <strong>before your package is dispatched</strong> from our facility. Please message or call support as soon as possible.
-              </p>
-              <p>
-                If your order has already been picked up and handed to the courier partner with an active AWB, cancellation is no longer possible in transit. In such cases, you may reject the parcel upon delivery attempt, and a refund will be processed once the return parcel is logged.
-              </p>
-            </section>
-
-            {/* Section 6 */}
-            <section className="space-y-3">
-              <h2 className="text-base sm:text-lg font-bold text-neutral-900">
-                6. Non-Refundable Scenarios
-              </h2>
-              <p>Refunds and returns cannot be accepted for:</p>
-              <ul className="list-disc pl-5 space-y-1.5 text-neutral-600">
-                <li>Claims initiated after 7 calendar days from package delivery.</li>
-                <li>Products returned in used, washed, or altered state without original packaging.</li>
-                <li>Subjective natural batch variations inherent to unadulterated artisanal goods (e.g., natural variations in raw jaggery hue or tribal handloom weave patterns).</li>
-                <li>Incorrect delivery address provided by customer leading to prolonged delivery failure.</li>
-              </ul>
             </section>
           </div>
 
-          {/* Contact & Grievance Card */}
+          {/* Contact Card */}
           <LegalContactCard />
 
           {/* Bottom Navigation */}
           <div className="mt-8 pt-6 border-t border-neutral-100 flex justify-between items-center text-xs font-semibold">
             <Link to="/shipping-policy" className="text-neutral-500 hover:text-black transition">
-              ← Previous: Shipping & Delivery Policy
+              ← Shipping & Delivery Policy
             </Link>
-            <Link to="/terms" className="text-[#E57A22] hover:underline">
-              Return to Terms & Conditions →
+            <Link to="/terms" className="text-[#1f5133] hover:underline">
+              Next: Terms & Conditions →
             </Link>
           </div>
         </div>

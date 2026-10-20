@@ -223,7 +223,7 @@ const AdminCustomers: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           {user.email && (
                             <a
-                              href={`mailto:${user.email}?subject=Mii%20Korean%20Skincare`}
+                              href={`mailto:${user.email}?subject=Skin%20of%20Korea%20Skincare`}
                               className="p-2 rounded-xl text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 border border-neutral-200 transition text-xs"
                               title="Send Email"
                             >
@@ -232,7 +232,7 @@ const AdminCustomers: React.FC = () => {
                           )}
                           {phone && (
                             <a
-                              href={`https://wa.me/44${phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(user.name || '')},%20greetings%20from%20Mii%20Korean!`}
+                              href={`https://wa.me/44${phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(user.name || '')},%20greetings%20from%20Skin%20of%20Korea!`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 rounded-xl text-emerald-600 hover:bg-emerald-50 border border-emerald-200 transition text-xs"

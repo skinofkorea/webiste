@@ -1,11 +1,6 @@
 {
   "buildCommand": "cd client && npm install --include=dev && npm run build",
   "outputDirectory": "client/dist",
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "api/data/miikorean-storefront.json"
-    }
-  },
   "redirects": [
     {
       "source": "/index.php/shop/(.*)",

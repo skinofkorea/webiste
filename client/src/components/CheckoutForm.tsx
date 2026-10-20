@@ -7,7 +7,7 @@ import { RootState } from '../redux/store';
 import { NewOrderRequest } from '../types/api-types';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
-import { formatStorePrice } from '../data/miikoreanStorefront';
+import { formatStorePrice } from '../data/storefront';
 
 interface RazorpayPaymentResponse {
   razorpay_order_id: string;
@@ -69,8 +69,8 @@ const loadRazorpayScript = (): Promise<boolean> => {
 
 const CheckoutForm: React.FC = () => {
   usePageSEO({
-    title: 'Checkout | Mii Korean Skincare',
-    description: 'Review your Mii Korean order and complete checkout securely.',
+    title: 'Checkout | Skin of Korea',
+    description: 'Review your Skin of Korea order and complete checkout securely.',
     canonical: '/checkout',
     noIndex: true,
   });
@@ -119,7 +119,7 @@ const CheckoutForm: React.FC = () => {
         body: JSON.stringify({
           amount: Math.round(total * 100),
           currency: 'GBP',
-          description: 'Mii Korean skincare order',
+          description: 'Skin of Korea order',
           customer_name: shippingInfo.name || 'Customer',
           customer_email: shippingInfo.email || '',
           customer_phone: shippingInfo.phone || '',
@@ -151,9 +151,9 @@ const CheckoutForm: React.FC = () => {
         key: razorpayKey,
         amount: rzpData.amount,
         currency: rzpData.currency,
-        name: 'Mii Korean Skincare',
+        name: 'Skin of Korea',
         description: 'Authentic Korean skincare',
-        image: 'https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418',
+        image: '/images/skin-of-korea-logo.png',
         order_id: rzpData.order_id,
         handler: async (response) => {
           try {
@@ -206,7 +206,7 @@ const CheckoutForm: React.FC = () => {
             window.location.href = `/my-orders?payment=success&orderId=${createdOrderId}`;
           } catch (err: unknown) {
             console.error('Order save error after payment:', err);
-            notify(`Payment was received, but the order could not be saved. Please contact hello@miikorean.com with payment reference ${response.razorpay_payment_id}.`, 'error');
+            notify(`Payment was received, but the order could not be saved. Please contact hello@skinofkorea.com with payment reference ${response.razorpay_payment_id}.`, 'error');
             setIsProcessing(false);
           }
         },
@@ -247,8 +247,8 @@ const CheckoutForm: React.FC = () => {
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xs border border-neutral-200 max-w-xl w-full">
         {/* Merchant Branding Header */}
         <div className="flex flex-col items-center mb-6 text-center border-b border-neutral-200 pb-5">
-          <img src="https://www.miikorean.com/cdn/shop/files/Mii_Korean_Logo_46f0bcea-5297-4762-ade7-0f3998356de9_175x.png?v=1774335418" alt="Mii Korean Skincare" className="h-14 w-auto object-contain mb-2" />
-          <h1 className="text-2xl font-sans font-semibold tracking-tight text-neutral-950">Mii Korean</h1>
+          <img src="/images/skin-of-korea-logo.png" alt="Skin of Korea" className="h-14 w-auto object-contain mb-2" />
+          <h1 className="text-2xl font-sans font-semibold tracking-tight text-neutral-950">Skin of Korea</h1>
           <p className="text-xs text-neutral-500 mt-1">Secure Razorpay checkout</p>
         </div>
 

@@ -90,46 +90,32 @@ const RAZORPAY_CONFIG = {
   get KEY_SECRET() { return process.env.RAZORPAY_KEY_SECRET || ''; },
 };
 
-let miikoreanCatalogData = null;
-let miikoreanCatalog = null;
+let dbProductsCache = null;
+let dbProductsCacheTime = 0;
+const DB_CACHE_TTL = 10000; // 10 seconds
 
-function getMiikoreanCatalogData() {
-  if (!miikoreanCatalogData) {
-    const catalogPath = path.join(__dirname, 'data', 'miikorean-storefront.json');
-    const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
-    if (!Array.isArray(catalog.products)) {
-      throw new Error('The Miikorean product catalog is unavailable or invalid.');
-    }
-    miikoreanCatalogData = catalog;
-    miikoreanCatalog = catalog.products;
-  }
-  return miikoreanCatalogData;
-}
-
-function saveMiikoreanCatalogData(catalogData) {
-  miikoreanCatalogData = catalogData;
-  miikoreanCatalog = catalogData.products;
-  const jsonStr = JSON.stringify(catalogData, null, 2);
-
-  // 1. Write to api/data/miikorean-storefront.json
-  const apiPath = path.join(__dirname, 'data', 'miikorean-storefront.json');
-  fs.writeFileSync(apiPath, jsonStr, 'utf8');
-
-  // 2. Sync to client/public/miikorean-storefront.json so storefront updates in real-time
-  try {
-    const clientPath = path.resolve(__dirname, '../client/public/miikorean-storefront.json');
-    if (fs.existsSync(path.dirname(clientPath))) {
-      fs.writeFileSync(clientPath, jsonStr, 'utf8');
-    }
-  } catch (err) {
-    console.warn('Sync to client/public warning:', err.message);
-  }
-
+function clearDbProductsCache() {
+  dbProductsCache = null;
+  dbProductsCacheTime = 0;
   if (global.fastApiCache) global.fastApiCache.clear();
 }
 
-function getMiikoreanProducts() {
-  return getMiikoreanCatalogData().products;
+async function getDbProducts() {
+  const now = Date.now();
+  if (dbProductsCache && (now - dbProductsCacheTime) < DB_CACHE_TTL) {
+    return dbProductsCache;
+  }
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Error fetching products from Supabase:', error.message);
+    return dbProductsCache || [];
+  }
+  dbProductsCache = data || [];
+  dbProductsCacheTime = now;
+  return dbProductsCache;
 }
 
 function stripHtmlTags(html) {
@@ -139,45 +125,178 @@ function stripHtmlTags(html) {
 
 function mapCatalogProduct(p) {
   if (!p) return null;
-  const variants = p.variants || [];
+  const v0 = Array.isArray(p.variants) && p.variants[0] ? p.variants[0] : {};
+  const handle = p.handle || v0.handle || (p.name || p.title ? String(p.name || p.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : String(p.id));
+  const vendor = p.vendor || v0.vendor || 'Skin of Korea';
+  const tags = Array.isArray(p.tags) && p.tags.length > 0 ? p.tags : (v0.tags || []);
+  const images = (Array.isArray(p.images) && p.images.length > 0) 
+    ? p.images 
+    : ((Array.isArray(v0.images) && v0.images.length > 0)
+        ? v0.images 
+        : [{ id: 1, src: p.photo || '', alt: p.name || p.title, width: 1000, height: 1000 }]);
+  const bodyHtml = p.body_html || p.bodyHtml || v0.body_html || (p.description ? `<p>${p.description}</p>` : '');
+  const compareAtPrice = p.compareAtPrice ? Number(p.compareAtPrice) : (v0.compare_at_price ? Number(v0.compare_at_price) : null);
+
+  const variants = Array.isArray(p.variants) && p.variants.length > 0
+    ? p.variants.map((v, i) => ({
+        id: v.id || i + 1,
+        title: v.title || 'Default Title',
+        option1: v.option1 || v.title || 'Default Title',
+        option2: null,
+        option3: null,
+        price: String(v.price || p.price || 0),
+        compare_at_price: v.compare_at_price ? String(v.compare_at_price) : (compareAtPrice ? String(compareAtPrice) : null),
+        available: v.available !== false && (v.stock === undefined || Number(v.stock) > 0),
+        sku: v.sku || null,
+        featured_image: v.featured_image || p.photo || images[0]?.src || null,
+      }))
+    : [{
+        id: 1,
+        title: 'Default Title',
+        option1: 'Default Title',
+        option2: null,
+        option3: null,
+        price: String(p.price || 0),
+        compare_at_price: compareAtPrice ? String(compareAtPrice) : null,
+        available: Number(p.stock !== undefined ? p.stock : 9999) > 0,
+        sku: null,
+        featured_image: p.photo || images[0]?.src || null,
+      }];
+
   const availableVariants = variants.filter(v => v.available);
   const pricedVariants = (availableVariants.length > 0 ? availableVariants : variants)
     .map(v => Number(v.price))
     .filter(Number.isFinite);
-  const images = p.images || [];
-  const firstImage = images[0]?.src || variants.find(v => v.featured_image)?.featured_image || p.photo || '';
-  const description = p.description || stripHtmlTags(p.body_html || '').slice(0, 320);
-
   const price = pricedVariants.length > 0 ? Math.min(...pricedVariants) : Number(p.price || 0);
-  const compareAtPrice = variants.find(v => v.compare_at_price)?.compare_at_price 
-    ? Number(variants.find(v => v.compare_at_price).compare_at_price) 
-    : (p.compareAtPrice ? Number(p.compareAtPrice) : null);
 
   const stock = p.stock !== undefined 
     ? Number(p.stock) 
     : (availableVariants.length > 0 ? 9999 : 0);
 
   return {
-    _id: String(p.handle || p.id),
+    _id: String(handle || p.id),
     id: p.id,
-    name: p.title || p.name,
-    handle: p.handle || String(p.id),
-    category: p.product_type || p.category || 'Skincare',
-    vendor: p.vendor || 'Mii Korean',
+    name: p.name || p.title,
+    title: p.name || p.title,
+    handle: String(handle),
+    category: p.category || p.product_type || 'Skincare',
+    product_type: p.category || p.product_type || 'Skincare',
+    vendor: vendor,
     stock,
-    photo: firstImage,
+    photo: p.photo || images[0]?.src || '',
     images: images,
     price,
     compareAtPrice,
-    description,
-    bodyHtml: p.body_html || p.bodyHtml || '',
-    featured: Boolean(p.featured !== undefined ? p.featured : (p.tags || []).some(tag => /best.?seller|featured|bestseller/i.test(tag))),
-    isActive: p.isActive !== false,
-    createdAt: p.published_at || p.createdAt || new Date().toISOString(),
-    updatedAt: p.updatedAt || p.published_at || new Date().toISOString(),
-    tags: p.tags || [],
+    description: p.description || stripHtmlTags(bodyHtml).slice(0, 320),
+    bodyHtml: bodyHtml,
+    featured: Boolean(p.featured !== undefined ? p.featured : tags.some(tag => /best.?seller|featured|bestseller/i.test(tag))),
+    isActive: p.is_active !== undefined ? (p.is_active !== false) : (p.isActive !== false),
+    createdAt: p.created_at || p.published_at || p.createdAt || new Date().toISOString(),
+    updatedAt: p.updated_at || p.updatedAt || p.published_at || new Date().toISOString(),
+    tags: tags,
     variants,
     currency: 'GBP',
+  };
+}
+
+async function getMappedDbProducts() {
+  const rows = await getDbProducts();
+  return rows.map(mapCatalogProduct);
+}
+
+function getSkinOfKoreaProducts() {
+  if (dbProductsCache && dbProductsCache.length > 0) {
+    return dbProductsCache.map(mapCatalogProduct);
+  }
+  return [];
+}
+
+const STORE_COLLECTIONS = [
+  {
+    id: 1,
+    title: 'Cleanser',
+    handle: 'cleanser',
+    description: 'Cleanse and refresh your skin with gentle, nourishing Korean cleansers.',
+    image: '/images/home-categories/cleanser.webp',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 2,
+    title: 'Toner',
+    handle: 'toner',
+    description: 'Hydrating, balancing and soothing toners and essences.',
+    image: '/images/home-categories/toner.webp',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 3,
+    title: 'Moisturiser',
+    handle: 'moisturiser',
+    description: 'Barrier-strengthening, rich and lightweight Korean creams.',
+    image: '/images/home-categories/moisturiser.webp',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 4,
+    title: 'SPF',
+    handle: 'spf',
+    description: 'Award-winning daily sun protection with no white cast.',
+    image: '/images/home-categories/spf.webp',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 5,
+    title: 'Masks',
+    handle: 'masks',
+    description: 'Intensive sheet, wash-off and sleep masks for instant glow.',
+    image: '/images/home-categories/masks.webp',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 6,
+    title: 'Eye Cream',
+    handle: 'eyecream',
+    description: 'Targeted brightening, firming and wrinkle-smoothing eye care.',
+    image: '/images/home-categories/eyecream.webp',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+];
+
+const STORE_PAGES = [
+  {
+    id: 1,
+    title: 'About Us',
+    handle: 'about-us',
+    body_html: '<p>Skin of Korea brings you 100% authentic Korean skincare directly from Seoul, carefully curated for all skin types.</p>',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 2,
+    title: 'Shipping Policy',
+    handle: 'shipping-policy',
+    body_html: '<p>We offer fast delivery across the UK and international shipping with tracked service.</p>',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 3,
+    title: 'Refund Policy',
+    handle: 'refund-policy',
+    body_html: '<p>We accept returns of unopened items within 14 days of delivery.</p>',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+];
+
+async function getStorefrontData() {
+  const products = await getMappedDbProducts();
+  return {
+    source: 'Skin of Korea (Supabase & Cloudinary)',
+    exported_at: new Date().toISOString(),
+    product_count: products.length,
+    collection_count: STORE_COLLECTIONS.length,
+    page_count: STORE_PAGES.length,
+    products,
+    collections: STORE_COLLECTIONS,
+    pages: STORE_PAGES,
   };
 }
 
@@ -206,7 +325,7 @@ function verifyRazorpaySignature(orderId, paymentId, signature) {
 // Resend Email API Configuration
 const RESEND_CONFIG = {
   get KEY() { return process.env.RESEND_API_KEY || ''; },
-  get FROM() { return process.env.RESEND_FROM_EMAIL || 'Mii Korean <hello@miikorean.com>'; }
+  get FROM() { return process.env.RESEND_FROM_EMAIL || 'Skin of Korea <hello@skinofkorea.com>'; }
 };
 
 // Send email using Resend REST API
@@ -293,7 +412,7 @@ async function handleOrderSuccess(orderId) {
       style: 'currency',
       currency,
     }).format(Number(amount || 0));
-    const baseUrl = process.env.CLIENT_URL || 'https://www.miikorean.com';
+    const baseUrl = process.env.CLIENT_URL || 'https://www.skinofkorea.com';
 
     const orderItems = typeof order.order_items === 'string' ? JSON.parse(order.order_items) : order.order_items;
     const itemsListHtml = (orderItems || []).map(item => `
@@ -321,14 +440,14 @@ async function handleOrderSuccess(orderId) {
           
           <!-- Header Logo -->
           <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid #efe9db; padding-bottom: 20px;">
-            <h1 style="color: #5C2333; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Mii Korean</h1>
+            <h1 style="color: #5C2333; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Skin of Korea</h1>
             <span style="font-size: 10px; color: #C79A56; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Authentic Korean skincare</span>
           </div>
 
           <!-- Greeting -->
           <h2 style="color: #5C2333; font-size: 20px; font-family: Garamond, serif; margin-top: 0; font-weight: bold;">Order Confirmed!</h2>
           <p style="font-size: 14px; color: #24291f; margin-bottom: 20px;">Dear ${customerName},</p>
-          <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Thank you for shopping with Mii Korean. Your payment was successful, and your order is being prepared. Below are your order details.</p>
+          <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Thank you for shopping with Skin of Korea. Your payment was successful, and your order is being prepared. Below are your order details.</p>
           
           <!-- Status Card -->
           <div style="background-color: #f7f4ec; border-radius: 12px; padding: 20px; margin-bottom: 30px; border: 1px solid #efe9db;">
@@ -393,8 +512,8 @@ async function handleOrderSuccess(orderId) {
 
           <!-- Footer Notes -->
           <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
-            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at 0800 080 7037 or hello@miikorean.com.</p>
-            <p style="margin: 0;">© ${new Date().getFullYear()} Miikorean Ltd. All rights reserved.</p>
+            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at 0800 080 7037 or hello@skinofkorea.com.</p>
+            <p style="margin: 0;">© ${new Date().getFullYear()} Skin of Korea Ltd. All rights reserved.</p>
           </div>
 
         </div>
@@ -405,7 +524,7 @@ async function handleOrderSuccess(orderId) {
     if (recipientEmail && recipientEmail.includes('@')) {
       await sendEmail({
         to: recipientEmail,
-        subject: `Mii Korean — Order Confirmed #${order.id}`,
+        subject: `Skin of Korea — Order Confirmed #${order.id}`,
         html: emailHtml
       });
     }
@@ -492,39 +611,8 @@ function mapProduct(row) {
 
   const cleanDescription = row.description ? row.description.split('__VARIANTS__=')[0].trim() : '';
 
-  let photo = row.photo || '';
-  if (!photo || photo.includes('v1791904263') || photo.includes('/urvaa/products/')) {
-    const raw = (photo + ' ' + (row.name || '')).toLowerCase();
-    if (raw.includes('araku') || raw.includes('coffee')) {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904994/urvaa/images/categories/tribal-araku.jpg';
-    } else if (raw.includes('putharekulu') || raw.includes('heritage') || raw.includes('bellam') || raw.includes('godavari')) {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791905012/urvaa/images/hero/rural-heritage.jpg';
-    } else if (raw.includes('honey') || raw.includes('villages')) {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791905009/urvaa/images/hero/from-our-villages.jpg';
-    } else if (raw.includes('leaf') || raw.includes('eco-friendly') || raw.includes('plates') || raw.includes('basket') || raw.includes('dhoop')) {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904990/urvaa/images/categories/eco-friendly.jpg';
-    } else if (raw.includes('handloom') || raw.includes('swadesi') || raw.includes('saree') || raw.includes('dhoti')) {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904993/urvaa/images/categories/swadesi-handlooms.jpg';
-    } else if (raw.includes('plant') || raw.includes('kadiyam') || raw.includes('jasmine') || raw.includes('mango')) {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904991/urvaa/images/categories/kadiyam-plants.jpg';
-    } else if (row.category === 'Tribal Araku Products') {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904994/urvaa/images/categories/tribal-araku.jpg';
-    } else if (row.category === 'Mana Godavari Foods') {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904992/urvaa/images/categories/mana-godavari.jpg';
-    } else if (row.category === 'Swadesi Handlooms') {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904993/urvaa/images/categories/swadesi-handlooms.jpg';
-    } else if (row.category === 'Eco-Friendly Products') {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904990/urvaa/images/categories/eco-friendly.jpg';
-    } else {
-      photo = 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904991/urvaa/images/categories/kadiyam-plants.jpg';
-    }
-  }
-
-  const gallery = [
-    photo,
-    'https://res.cloudinary.com/idi6k3ue/image/upload/v1791905009/urvaa/images/hero/from-our-villages.jpg',
-    'https://res.cloudinary.com/idi6k3ue/image/upload/v1791905012/urvaa/images/hero/rural-heritage.jpg',
-  ].filter((v, i, a) => a.indexOf(v) === i);
+  let photo = row.photo || (row.images && row.images[0]?.src) || '/images/skin-of-korea-logo.png';
+  const gallery = [photo].filter(Boolean);
 
   return {
     _id: row.id,
@@ -712,7 +800,7 @@ export default async function handler(req, res) {
     // ─── CLOUDINARY: Generate Signature for Uploads ───
     if (url.includes('/api/v1/cloudinary/sign') || url.includes('/api/v1/upload/sign')) {
       const timestamp = Math.round(new Date().getTime() / 1000);
-      const folder = req.body?.folder || 'miikorean/products';
+      const folder = req.body?.folder || 'skinofkorea/products';
       const paramsToSign = `folder=${folder}&timestamp=${timestamp}${CLOUDINARY_CONFIG.API_SECRET}`;
       const signature = crypto.createHash('sha1').update(paramsToSign).digest('hex');
 
@@ -794,8 +882,8 @@ export default async function handler(req, res) {
             currency: 'GBP',
             receipt: orderReceipt,
             notes: {
-              customer_name: customer_name || 'Mii Korean Customer',
-              customer_email: customer_email || 'hello@miikorean.com',
+              customer_name: customer_name || 'Skin of Korea Customer',
+              customer_email: customer_email || 'hello@skinofkorea.com',
               customer_phone: customer_phone || '',
             },
           });
@@ -892,7 +980,7 @@ export default async function handler(req, res) {
       }
 
       // Always redirect to production — payments only run on prod.
-      const origin = process.env.CLIENT_URL || 'https://www.miikorean.com';
+      const origin = process.env.CLIENT_URL || 'https://www.skinofkorea.com';
       const host = req.headers.host || '';
 
       // Verify SecureHash
@@ -961,7 +1049,7 @@ export default async function handler(req, res) {
 
       const toPence = (value) => Number.isFinite(Number(value)) ? Math.round(Number(value) * 100) : NaN;
       let calculatedSubtotalPence = 0;
-      const products = getMiikoreanProducts();
+      const products = await getMappedDbProducts();
 
       for (const item of orderItems) {
         const productId = String(item?.productId || '');
@@ -1099,7 +1187,7 @@ export default async function handler(req, res) {
               .from('users')
               .insert({
                 uid: guestUid,
-                email: guestEmail || `${guestPhone}@guest.miikorean.com`,
+                email: guestEmail || `${guestPhone}@guest.skinofkorea.com`,
                 name: guestName,
                 provider: 'guest',
                 role: 'user',
@@ -1207,28 +1295,28 @@ export default async function handler(req, res) {
           user: 'guest',
           shippingInfo: {
             name: 'Valued Customer',
-            email: 'customer@urvaa.in',
-            phone: '+91 7304888197',
-            address: 'Room No. 28, Sai Shraddha Apartment, Sai Nagari',
-            city: 'Ulhasnagar',
-            state: 'Maharashtra',
-            pinCode: '421004',
-            country: 'India'
+            email: 'customer@skinofkorea.com',
+            phone: '+44 7700 900077',
+            address: '10 Downing Street',
+            city: 'London',
+            state: 'Greater London',
+            pinCode: 'SW1A 2AA',
+            country: 'United Kingdom'
           },
           orderItems: [
             {
               _id: '1',
-              name: 'Araku Valley Organic Forest Honey',
-              price: 499,
+              name: 'Beauty of Joseon Relief Sun Rice + Probiotics SPF50+',
+              price: 15.95,
               quantity: 1,
-              photo: 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904994/urvaa/images/categories/tribal-araku.jpg'
+              photo: '/images/home-categories/spf.webp'
             }
           ],
-          subTotal: 499,
+          subTotal: 15.95,
           tax: 0,
           shippingCharges: 0,
           discount: 0,
-          total: 499,
+          total: 15.95,
           status: 'Processing',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -1298,7 +1386,7 @@ export default async function handler(req, res) {
         const recipientEmail = userRow?.email || shippingInfo?.email || 'shubhamvasantgundu@gmail.com';
         const customerName = userRow?.name || shippingInfo?.name || 'Customer';
 
-        const baseUrl = process.env.CLIENT_URL || 'https://www.miikorean.com';
+        const baseUrl = process.env.CLIENT_URL || 'https://www.skinofkorea.com';
 
         // If status is "Shipped" and we have tracking data, send tracking email
         if (status === 'Shipped' && updated.awb_number) {
@@ -1308,50 +1396,22 @@ export default async function handler(req, res) {
                 
                 <!-- Header Logo -->
                 <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid #efe9db; padding-bottom: 20px;">
-                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Mii Korean</h1>
+                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Skin of Korea</h1>
                   <span style="font-size: 10px; color: #c4633c; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Authentic Korean skincare</span>
                 </div>
 
                 <h2 style="color: #1f5133; font-size: 20px; font-family: Garamond, serif; margin-top: 0; font-weight: bold;">📦 Your Order Has Been Shipped!</h2>
                 <p style="font-size: 14px; color: #24291f; margin-bottom: 20px;">Dear ${customerName},</p>
-                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Your Mii Korean order has been dispatched and is on its way to you.</p>
+                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">Your Skin of Korea order has been dispatched and is on its way to you.</p>
                 
-                <!-- Tracking Information Box -->
-                <div style="background: linear-gradient(135deg, #1f5133 0%, #2d7a4d 100%); border-radius: 16px; padding: 25px; margin-bottom: 30px; box-shadow: 0 6px 20px rgba(31, 81, 51, 0.15);">
-                  <h3 style="color: #ffffff; font-size: 16px; font-weight: bold; margin: 0 0 20px 0; text-align: center; letter-spacing: 1px;">SHIPMENT TRACKING DETAILS</h3>
+                <!-- Order Dispatched Box -->
+                <div style="background: linear-gradient(135deg, #1f5133 0%, #2d7a4d 100%); border-radius: 16px; padding: 25px; margin-bottom: 30px; box-shadow: 0 6px 20px rgba(31, 81, 51, 0.15); text-align: center;">
+                  <h3 style="color: #ffffff; font-size: 16px; font-weight: bold; margin: 0 0 8px 0; letter-spacing: 1px;">ORDER DISPATCHED</h3>
+                  <p style="color: #e2f0e7; font-size: 13px; margin: 0 0 20px 0;">Order ID: ${updated.id}</p>
                   
-                  <div style="background-color: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 20px; margin-bottom: 15px;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                      <tr>
-                        <td style="padding: 8px 0; color: #5f6455; font-weight: bold;">AWB Number:</td>
-                        <td style="padding: 8px 0; font-family: monospace; text-align: right; color: #1f5133; font-weight: bold; font-size: 16px;">${updated.awb_number}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #5f6455; font-weight: bold;">Sender Mobile:</td>
-                        <td style="padding: 8px 0; font-family: monospace; text-align: right; color: #24291f;">${updated.sender_mobile}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #5f6455; font-weight: bold;">Receiver Mobile:</td>
-                        <td style="padding: 8px 0; font-family: monospace; text-align: right; color: #24291f;">${updated.receiver_mobile}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 8px 0; color: #5f6455; font-weight: bold;">Order ID:</td>
-                        <td style="padding: 8px 0; font-family: monospace; text-align: right; color: #24291f;">${updated.id}</td>
-                      </tr>
-                    </table>
+                  <div>
+                    <a href="${baseUrl}/order/${updated.id}" style="background-color: #ffffff; color: #1f5133; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);">View Order Details</a>
                   </div>
-
-                  <div style="text-align: center;">
-                    <a href="${updated.tracking_url || `${baseUrl}/my-orders`}" style="background-color: #ffffff; color: #1f5133; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);">🔍 Track Your Shipment</a>
-                  </div>
-                </div>
-
-                <!-- Instructions -->
-                <div style="background-color: #fff8dc; border-left: 4px solid #c4633c; border-radius: 8px; padding: 15px; margin-bottom: 25px;">
-                  <p style="font-size: 13px; color: #24291f; margin: 0; line-height: 1.6;">
-                    <strong>📍 How to Track:</strong><br>
-                    Use the courier tracking link above to follow your delivery. You can also view your order status in your Mii Korean account.
-                  </p>
                 </div>
 
                 <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">You will receive notifications about your shipment status. If you have any questions, please contact our support team.</p>
@@ -1362,8 +1422,8 @@ export default async function handler(req, res) {
 
                 <!-- Footer Notes -->
                 <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
-                  <p style="margin: 0 0 5px 0;">Thank you for choosing Mii Korean!</p>
-                  <p style="margin: 0;">© ${new Date().getFullYear()} Miikorean Ltd. All rights reserved.</p>
+                  <p style="margin: 0 0 5px 0;">Thank you for choosing Skin of Korea!</p>
+                  <p style="margin: 0;">© ${new Date().getFullYear()} Skin of Korea Ltd. All rights reserved.</p>
                 </div>
 
               </div>
@@ -1384,13 +1444,13 @@ export default async function handler(req, res) {
                 
                 <!-- Header Logo -->
                 <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid #efe9db; padding-bottom: 20px;">
-                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Mii Korean</h1>
+                  <h1 style="color: #1f5133; font-size: 26px; font-weight: bold; font-family: Garamond, serif; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Skin of Korea</h1>
                   <span style="font-size: 10px; color: #c4633c; letter-spacing: 3px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 5px;">Authentic Korean skincare</span>
                 </div>
 
                 <h2 style="color: #1f5133; font-size: 20px; font-family: Garamond, serif; margin-top: 0; font-weight: bold;">Order Status Updated! 📦</h2>
                 <p style="font-size: 14px; color: #24291f; margin-bottom: 20px;">Dear ${customerName},</p>
-                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">The status of your Mii Korean order has been updated.</p>
+                <p style="font-size: 14px; color: #5f6455; margin-bottom: 25px;">The status of your Skin of Korea order has been updated.</p>
                 
                 <div style="background-color: #f7f4ec; border-radius: 12px; padding: 20px; margin-bottom: 30px; border: 1px solid #efe9db;">
                   <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
@@ -1414,7 +1474,7 @@ export default async function handler(req, res) {
                 <!-- Footer Notes -->
                 <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
                   <p style="margin: 0 0 5px 0;">If you have any questions, reply to this email or contact support.</p>
-                  <p style="margin: 0;">© ${new Date().getFullYear()} Miikorean Ltd. All rights reserved.</p>
+                  <p style="margin: 0;">© ${new Date().getFullYear()} Skin of Korea Ltd. All rights reserved.</p>
                 </div>
 
               </div>
@@ -1423,7 +1483,7 @@ export default async function handler(req, res) {
 
           await sendEmail({
             to: recipientEmail,
-            subject: `Mii Korean — Order #${updated.id} Status: ${status}`,
+            subject: `Skin of Korea — Order #${updated.id} Status: ${status}`,
             html: emailHtml
           });
         }
@@ -1607,7 +1667,7 @@ export default async function handler(req, res) {
       const confirmedOrders = orders.filter(o => o.status !== 'Pending' && o.currency === 'GBP');
       const totalRevenue = confirmedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
       const totalOrders = confirmedOrders.length;
-      const totalProducts = getMiikoreanProducts().length;
+      const totalProducts = (await getDbProducts()).length;
       const totalCoupons = couponsRaw?.length || 0;
 
       // Revenue by month (confirmed orders only)
@@ -1707,6 +1767,12 @@ export default async function handler(req, res) {
       });
     }
 
+    // ─── STOREFRONT: Live Catalog (Supabase DB + Cloudinary) ───
+    if (url.includes('/api/v1/storefront')) {
+      const storefrontData = await getStorefrontData();
+      return res.status(200).json(storefrontData);
+    }
+
     // ─── PRODUCTS: Search Products ───
     if (url.includes('/api/v1/products/search')) {
       const urlObj = new URL(url, 'http://localhost');
@@ -1718,7 +1784,7 @@ export default async function handler(req, res) {
       const page = parseInt(urlObj.searchParams.get('page') || '1', 10);
       const limit = parseInt(urlObj.searchParams.get('limit') || '24', 10);
 
-      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+      const allCatalog = await getMappedDbProducts();
       let filtered = allCatalog.filter(p => p.isActive !== false);
 
       if (search) {
@@ -1767,7 +1833,7 @@ export default async function handler(req, res) {
 
     // ─── PRODUCTS: Get Latest Products ───
     if (url.includes('/api/v1/products/latest')) {
-      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+      const allCatalog = await getMappedDbProducts();
       const activeProducts = allCatalog.filter(p => p.isActive !== false).slice(0, 50);
 
       const resBody = {
@@ -1781,7 +1847,7 @@ export default async function handler(req, res) {
 
     // ─── PRODUCTS: Get Categories ───
     if (url.includes('/api/v1/products/categories')) {
-      const allCatalog = getMiikoreanProducts();
+      const allCatalog = await getMappedDbProducts();
       const categorySet = new Set([
         'Cleanser',
         'Toner',
@@ -1817,7 +1883,7 @@ export default async function handler(req, res) {
 
     // ─── PRODUCTS: Get Brands / Vendors ───
     if (url.includes('/api/v1/products/brands') || url.includes('/api/v1/products/vendors')) {
-      const allCatalog = getMiikoreanProducts();
+      const allCatalog = await getMappedDbProducts();
       const brandSet = new Set();
       allCatalog.forEach(p => {
         const v = p.vendor;
@@ -1838,7 +1904,7 @@ export default async function handler(req, res) {
 
     // ─── PRODUCTS: Get Featured Products ───
     if (url.includes('/api/v1/products/featured')) {
-      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+      const allCatalog = await getMappedDbProducts();
       const featured = allCatalog.filter(p => p.featured === true && p.isActive !== false);
 
       const resBody = {
@@ -1862,7 +1928,7 @@ export default async function handler(req, res) {
       const featured = urlObj.searchParams.get('featured') || '';
       const sortBy = urlObj.searchParams.get('sortBy') || '';
 
-      const allCatalog = getMiikoreanProducts().map(mapCatalogProduct);
+      const allCatalog = await getMappedDbProducts();
 
       // Collect distinct metadata
       const categorySet = new Set();
@@ -1964,14 +2030,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Please provide at least product name, category, and price' });
       }
 
-      const catalogData = getMiikoreanCatalogData();
-      const uniqueId = Date.now();
+      const newId = crypto.randomUUID();
       const baseHandle = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      let handle = baseHandle || `product-${uniqueId}`;
-      let counter = 1;
-      while (catalogData.products.some(p => p.handle === handle)) {
-        handle = `${baseHandle}-${counter++}`;
-      }
+      const handle = baseHandle || `product-${Date.now()}`;
 
       const cleanPrice = Number(price || 0).toFixed(2);
       const cleanCompareAt = compareAtPrice ? Number(compareAtPrice).toFixed(2) : null;
@@ -1979,7 +2040,7 @@ export default async function handler(req, res) {
 
       const formattedVariants = (Array.isArray(variants) && variants.length > 0)
         ? variants.map((v, i) => ({
-            id: v.id || uniqueId + i,
+            id: v.id || Date.now() + i,
             title: v.title || v.name || 'Default Title',
             option1: v.option1 || v.title || v.name || 'Default Title',
             option2: null,
@@ -1988,10 +2049,13 @@ export default async function handler(req, res) {
             compare_at_price: v.compare_at_price || v.mrp ? Number(v.compare_at_price || v.mrp).toFixed(2) : cleanCompareAt,
             available: v.available !== false && (v.stock === undefined || Number(v.stock) > 0),
             sku: v.sku || null,
-            featured_image: v.featured_image || null,
+            featured_image: v.featured_image || photo || null,
+            handle,
+            vendor: vendor || 'Skin of Korea',
+            body_html: bodyHtml || `<p>${description || ''}</p>`,
           }))
         : [{
-            id: uniqueId + 1,
+            id: Date.now(),
             title: 'Default Title',
             option1: 'Default Title',
             option2: null,
@@ -2000,67 +2064,58 @@ export default async function handler(req, res) {
             compare_at_price: cleanCompareAt,
             available: initialStock > 0,
             sku: null,
-            featured_image: null,
+            featured_image: photo || null,
+            handle,
+            vendor: vendor || 'Skin of Korea',
+            body_html: bodyHtml || `<p>${description || ''}</p>`,
           }];
 
       const formattedImages = (Array.isArray(images) && images.length > 0)
         ? images.map((img, i) => ({
-            id: img.id || uniqueId + 10 + i,
+            id: img.id || Date.now() + 10 + i,
             src: typeof img === 'string' ? img : img.src,
-            alt: img.alt || null,
+            alt: img.alt || name,
             width: 1000,
             height: 1000,
           }))
         : [{
-            id: uniqueId + 10,
-            src: photo || 'https://res.cloudinary.com/idi6k3ue/image/upload/v1791904965/urvaa/logo.png',
-            alt: null,
+            id: Date.now() + 10,
+            src: photo || '/images/skin-of-korea-logo.png',
+            alt: name,
             width: 1000,
             height: 1000,
           }];
 
-      const newProduct = {
-        id: uniqueId,
-        title: name,
-        handle,
-        body_html: bodyHtml || `<p>${description || ''}</p>`,
-        vendor: vendor || 'Mii Korean',
-        product_type: category || body.product_type || 'Skincare',
-        published_at: new Date().toISOString(),
-        tags: Array.isArray(tags) ? tags : (tags ? String(tags).split(',').map(t => t.trim()) : []),
-        variants: formattedVariants,
-        images: formattedImages,
-        featured: Boolean(featured),
-        isActive: isActive !== false,
+      formattedVariants[0].images = formattedImages;
+      formattedVariants[0].tags = Array.isArray(tags) ? tags : (tags ? String(tags).split(',').map(t => t.trim()) : []);
+
+      const { data: insertedProduct, error: insertErr } = await supabase.from('products').insert({
+        id: newId,
+        name,
+        category: category || body.product_type || 'Skincare',
+        description: description || stripHtmlTags(bodyHtml),
+        price: Number(cleanPrice),
         stock: initialStock,
-      };
+        photo: formattedImages[0]?.src || photo || '',
+        photo_public_id: null,
+        featured: Boolean(featured),
+        is_active: isActive !== false,
+        variants: formattedVariants,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).select().single();
 
-      catalogData.products.unshift(newProduct);
-      catalogData.product_count = catalogData.products.length;
-      saveMiikoreanCatalogData(catalogData);
-
-      // Optional: mirror to Supabase if accessible
-      try {
-        await supabase.from('products').insert({
-          id: crypto.randomUUID ? crypto.randomUUID() : undefined,
-          name,
-          category: newProduct.product_type,
-          description: description || stripHtmlTags(newProduct.body_html),
-          price: Number(cleanPrice),
-          stock: initialStock,
-          photo: formattedImages[0]?.src || '',
-          featured: Boolean(featured),
-          is_active: isActive !== false,
-          variants: formattedVariants,
-        });
-      } catch (e) {
-        console.warn('Optional Supabase product insert skipped:', e.message);
+      if (insertErr) {
+        console.error('Supabase product insert error:', insertErr);
+        return res.status(500).json({ success: false, message: insertErr.message });
       }
+
+      clearDbProductsCache();
 
       return res.status(201).json({
         success: true,
-        message: 'Product created successfully',
-        product: mapCatalogProduct(newProduct),
+        message: 'Product created successfully in database',
+        product: mapCatalogProduct(insertedProduct),
       });
     }
 
@@ -2072,26 +2127,30 @@ export default async function handler(req, res) {
       }
 
       const productId = url.split('/').pop().split('?')[0];
-      const catalogData = getMiikoreanCatalogData();
-      const product = catalogData.products.find(p => p.handle === productId || String(p.id) === productId);
+      const products = await getDbProducts();
+      const product = products.find(p => p.id === productId || String(p.id) === productId || p.variants?.[0]?.handle === productId || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') === productId);
 
       if (!product) {
-        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
+        return res.status(404).json({ success: false, message: 'Product not found in database' });
       }
 
-      product.isActive = product.isActive === false ? true : false;
-      product.updatedAt = new Date().toISOString();
-      saveMiikoreanCatalogData(catalogData);
+      const newIsActive = product.is_active === false ? true : false;
+      const { data: updatedProduct, error: updateErr } = await supabase
+        .from('products')
+        .update({ is_active: newIsActive, updated_at: new Date().toISOString() })
+        .eq('id', product.id)
+        .select().single();
 
-      // Optional: mirror to Supabase
-      try {
-        await supabase.from('products').update({ is_active: product.isActive }).eq('name', product.title);
-      } catch (e) {}
+      if (updateErr) {
+        return res.status(500).json({ success: false, message: updateErr.message });
+      }
+
+      clearDbProductsCache();
 
       return res.status(200).json({
         success: true,
-        message: `Product ${product.isActive ? 'enabled' : 'disabled'} successfully`,
-        product: mapCatalogProduct(product),
+        message: `Product ${newIsActive ? 'enabled' : 'disabled'} successfully`,
+        product: mapCatalogProduct(updatedProduct),
       });
     }
 
@@ -2103,25 +2162,36 @@ export default async function handler(req, res) {
       }
 
       const productId = url.split('/').pop().split('?')[0];
-      const catalogData = getMiikoreanCatalogData();
-      const product = catalogData.products.find(p => p.handle === productId || String(p.id) === productId);
+      const products = await getDbProducts();
+      const product = products.find(p => p.id === productId || String(p.id) === productId || p.variants?.[0]?.handle === productId || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') === productId);
 
       if (!product) {
-        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
+        return res.status(404).json({ success: false, message: 'Product not found in database' });
       }
 
+      let newFeatured;
       if (req.body && typeof req.body.featured === 'boolean') {
-        product.featured = req.body.featured;
+        newFeatured = req.body.featured;
       } else {
-        product.featured = !Boolean(product.featured);
+        newFeatured = !Boolean(product.featured);
       }
-      product.updatedAt = new Date().toISOString();
-      saveMiikoreanCatalogData(catalogData);
+
+      const { data: updatedProduct, error: updateErr } = await supabase
+        .from('products')
+        .update({ featured: newFeatured, updated_at: new Date().toISOString() })
+        .eq('id', product.id)
+        .select().single();
+
+      if (updateErr) {
+        return res.status(500).json({ success: false, message: updateErr.message });
+      }
+
+      clearDbProductsCache();
 
       return res.status(200).json({
         success: true,
-        message: `Product ${product.featured ? 'featured' : 'unfeatured'} successfully`,
-        product: mapCatalogProduct(product),
+        message: `Product ${newFeatured ? 'featured' : 'unfeatured'} successfully`,
+        product: mapCatalogProduct(updatedProduct),
       });
     }
 
@@ -2133,21 +2203,19 @@ export default async function handler(req, res) {
       }
 
       const productId = url.split('/').pop().split('?')[0];
-      const catalogData = getMiikoreanCatalogData();
-      const index = catalogData.products.findIndex(p => p.handle === productId || String(p.id) === productId);
+      const products = await getDbProducts();
+      const product = products.find(p => p.id === productId || String(p.id) === productId || p.variants?.[0]?.handle === productId || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') === productId);
 
-      if (index === -1) {
-        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found in database' });
       }
 
-      const removed = catalogData.products.splice(index, 1)[0];
-      catalogData.product_count = catalogData.products.length;
-      saveMiikoreanCatalogData(catalogData);
+      const { error: delErr } = await supabase.from('products').delete().eq('id', product.id);
+      if (delErr) {
+        return res.status(500).json({ success: false, message: delErr.message });
+      }
 
-      // Optional: mirror to Supabase
-      try {
-        await supabase.from('products').delete().eq('name', removed.title);
-      } catch (e) {}
+      clearDbProductsCache();
 
       return res.status(200).json({
         success: true,
@@ -2158,13 +2226,13 @@ export default async function handler(req, res) {
     // ─── PRODUCTS: Get Single Product by ID or Handle ───
     if (url.match(/\/api\/v1\/products\/[^/]+$/) && req.method === 'GET') {
       const id = url.split('/').pop().split('?')[0];
-      const catalogData = getMiikoreanCatalogData();
-      const product = catalogData.products.find(p => p.handle === id || String(p.id) === id);
+      const allCatalog = await getMappedDbProducts();
+      const product = allCatalog.find(p => p.handle === id || String(p.id) === id || p._id === id);
 
       if (product) {
         const resBody = {
           success: true,
-          product: mapCatalogProduct(product),
+          product,
         };
         if (global.fastApiCache) global.fastApiCache.set(url, { body: resBody, timestamp: Date.now() });
         return res.status(200).json(resBody);
@@ -2185,88 +2253,70 @@ export default async function handler(req, res) {
       const body = (req.body && req.body.productData) ? req.body.productData : (req.body || {});
       const { name, category, vendor, price, compareAtPrice, stock, description, bodyHtml, variants, photo, images, tags, featured, isActive } = body;
 
-      const catalogData = getMiikoreanCatalogData();
-      const product = catalogData.products.find(p => p.handle === productId || String(p.id) === productId);
+      const products = await getDbProducts();
+      const product = products.find(p => p.id === productId || String(p.id) === productId || p.variants?.[0]?.handle === productId || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') === productId);
 
       if (!product) {
-        return res.status(404).json({ success: false, message: 'Product not found in catalog' });
+        return res.status(404).json({ success: false, message: 'Product not found in database' });
       }
 
-      // Update fields
-      if (name !== undefined) product.title = name;
-      if (category !== undefined) product.product_type = category;
-      if (vendor !== undefined) product.vendor = vendor;
-      if (bodyHtml !== undefined) product.body_html = bodyHtml;
-      else if (description !== undefined) product.body_html = `<p>${description}</p>`;
-      if (featured !== undefined) product.featured = Boolean(featured);
-      if (isActive !== undefined) product.isActive = Boolean(isActive);
-      if (stock !== undefined) product.stock = Number(stock);
-      if (tags !== undefined) product.tags = Array.isArray(tags) ? tags : (tags ? String(tags).split(',').map(t => t.trim()) : []);
+      const updatePayload = {
+        updated_at: new Date().toISOString(),
+      };
+      if (name !== undefined) updatePayload.name = name;
+      if (category !== undefined) updatePayload.category = category;
+      if (price !== undefined) updatePayload.price = Number(price);
+      if (stock !== undefined) updatePayload.stock = Number(stock);
+      if (description !== undefined) updatePayload.description = description;
+      if (featured !== undefined) updatePayload.featured = Boolean(featured);
+      if (isActive !== undefined) updatePayload.is_active = Boolean(isActive);
+      if (photo !== undefined) updatePayload.photo = photo;
 
-      // Price update
-      if (price !== undefined) {
-        const cleanPrice = Number(price).toFixed(2);
-        const cleanCompareAt = compareAtPrice ? Number(compareAtPrice).toFixed(2) : null;
-        if (Array.isArray(product.variants) && product.variants.length > 0) {
-          product.variants[0].price = cleanPrice;
-          if (cleanCompareAt !== null) product.variants[0].compare_at_price = cleanCompareAt;
-        } else {
-          product.variants = [{
-            id: Date.now(),
-            title: 'Default Title',
-            option1: 'Default Title',
-            option2: null,
-            option3: null,
-            price: cleanPrice,
-            compare_at_price: cleanCompareAt,
-            available: (product.stock || 0) > 0,
-            sku: null,
-            featured_image: null,
-          }];
-        }
-      }
+      let currentVariants = Array.isArray(product.variants) ? [...product.variants] : [];
+      let v0 = currentVariants[0] || {};
+      v0 = {
+        ...v0,
+        vendor: vendor !== undefined ? vendor : (v0.vendor || 'Skin of Korea'),
+        body_html: bodyHtml !== undefined ? bodyHtml : (v0.body_html || (description ? `<p>${description}</p>` : '')),
+        tags: tags !== undefined ? (Array.isArray(tags) ? tags : String(tags).split(',').map(t => t.trim())) : (v0.tags || []),
+        price: price !== undefined ? String(price) : v0.price,
+        compare_at_price: compareAtPrice !== undefined ? (compareAtPrice ? String(compareAtPrice) : null) : v0.compare_at_price,
+        featured_image: photo || v0.featured_image || product.photo,
+      };
 
-      // Variants update
-      if (Array.isArray(variants) && variants.length > 0) {
-        product.variants = variants.map((v, i) => ({
-          id: v.id || Date.now() + i,
-          title: v.title || v.name || 'Default Title',
-          option1: v.option1 || v.title || v.name || 'Default Title',
-          option2: null,
-          option3: null,
-          price: Number(v.price || v.salePrice || price || 0).toFixed(2),
-          compare_at_price: v.compare_at_price || v.mrp ? Number(v.compare_at_price || v.mrp).toFixed(2) : null,
-          available: v.available !== false && (v.stock === undefined || Number(v.stock) > 0),
-          sku: v.sku || null,
-          featured_image: v.featured_image || null,
-        }));
-      }
-
-      // Photos / Images update
-      if (Array.isArray(images) && images.length > 0) {
-        product.images = images.map((img, i) => ({
-          id: img.id || Date.now() + 10 + i,
-          src: typeof img === 'string' ? img : img.src,
-          alt: img.alt || null,
-          width: 1000,
-          height: 1000,
-        }));
+      if (images !== undefined) {
+        v0.images = Array.isArray(images) ? images : [{ id: 1, src: photo || product.photo, alt: name || product.name, width: 1000, height: 1000 }];
       } else if (photo) {
-        if (!product.images) product.images = [];
-        if (product.images.length > 0) {
-          product.images[0].src = photo;
-        } else {
-          product.images.push({ id: Date.now() + 10, src: photo, alt: null, width: 1000, height: 1000 });
-        }
+        v0.images = [{ id: 1, src: photo, alt: name || product.name, width: 1000, height: 1000 }];
       }
 
-      product.updatedAt = new Date().toISOString();
-      saveMiikoreanCatalogData(catalogData);
+      if (Array.isArray(variants) && variants.length > 0) {
+        updatePayload.variants = variants.map((v, i) => ({
+          ...v0,
+          ...v,
+          id: v.id || v0.id || i + 1,
+        }));
+      } else {
+        currentVariants[0] = v0;
+        updatePayload.variants = currentVariants;
+      }
+
+      const { data: updatedProduct, error: updateErr } = await supabase
+        .from('products')
+        .update(updatePayload)
+        .eq('id', product.id)
+        .select().single();
+
+      if (updateErr) {
+        return res.status(500).json({ success: false, message: updateErr.message });
+      }
+
+      clearDbProductsCache();
 
       return res.status(200).json({
         success: true,
-        message: 'Product updated successfully',
-        product: mapCatalogProduct(product),
+        message: 'Product updated successfully in database',
+        product: mapCatalogProduct(updatedProduct),
       });
     }
 
@@ -2304,23 +2354,19 @@ export default async function handler(req, res) {
       const cleanEmail = String(email).trim().toLowerCase();
 
       // Default built-in admin credentials
-      const ADMIN_EMAIL = 'admin@urvaa.in';
-      const MII_ADMIN_EMAIL = 'admin@miikorean.com';
-      const DEFAULT_ADMIN_HASH = hashAdminPassword('urvaa@2026');
-      const MII_ADMIN_HASH = hashAdminPassword('miikorean@2026');
-      const LEGACY_ADMIN_HASH = hashAdminPassword('julinacandles@2026');
+      const SOK_ADMIN_EMAIL = 'admin@skinofkorea.com';
+      const SOK_ADMIN_HASH = hashAdminPassword('skinofkorea@2026');
       const providedPasswordHash = hashAdminPassword(password);
 
       let isAdminValid = false;
       let adminData = {
         id: 'admin_001',
         email: cleanEmail,
-        name: 'Mii Korean Admin',
+        name: 'Skin of Korea Admin',
       };
 
       // 1. Check built-in admin account
-      if ((cleanEmail === ADMIN_EMAIL.toLowerCase() || cleanEmail === MII_ADMIN_EMAIL.toLowerCase() || cleanEmail === 'admin@julinacandles.in') && 
-          (providedPasswordHash === DEFAULT_ADMIN_HASH || providedPasswordHash === MII_ADMIN_HASH || providedPasswordHash === LEGACY_ADMIN_HASH)) {
+      if (cleanEmail === SOK_ADMIN_EMAIL.toLowerCase() && providedPasswordHash === SOK_ADMIN_HASH) {
         isAdminValid = true;
       } else {
         // 2. Fallback: check Supabase users table for user with role='admin'
@@ -2377,8 +2423,8 @@ export default async function handler(req, res) {
           success: true,
           admin: {
             id: 'admin_001',
-            email: 'admin@miikorean.com',
-            name: 'Mii Korean Admin',
+            email: 'admin@skinofkorea.com',
+            name: 'Skin of Korea Admin',
           }
         });
       }

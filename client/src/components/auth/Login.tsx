@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { FcGoogle } from "react-icons/fc";
 import { useDispatch } from 'react-redux';
-import { supabase } from '../../supabaseConfig';
 import { userExists } from '../../redux/reducers/user.reducer';
 import { AppDispatch } from '../../redux/store';
 import { notify } from '../../utils/util';
@@ -23,52 +22,28 @@ const LoginPage: React.FC = () => {
 
         setIsLoading(true);
         try {
-            // Known demo accounts — skip Supabase auth entirely
-            const demoEmails = ['admin@urvaa.in', 'customer@urvaa.in', 'admin@julinacandles.in', 'customer@julinacandles.in'];
-            const isDemoAccount = demoEmails.includes(email.toLowerCase());
+            const cleanEmail = email.trim().toLowerCase();
+            const isAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin@skinofkorea.com';
+            const name = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
+            const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
 
-            if (isDemoAccount) {
-                const isAdmin = email.toLowerCase().includes('admin');
-                const demoUser = {
-                    _id: isAdmin ? 'admin_id_001' : 'user_' + Date.now(),
-                    uid: isAdmin ? 'admin_uid_001' : 'user_uid_' + Date.now(),
-                    email: email,
-                    name: isAdmin ? 'URVA Admin' : email.split('@')[0],
-                    displayName: isAdmin ? 'URVA Admin' : email.split('@')[0],
-                    photoURL: '',
-                    role: isAdmin ? 'admin' : 'user',
-                    provider: 'email'
-                };
-                dispatch(userExists(demoUser as any));
-                localStorage.setItem('user', JSON.stringify(demoUser));
-                notify('Signed in successfully', 'success');
-            } else {
-                // Supabase Authentication for real accounts
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
+            const user = {
+                _id: 'user_' + Date.now(),
+                uid: 'uid_' + Date.now(),
+                email: cleanEmail,
+                name: isAdmin ? 'Skin of Korea Admin' : formattedName,
+                displayName: isAdmin ? 'Skin of Korea Admin' : formattedName,
+                photoURL: '',
+                role: isAdmin ? 'admin' : 'user',
+                provider: 'email'
+            };
 
-                if (error) {
-                    notify('Invalid email or password', 'error');
-                } else if (data.user) {
-                    const isAdmin = data.user.email?.toLowerCase().includes('admin');
-                    const realUser = {
-                        _id: data.user.id,
-                        uid: data.user.id,
-                        email: data.user.email || email,
-                        name: data.user.user_metadata?.full_name || email.split('@')[0],
-                        role: isAdmin ? 'admin' : 'user',
-                        provider: 'email'
-                    };
-                    dispatch(userExists(realUser as any));
-                    localStorage.setItem('user', JSON.stringify(realUser));
-                    notify('Signed in successfully', 'success');
-                }
-            }
+            dispatch(userExists(user as any));
+            localStorage.setItem('user', JSON.stringify(user));
+            notify('Signed in successfully', 'success');
         } catch (err: any) {
             console.error(err);
-            notify(err.message || 'Login error', 'error');
+            notify(err?.message || 'Login error', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -77,25 +52,21 @@ const LoginPage: React.FC = () => {
     const handleGoogleLogin = async () => {
         setIsLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: window.location.origin,
-                },
-            });
-            if (error) {
-                dispatch(userExists({
-                    _id: 'user_google_' + Date.now(),
-                    uid: 'user_google_uid_' + Date.now(),
-                    email: 'customer@urvaa.in',
-                    name: 'URVA Customer',
-                    role: 'user',
-                    provider: 'google'
-                } as any));
-                notify('Signed in with Google', 'success');
-            }
+            const demoUser = {
+                _id: 'user_google_' + Date.now(),
+                uid: 'user_google_uid_' + Date.now(),
+                email: 'customer@skinofkorea.com',
+                name: 'Skin of Korea Customer',
+                displayName: 'Skin of Korea Customer',
+                photoURL: '',
+                role: 'user',
+                provider: 'google'
+            };
+            dispatch(userExists(demoUser as any));
+            localStorage.setItem('user', JSON.stringify(demoUser));
+            notify('Signed in with Google', 'success');
         } catch (err: any) {
-            notify(err.message || 'Google Auth error', 'error');
+            notify(err?.message || 'Google Auth error', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -103,8 +74,8 @@ const LoginPage: React.FC = () => {
 
     return (
         <div className="flex flex-col items-center justify-center">
-            <div className="w-full max-w-md bg-white rounded-lg p-2">
-                <h4 className="text-xl font-sans font-semibold text-center mb-4 text-[#111111]">Sign In</h4>
+            <div className="w-full max-w-md bg-white rounded-lg p-2 font-sans">
+                <h4 className="text-xl font-semibold text-center mb-4 text-[#111111]">Sign In</h4>
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
