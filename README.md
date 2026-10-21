@@ -79,35 +79,34 @@ The project is structured as a streamlined full-stack application optimized for 
 
 ### 1. Installation
 
-Install root and frontend dependencies:
+Install all project dependencies:
 
 ```bash
 npm install
-cd client && npm install && cd ..
 ```
 
-### 2. Refreshing the Skin of Korea Store Data
+### 2. Environment Variables
 
-The committed snapshot is used by both the storefront and the order API. Refresh both copies from the public Skin of Korea Shopify feeds before publishing catalog changes:
-
-```powershell
-.\scripts\sync_catalog_to_supabase.mjs
-```
-
-The script exports product variants and images, collection metadata, and published pages to `client/public/storefront.json` and `api/data/storefront.json`.
-
-### 3. Environment Variables
-
-Copy the provided `.env.example` templates to `.env` and `client/.env`:
+Copy the provided `.env.example` template to `.env`:
 
 ```bash
 cp .env.example .env
-cp client/.env.example client/.env
 ```
 
-Configure the credentials in `.env`:
-- **Supabase**: Set `SUPABASE_URL` and `SUPABASE_ANON_KEY`
-- **Razorpay**: Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`; the merchant account must support GBP and international payments. Set `VITE_RAZORPAY_KEY_ID` in `client/.env` to the matching public key.
+Configure credentials in `.env`:
+- **Supabase**: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- **Cloudinary**: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `VITE_CLOUDINARY_CLOUD_NAME`, `VITE_CLOUDINARY_UPLOAD_PRESET`
+- **Razorpay**: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `VITE_RAZORPAY_KEY_ID`
+
+### 3. Development & Build
+
+```bash
+# Start local dev server
+npm run dev
+
+# Build for production
+npm run build
+```
 - **Email (optional)**: Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL`.
 
 ### 4. Database Initialization
