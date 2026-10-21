@@ -92,7 +92,7 @@ const AdminLogin: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900 outline-none transition text-sm text-neutral-900 bg-neutral-50 focus:bg-white"
-                  placeholder="admin@skinofkorea.com"
+                  placeholder="admin@skinofkorea.co.uk"
                   required
                   autoComplete="email"
                 />

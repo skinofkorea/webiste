@@ -325,7 +325,7 @@ function verifyRazorpaySignature(orderId, paymentId, signature) {
 // Resend Email API Configuration
 const RESEND_CONFIG = {
   get KEY() { return process.env.RESEND_API_KEY || ''; },
-  get FROM() { return process.env.RESEND_FROM_EMAIL || 'Skin of Korea <hello@skinofkorea.com>'; }
+  get FROM() { return process.env.RESEND_FROM_EMAIL || 'Skin of Korea <hello@skinofkorea.co.uk>'; }
 };
 
 // Send email using Resend REST API
@@ -412,7 +412,7 @@ async function handleOrderSuccess(orderId) {
       style: 'currency',
       currency,
     }).format(Number(amount || 0));
-    const baseUrl = process.env.CLIENT_URL || 'https://www.skinofkorea.com';
+    const baseUrl = process.env.CLIENT_URL || 'https://skinofkorea.co.uk';
 
     const orderItems = typeof order.order_items === 'string' ? JSON.parse(order.order_items) : order.order_items;
     const itemsListHtml = (orderItems || []).map(item => `
@@ -512,7 +512,7 @@ async function handleOrderSuccess(orderId) {
 
           <!-- Footer Notes -->
           <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
-            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at 0800 080 7037 or hello@skinofkorea.com.</p>
+            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at 0800 080 7037 or hello@skinofkorea.co.uk.</p>
             <p style="margin: 0;">© ${new Date().getFullYear()} Skin of Korea Ltd. All rights reserved.</p>
           </div>
 
@@ -883,7 +883,7 @@ export default async function handler(req, res) {
             receipt: orderReceipt,
             notes: {
               customer_name: customer_name || 'Skin of Korea Customer',
-              customer_email: customer_email || 'hello@skinofkorea.com',
+              customer_email: customer_email || 'hello@skinofkorea.co.uk',
               customer_phone: customer_phone || '',
             },
           });
@@ -980,7 +980,7 @@ export default async function handler(req, res) {
       }
 
       // Always redirect to production — payments only run on prod.
-      const origin = process.env.CLIENT_URL || 'https://www.skinofkorea.com';
+      const origin = process.env.CLIENT_URL || 'https://skinofkorea.co.uk';
       const host = req.headers.host || '';
 
       // Verify SecureHash
@@ -1187,7 +1187,7 @@ export default async function handler(req, res) {
               .from('users')
               .insert({
                 uid: guestUid,
-                email: guestEmail || `${guestPhone}@guest.skinofkorea.com`,
+                email: guestEmail || `${guestPhone}@guest.skinofkorea.co.uk`,
                 name: guestName,
                 provider: 'guest',
                 role: 'user',
@@ -1295,7 +1295,7 @@ export default async function handler(req, res) {
           user: 'guest',
           shippingInfo: {
             name: 'Valued Customer',
-            email: 'customer@skinofkorea.com',
+            email: 'customer@skinofkorea.co.uk',
             phone: '+44 7700 900077',
             address: '10 Downing Street',
             city: 'London',
@@ -1386,7 +1386,7 @@ export default async function handler(req, res) {
         const recipientEmail = userRow?.email || shippingInfo?.email || 'shubhamvasantgundu@gmail.com';
         const customerName = userRow?.name || shippingInfo?.name || 'Customer';
 
-        const baseUrl = process.env.CLIENT_URL || 'https://www.skinofkorea.com';
+        const baseUrl = process.env.CLIENT_URL || 'https://skinofkorea.co.uk';
 
         // If status is "Shipped" and we have tracking data, send tracking email
         if (status === 'Shipped' && updated.awb_number) {
@@ -2353,8 +2353,8 @@ export default async function handler(req, res) {
 
       const cleanEmail = String(email).trim().toLowerCase();
 
-      // Default built-in admin credentials
-      const SOK_ADMIN_EMAIL = 'admin@skinofkorea.com';
+      // Default built-in admin credentials (supports both .co.uk and .com)
+      const SOK_ADMIN_EMAILS = ['admin@skinofkorea.co.uk', 'admin@skinofkorea.com'];
       const SOK_ADMIN_HASH = hashAdminPassword('skinofkorea@2026');
       const providedPasswordHash = hashAdminPassword(password);
 
@@ -2366,7 +2366,7 @@ export default async function handler(req, res) {
       };
 
       // 1. Check built-in admin account
-      if (cleanEmail === SOK_ADMIN_EMAIL.toLowerCase() && providedPasswordHash === SOK_ADMIN_HASH) {
+      if (SOK_ADMIN_EMAILS.includes(cleanEmail) && providedPasswordHash === SOK_ADMIN_HASH) {
         isAdminValid = true;
       } else {
         // 2. Fallback: check Supabase users table for user with role='admin'
@@ -2423,7 +2423,7 @@ export default async function handler(req, res) {
           success: true,
           admin: {
             id: 'admin_001',
-            email: 'admin@skinofkorea.com',
+            email: 'admin@skinofkorea.co.uk',
             name: 'Skin of Korea Admin',
           }
         });

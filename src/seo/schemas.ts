@@ -3,7 +3,7 @@
  * Every function returns a plain object ready for JSON.stringify.
  */
 
-const BASE = 'https://www.skinofkorea.com';
+const BASE = 'https://skinofkorea.co.uk';
 const ORG_ID = `${BASE}/#organization`;
 
 // BREADCRUMB

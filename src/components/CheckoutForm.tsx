@@ -206,7 +206,7 @@ const CheckoutForm: React.FC = () => {
             window.location.href = `/my-orders?payment=success&orderId=${createdOrderId}`;
           } catch (err: unknown) {
             console.error('Order save error after payment:', err);
-            notify(`Payment was received, but the order could not be saved. Please contact hello@skinofkorea.com with payment reference ${response.razorpay_payment_id}.`, 'error');
+            notify(`Payment was received, but the order could not be saved. Please contact hello@skinofkorea.co.uk with payment reference ${response.razorpay_payment_id}.`, 'error');
             setIsProcessing(false);
           }
         },

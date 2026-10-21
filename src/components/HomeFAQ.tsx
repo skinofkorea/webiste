@@ -9,19 +9,19 @@ const faqs = [
   },
   {
     question: 'What is your returns policy?',
-    answer: 'For UK orders, email hello@skinofkorea.com within 14 days of receiving your order to request a return. Approved items must be unopened, unused and in their original packaging. International orders are not eligible for returns.',
+    answer: 'For UK orders, email hello@skinofkorea.co.uk within 14 days of receiving your order to request a return. Approved items must be unopened, unused and in their original packaging. International orders are not eligible for returns.',
     href: '/pages/return-policy',
     linkLabel: 'Read our returns policy',
   },
   {
     question: 'What should I do if my order arrives damaged or faulty?',
-    answer: 'Email hello@skinofkorea.com within 30 days of delivery and include clear photos. The store policy provides a replacement for faulty items.',
+    answer: 'Email hello@skinofkorea.co.uk within 30 days of delivery and include clear photos. The store policy provides a replacement for faulty items.',
     href: '/pages/return-policy',
     linkLabel: 'View the full policy',
   },
   {
     question: 'Can I cancel my order?',
-    answer: 'Cancellations can only be processed before an order has shipped. Email hello@skinofkorea.com with your order number as soon as possible.',
+    answer: 'Cancellations can only be processed before an order has shipped. Email hello@skinofkorea.co.uk with your order number as soon as possible.',
   },
   {
     question: 'Where can I find product information?',

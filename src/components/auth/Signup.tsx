@@ -29,7 +29,7 @@ const SignupPage: React.FC = () => {
     setIsLoading(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const isAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin@skinofkorea.com';
+      const isAdmin = cleanEmail.includes('admin') || cleanEmail === 'admin@skinofkorea.co.uk' || cleanEmail === 'admin@skinofkorea.com';
       const cleanName = name.trim();
 
       const newUser = {
@@ -60,7 +60,7 @@ const SignupPage: React.FC = () => {
       const newUser = {
         _id: 'user_google_' + Date.now(),
         uid: 'user_google_uid_' + Date.now(),
-        email: 'customer@skinofkorea.com',
+        email: 'customer@skinofkorea.co.uk',
         name: 'Skin of Korea Customer',
         displayName: 'Skin of Korea Customer',
         photoURL: '',

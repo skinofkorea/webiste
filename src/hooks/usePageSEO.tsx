@@ -11,7 +11,7 @@ interface SEOProps {
   schema?: object | object[];
 }
 
-const BASE_URL = 'https://www.skinofkorea.com';
+const BASE_URL = 'https://skinofkorea.co.uk';
 const DEFAULT_IMAGE = '/images/skin-of-korea-logo.png';
 
 /**

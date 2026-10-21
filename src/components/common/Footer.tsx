@@ -64,8 +64,8 @@ const Footer: React.FC = () => (
 
         <div>
           <h2 className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#2b211c]/60">Stay connected</h2>
-          <a href="mailto:hello@skinofkorea.com" className="mt-2.5 inline-flex items-center gap-2 transition hover:text-[#8b451f]">
-            <FaEnvelope aria-hidden="true" /> hello@skinofkorea.com
+          <a href="mailto:hello@skinofkorea.co.uk" className="mt-2.5 inline-flex items-center gap-2 transition hover:text-[#8b451f]">
+            <FaEnvelope aria-hidden="true" /> hello@skinofkorea.co.uk
           </a>
           <div className="mt-3 flex gap-4">
             <a href="https://www.instagram.com/skinofkorea/" target="_blank" rel="noreferrer" aria-label="Skin of Korea on Instagram" className="transition hover:text-[#8b451f]">
