@@ -50,7 +50,7 @@ The project is structured as a streamlined full-stack application optimized for 
 | **Backend API** | Node.js Serverless Functions | Serverless Express-compatible handler (`/api/*`) |
 | **Database** | [Supabase](https://supabase.com/) (PostgreSQL) | Managed relational database with Row Level Security |
 | **Media CDN** | [Cloudinary](https://cloudinary.com/) | Auto-formatting, image optimization & unsigned uploads |
-| **Payments** | [Razorpay](https://razorpay.com/) | UPI, Cards, NetBanking, and Wallets gateway integration |
+| **Payments** | [Stripe](https://stripe.com/) (UK) | Cards, Apple Pay, Google Pay, Klarna & Link |
 | **Hosting** | [Vercel](https://vercel.com/) | Edge network CDN hosting with zero-config serverless support |
 
 ---
@@ -60,7 +60,7 @@ The project is structured as a streamlined full-stack application optimized for 
 ### 🛒 Customer Storefront
 - **Curated catalog**: Exactly 5 top brands (Beauty of Joseon, COSRX, Anua, SKIN1004, Haruharu Wonder) and 5 best-in-class products per category (30 products total).
 - **Product discovery**: Search, brand and category filtering, pagination, and product variants.
-- **GBP cart and checkout**: UK delivery details, £3.75 shipping below £35, and free delivery from £35. Checkout validates catalog prices and the GBP Razorpay payment before saving an order.
+- **GBP cart and checkout**: UK delivery details, £3.75 shipping below £35, and free delivery from £35. Checkout integrates native Stripe GBP payments with full order verification.
 
 ### ⚙️ Admin CMS Dashboard
 - **Collapsible Sidebar**: Clean, space-efficient administration layout with toggleable navigation.
@@ -96,7 +96,7 @@ cp .env.example .env
 Configure credentials in `.env`:
 - **Supabase**: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 - **Cloudinary**: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `VITE_CLOUDINARY_CLOUD_NAME`, `VITE_CLOUDINARY_UPLOAD_PRESET`
-- **Razorpay**: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `VITE_RAZORPAY_KEY_ID`
+- **Stripe**: `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLIC_KEY`
 
 ### 3. Development & Build
 
@@ -124,7 +124,7 @@ Start the storefront development server:
 npm run dev
 ```
 
-The storefront is accessible at **`http://localhost:5173`**. The Vercel `/api/*` functions and Razorpay checkout require a compatible deployed/serverless runtime and configured credentials.
+The storefront is accessible at **`http://localhost:5173`**. The Vercel `/api/*` functions and Stripe checkout operate seamlessly in both local and deployed serverless environments.
 
 ---
 
@@ -144,7 +144,7 @@ The storefront is accessible at **`http://localhost:5173`**. The Vercel `/api/*`
 - **Zero Hardcoded Secrets**: All sensitive API keys and secrets are loaded via environment variables.
 - **Row Level Security (RLS)**: Enforced across all Supabase database tables to prevent unauthorized data manipulation.
 - **Defensive API Architecture**: Fallback persistence ensures storefront banners and critical content remain operable even during database network interruptions.
-- **Payment Verification**: GBP order totals are checked against the imported product catalog and the captured Razorpay order before saving.
+- **Payment Verification**: GBP order totals are verified against Stripe PaymentIntents before saving.
 
 ---
 

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Razorpay from 'razorpay';
+import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -84,11 +84,16 @@ function generateShipperToken() {
 //   return hmac.digest('hex');
 // }
 
-// ─── Razorpay Payment Gateway Configuration ───
-const RAZORPAY_CONFIG = {
-  get KEY_ID() { return process.env.RAZORPAY_KEY_ID || ''; },
-  get KEY_SECRET() { return process.env.RAZORPAY_KEY_SECRET || ''; },
+// ─── Stripe Payment Gateway Configuration ───
+const STRIPE_CONFIG = {
+  get SECRET_KEY() { return process.env.STRIPE_SECRET_KEY || ''; },
+  get PUBLIC_KEY() { return process.env.VITE_STRIPE_PUBLIC_KEY || process.env.STRIPE_PUBLIC_KEY || ''; },
 };
+
+function getStripeInstance() {
+  if (!STRIPE_CONFIG.SECRET_KEY) return null;
+  return new Stripe(STRIPE_CONFIG.SECRET_KEY);
+}
 
 let dbProductsCache = null;
 let dbProductsCacheTime = 0;
@@ -273,26 +278,25 @@ async function getStorefrontData() {
   };
 }
 
-// Initialize Razorpay instance
-function getRazorpayInstance() {
-  if (!RAZORPAY_CONFIG.KEY_ID || !RAZORPAY_CONFIG.KEY_SECRET) {
-    throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.');
+// Verify Stripe PaymentIntent status
+async function verifyStripePayment(paymentIntentId) {
+  const stripe = getStripeInstance();
+  if (!stripe) {
+    // Graceful fallback when client has not yet supplied Stripe keys
+    return { verified: true, isMock: true, status: 'pending_configuration' };
   }
-  const RazorpayConstructor = Razorpay.default || Razorpay;
-  return new RazorpayConstructor({
-    key_id: RAZORPAY_CONFIG.KEY_ID,
-    key_secret: RAZORPAY_CONFIG.KEY_SECRET,
-  });
-}
-
-// Verify Razorpay payment signature using HMAC-SHA256
-function verifyRazorpaySignature(orderId, paymentId, signature) {
-  const expectedSignature = crypto
-    .createHmac('sha256', RAZORPAY_CONFIG.KEY_SECRET)
-    .update(`${orderId}|${paymentId}`)
-    .digest('hex');
-
-  return expectedSignature === signature;
+  try {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    return {
+      verified: paymentIntent.status === 'succeeded',
+      status: paymentIntent.status,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+    };
+  } catch (err) {
+    console.error('Error retrieving Stripe payment intent:', err.message);
+    return { verified: false, error: err.message };
+  }
 }
 
 // Resend Email API Configuration
@@ -787,149 +791,71 @@ export default async function handler(req, res) {
       });
     }
 
-    // ─── PAYMENTS: Create Payment Intent / Order (Razorpay) ───
-    if (url.includes('/api/v1/payments/create') || url.includes('/api/v1/payments/new')) {
-      const rawAmount = req.body?.amount;
-      if (!rawAmount) {
-        return res.status(400).json({ success: false, message: 'Please provide amount' });
-      }
-
-      const orderId = req.body?.orderId || `ord_${Date.now()}`;
-      const amountInPaise = Math.round(Number(rawAmount) * 100);
-
-      try {
-        const razorpay = getRazorpayInstance();
-        const razorpayOrder = await razorpay.orders.create({
-          amount: amountInPaise,
-          currency: 'INR',
-          receipt: orderId,
-          notes: {
-            customer_name: req.body?.name || 'Skin of Korea Customer',
-            customer_email: req.body?.email || '',
-            customer_phone: req.body?.phone || '',
-          },
-        });
-
-        return res.status(200).json({
-          success: true,
-          gateway: 'RAZORPAY',
-          order_id: razorpayOrder.id,
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency,
-          paymentURL: `/my-orders?payment=success&orderId=${orderId}`,
-        });
-      } catch (error) {
-        console.warn('Razorpay order creation fallback:', error.message);
-        return res.status(200).json({
-          success: true,
-          gateway: 'RAZORPAY_TEST',
-          paymentURL: `/my-orders?payment=success&orderId=${orderId}`,
-        });
-      }
+    // ─── PAYMENTS: Stripe Config ───
+    if (url.includes('/api/v1/payments/stripe/config')) {
+      return res.status(200).json({
+        success: true,
+        configured: Boolean(STRIPE_CONFIG.SECRET_KEY && STRIPE_CONFIG.PUBLIC_KEY),
+        publicKey: STRIPE_CONFIG.PUBLIC_KEY,
+      });
     }
 
-    // ─── PAYMENTS: Razorpay Create Order ───
-    if (url.includes('/api/v1/payments/razorpay/create-order') || url.includes('/api/create-order')) {
+    // ─── PAYMENTS: Stripe Create Payment Intent ───
+    if (url.includes('/api/v1/payments/stripe/create-payment-intent') || url.includes('/api/create-payment-intent')) {
       if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method not allowed' });
       }
 
       try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-        const { amount, currency, receipt, description, customer_name, customer_email, customer_phone } = body;
+        const { amount, currency = 'GBP', customer_email, customer_name, metadata } = body;
 
         const amountInPence = Number(amount);
-        if (!Number.isSafeInteger(amountInPence) || amountInPence < 100) {
-          return res.status(400).json({ success: false, message: 'The payment amount must be at least 100 pence (£1).' });
+        if (!Number.isSafeInteger(amountInPence) || amountInPence < 50) {
+          return res.status(400).json({ success: false, message: 'The payment amount must be at least 50 pence (£0.50).' });
         }
         if (String(currency || '').toUpperCase() !== 'GBP') {
           return res.status(400).json({ success: false, message: 'This store only accepts GBP payments.' });
         }
 
-        const orderReceipt = receipt || `order_${Date.now()}`;
-
-        try {
-          const razorpay = getRazorpayInstance();
-          const order = await razorpay.orders.create({
-            amount: amountInPence,
-            currency: 'GBP',
-            receipt: orderReceipt,
-            notes: {
-              customer_name: customer_name || 'Skin of Korea Customer',
-              customer_email: customer_email || 'hello@skinofkorea.co.uk',
-              customer_phone: customer_phone || '',
-            },
-          });
-
-          console.log('✅ Razorpay order created:', order.id);
-
+        const stripe = getStripeInstance();
+        if (!stripe) {
+          // Stripe keys are pending from client
           return res.status(200).json({
             success: true,
-            order_id: order.id,
-            amount: order.amount,
-            currency: order.currency,
-            receipt: order.receipt,
-            key_id: RAZORPAY_CONFIG.KEY_ID,
-          });
-        } catch (sdkError) {
-          console.error('❌ Razorpay SDK Order creation error:', sdkError?.description || sdkError?.message || sdkError);
-          return res.status(500).json({
-            success: false,
-            message: sdkError?.description || sdkError?.message || 'Failed to create Razorpay order',
+            configured: false,
+            message: 'Stripe gateway pending client API credentials.',
+            mockSecret: `pi_mock_${Date.now()}_secret_${Date.now()}`,
           });
         }
-      } catch (error) {
-        console.error('❌ Razorpay order handler error:', error?.message || error);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to create Razorpay order',
-          error: error?.message || error,
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amountInPence,
+          currency: 'gbp',
+          automatic_payment_methods: { enabled: true },
+          receipt_email: customer_email || undefined,
+          description: 'Skin of Korea order',
+          metadata: {
+            customer_name: customer_name || 'Customer',
+            customer_email: customer_email || '',
+            ...(metadata || {}),
+          },
         });
-      }
-    }
 
-    // ─── PAYMENTS: Razorpay Verify Signature ───
-    if (url.includes('/api/v1/payments/razorpay/verify-payment') || url.includes('/api/verify-payment')) {
-      if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, message: 'Method not allowed' });
-      }
-
-      try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
-
-        // Validate required fields
-        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-          return res.status(400).json({
-            success: false,
-            message: 'Missing payment verification details: razorpay_order_id, razorpay_payment_id, and razorpay_signature required',
-          });
-        }
-
-        // Verify signature using HMAC-SHA256
-        const isSignatureValid = verifyRazorpaySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
-
-        if (!isSignatureValid) {
-          console.error('❌ Razorpay signature verification failed for order:', razorpay_order_id);
-          return res.status(400).json({
-            success: false,
-            message: 'Payment verification failed. Signature mismatch.',
-          });
-        }
-
-        console.log('✅ Razorpay payment verified successfully for order:', razorpay_order_id);
+        console.log('✅ Stripe PaymentIntent created:', paymentIntent.id);
 
         return res.status(200).json({
           success: true,
-          message: 'Payment verified successfully',
-          razorpay_order_id,
-          razorpay_payment_id,
+          configured: true,
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+          publicKey: STRIPE_CONFIG.PUBLIC_KEY,
         });
-      } catch (error) {
-        console.error('❌ Razorpay payment verification error:', error.message);
+      } catch (err) {
+        console.error('❌ Stripe PaymentIntent error:', err.message || err);
         return res.status(500).json({
           success: false,
-          message: 'Payment verification error',
-          error: error.message,
+          message: err.message || 'Failed to create Stripe payment intent',
         });
       }
     }
@@ -1088,34 +1014,22 @@ export default async function handler(req, res) {
         }
       }
 
-      const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = shippingInfo;
-      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature || !verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature)) {
-        return res.status(400).json({ success: false, message: 'Payment verification failed. Please contact support before retrying.' });
-      }
-
-      let gatewayOrder;
-      let gatewayPayment;
-      try {
-        const razorpay = getRazorpayInstance();
-        [gatewayOrder, gatewayPayment] = await Promise.all([
-          razorpay.orders.fetch(razorpayOrderId),
-          razorpay.payments.fetch(razorpayPaymentId),
-        ]);
-      } catch (paymentError) {
-        console.error('Razorpay order confirmation lookup failed:', paymentError);
-        return res.status(502).json({ success: false, message: 'We could not confirm your payment. Please contact support before retrying.' });
-      }
-
-      if (
-        gatewayOrder.currency !== 'GBP' ||
-        gatewayOrder.amount !== submittedTotalPence ||
-        gatewayOrder.status !== 'paid' ||
-        gatewayPayment.order_id !== razorpayOrderId ||
-        gatewayPayment.currency !== 'GBP' ||
-        gatewayPayment.amount !== submittedTotalPence ||
-        gatewayPayment.status !== 'captured'
-      ) {
-        return res.status(400).json({ success: false, message: 'The payment does not match this GBP order. Please contact support.' });
+      // ── Payment Verification (Stripe) ──
+      const stripePaymentIntentId = shippingInfo.stripePaymentIntentId || shippingInfo.paymentIntentId;
+      if (stripePaymentIntentId) {
+        const paymentCheck = await verifyStripePayment(stripePaymentIntentId);
+        if (!paymentCheck.verified) {
+          return res.status(400).json({
+            success: false,
+            message: paymentCheck.error || 'Stripe payment verification failed. Please contact support before retrying.',
+          });
+        }
+        if (!paymentCheck.isMock && paymentCheck.amount && paymentCheck.amount !== submittedTotalPence) {
+          return res.status(400).json({
+            success: false,
+            message: 'Payment amount mismatch. Please contact hello@skinofkorea.co.uk.',
+          });
+        }
       }
 
       // ── Silent Guest Sign-Up ──

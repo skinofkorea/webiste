@@ -183,9 +183,8 @@ export type ShippingInfo = {
     latitude?: number;
     longitude?: number;
     deliveryType?: 'current_location' | 'nearest_landmark';
-    razorpayPaymentId?: string;
-    razorpayOrderId?: string;
-    razorpaySignature?: string;
+    stripePaymentIntentId?: string;
+    paymentMethod?: string;
     clientOrigin?: string;
 }
 
