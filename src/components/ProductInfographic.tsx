@@ -10,7 +10,7 @@ const marketplaceSteps = [
 const ProductInfographic: React.FC = () => (
   <section className="my-12 w-full overflow-hidden rounded-3xl border border-[#D9DDCE] bg-[#FBF6ED] shadow-lg">
     <div className="bg-[#234331] px-5 py-7 text-center text-white sm:px-8">
-      <h2 className="font-serif text-2xl font-bold sm:text-3xl">The URVA way</h2>
+      <h2 className="font-serif text-2xl font-bold sm:text-3xl">The Skin of Korea way</h2>
       <p className="mt-2 text-sm text-[#E9C77A]">One UGC– One Product</p>
     </div>
     <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-8 lg:grid-cols-4">

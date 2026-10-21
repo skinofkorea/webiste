@@ -204,63 +204,35 @@ async function getMappedDbProducts() {
   return rows.map(mapCatalogProduct);
 }
 
-function getSkinOfKoreaProducts() {
-  if (dbProductsCache && dbProductsCache.length > 0) {
-    return dbProductsCache.map(mapCatalogProduct);
-  }
-  return [];
-}
+function generateDynamicCollections(products) {
+  const categoryMap = new Map();
+  const defaultCategoryImages = {
+    cleanser: '/images/home-categories/cleanser.webp',
+    toner: '/images/home-categories/toner.webp',
+    moisturiser: '/images/home-categories/moisturiser.webp',
+    spf: '/images/home-categories/spf.webp',
+    masks: '/images/home-categories/masks.webp',
+    eyecream: '/images/home-categories/eyecream.webp',
+    'eye cream': '/images/home-categories/eyecream.webp',
+  };
 
-const STORE_COLLECTIONS = [
-  {
-    id: 1,
-    title: 'Cleanser',
-    handle: 'cleanser',
-    description: 'Cleanse and refresh your skin with gentle, nourishing Korean cleansers.',
-    image: '/images/home-categories/cleanser.webp',
-    published_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 2,
-    title: 'Toner',
-    handle: 'toner',
-    description: 'Hydrating, balancing and soothing toners and essences.',
-    image: '/images/home-categories/toner.webp',
-    published_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 3,
-    title: 'Moisturiser',
-    handle: 'moisturiser',
-    description: 'Barrier-strengthening, rich and lightweight Korean creams.',
-    image: '/images/home-categories/moisturiser.webp',
-    published_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 4,
-    title: 'SPF',
-    handle: 'spf',
-    description: 'Award-winning daily sun protection with no white cast.',
-    image: '/images/home-categories/spf.webp',
-    published_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 5,
-    title: 'Masks',
-    handle: 'masks',
-    description: 'Intensive sheet, wash-off and sleep masks for instant glow.',
-    image: '/images/home-categories/masks.webp',
-    published_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 6,
-    title: 'Eye Cream',
-    handle: 'eyecream',
-    description: 'Targeted brightening, firming and wrinkle-smoothing eye care.',
-    image: '/images/home-categories/eyecream.webp',
-    published_at: '2026-01-01T00:00:00Z',
-  },
-];
+  products.forEach((p) => {
+    const cat = p.category;
+    if (cat && !categoryMap.has(cat.toLowerCase())) {
+      const handle = cat.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      categoryMap.set(cat.toLowerCase(), {
+        id: categoryMap.size + 1,
+        title: cat,
+        handle: handle,
+        description: `Explore our collection of authentic Korean ${cat.toLowerCase()}.`,
+        image: defaultCategoryImages[cat.toLowerCase()] || p.photo || '',
+        published_at: p.createdAt || '2026-01-01T00:00:00Z',
+      });
+    }
+  });
+
+  return Array.from(categoryMap.values());
+}
 
 const STORE_PAGES = [
   {
@@ -288,14 +260,15 @@ const STORE_PAGES = [
 
 async function getStorefrontData() {
   const products = await getMappedDbProducts();
+  const collections = generateDynamicCollections(products);
   return {
     source: 'Skin of Korea (Supabase & Cloudinary)',
     exported_at: new Date().toISOString(),
     product_count: products.length,
-    collection_count: STORE_COLLECTIONS.length,
+    collection_count: collections.length,
     page_count: STORE_PAGES.length,
     products,
-    collections: STORE_COLLECTIONS,
+    collections,
     pages: STORE_PAGES,
   };
 }
@@ -831,7 +804,7 @@ export default async function handler(req, res) {
           currency: 'INR',
           receipt: orderId,
           notes: {
-            customer_name: req.body?.name || 'URVA Customer',
+            customer_name: req.body?.name || 'Skin of Korea Customer',
             customer_email: req.body?.email || '',
             customer_phone: req.body?.phone || '',
           },
@@ -1284,48 +1257,16 @@ export default async function handler(req, res) {
         .eq('id', id)
         .single();
 
-      let orderObj = null;
-      if (!error && data) {
-        orderObj = mapOrder(data);
-      } else {
-        // Fallback for orders generated during checkout
-        orderObj = {
-          _id: id,
-          id: id,
-          user: 'guest',
-          shippingInfo: {
-            name: 'Valued Customer',
-            email: 'customer@skinofkorea.co.uk',
-            phone: '+44 7700 900077',
-            address: '10 Downing Street',
-            city: 'London',
-            state: 'Greater London',
-            pinCode: 'SW1A 2AA',
-            country: 'United Kingdom'
-          },
-          orderItems: [
-            {
-              _id: '1',
-              name: 'Beauty of Joseon Relief Sun Rice + Probiotics SPF50+',
-              price: 15.95,
-              quantity: 1,
-              photo: '/images/home-categories/spf.webp'
-            }
-          ],
-          subTotal: 15.95,
-          tax: 0,
-          shippingCharges: 0,
-          discount: 0,
-          total: 15.95,
-          status: 'Processing',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
+      if (error || !data) {
+        return res.status(404).json({
+          success: false,
+          message: 'Order not found',
+        });
       }
 
       return res.status(200).json({
         success: true,
-        order: orderObj,
+        order: mapOrder(data),
       });
     }
 
@@ -1914,6 +1855,20 @@ export default async function handler(req, res) {
       if (global.fastApiCache) global.fastApiCache.set(url, { body: resBody, timestamp: Date.now() });
 
       return res.status(200).json(resBody);
+    }
+
+    // ─── PRODUCTS: Get Categories (Dynamic from DB) ───
+    if (url.includes('/api/v1/products/categories') && req.method === 'GET') {
+      const allCatalog = await getMappedDbProducts();
+      const categories = Array.from(new Set(allCatalog.map(p => p.category).filter(Boolean))).sort();
+      return res.status(200).json({ success: true, categories });
+    }
+
+    // ─── PRODUCTS: Get Brands (Dynamic from DB) ───
+    if (url.includes('/api/v1/products/brands') && req.method === 'GET') {
+      const allCatalog = await getMappedDbProducts();
+      const brands = Array.from(new Set(allCatalog.map(p => p.vendor).filter(Boolean))).sort();
+      return res.status(200).json({ success: true, brands });
     }
 
     // ─── PRODUCTS: Get All Products (Admin & Storefront view) ───

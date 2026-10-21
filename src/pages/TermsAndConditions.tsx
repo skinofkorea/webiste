@@ -51,7 +51,7 @@ const TermsAndConditions: React.FC = () => {
                 By visiting, browsing, registering on, or purchasing products through <strong>Skin of Korea</strong> (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), you acknowledge that you have read, understood, and agree to be legally bound by these Terms and Conditions and our Privacy Policy. If you do not agree with any part of these terms, please refrain from using our services.
               </p>
               <p>
-                Skin of Korea curates genuine, lab-certified K-Beauty essentials from leading South Korean skincare brands including COSRX, Beauty of Joseon, Anua, Skin1004, Haruharu Wonder, Round Lab, and more, dispatched directly from our UK fulfilment centre.
+                Skin of Korea curates genuine, lab-certified K-Beauty essentials from leading South Korean skincare brands including COSRX, Beauty of Joseon, Anua, Skin1004, and Haruharu Wonder, dispatched directly from our UK fulfilment centre.
               </p>
             </section>
 

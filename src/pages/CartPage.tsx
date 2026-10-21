@@ -21,7 +21,6 @@ const Cart: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { cartItems, subTotal, total, discount, shippingCharges, shippingInfo } = useSelector((state: RootState) => state.cart);
-  const hasDemoItems = cartItems.some((item) => item.productId.startsWith('demo-'));
   const hasLegacyCurrency = cartItems.some((item) => (item.currency || 'INR') !== 'GBP');
 
   const [couponCode, setCouponCode] = useState('');
@@ -304,11 +303,6 @@ const Cart: React.FC = () => {
                 </div>
 
                 {/* Proceed Button */}
-                {hasDemoItems && (
-                  <p className="mt-4 rounded-lg border border-neutral-200 bg-white p-3 text-xs leading-relaxed text-neutral-600">
-                    Sample products are for preview only and are not available to order yet. Remove them from your basket to continue to checkout.
-                  </p>
-                )}
                 {hasLegacyCurrency && (
                   <p role="alert" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
                     This basket contains items from the previous INR store. Remove them or clear your basket before checking out in GBP.
@@ -319,10 +313,10 @@ const Cart: React.FC = () => {
                     dispatch(saveShippingInfo({ ...shippingInfo, couponCode: appliedCoupon || undefined }));
                     navigate('/shipping');
                   }}
-                  disabled={hasDemoItems || hasLegacyCurrency}
+                  disabled={hasLegacyCurrency}
                   className="w-full bg-black hover:bg-neutral-800 text-white font-medium py-3.5 px-4 rounded-lg text-xs uppercase tracking-widest transition-colors shadow-xs text-center block mt-4 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {hasDemoItems ? 'Remove Sample Items to Checkout' : hasLegacyCurrency ? 'Clear previous-store items to checkout' : 'Proceed to Checkout ➔'}
+                  {hasLegacyCurrency ? 'Clear previous-store items to checkout' : 'Proceed to Checkout ➔'}
                 </button>
               </div>
             </div>

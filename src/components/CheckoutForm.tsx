@@ -96,10 +96,6 @@ const CheckoutForm: React.FC = () => {
       notify('Your basket contains items from the previous INR store. Clear it before paying in GBP.', 'error');
       return;
     }
-    if (cartItems.some((item) => item.productId.startsWith('demo-'))) {
-      notify('Sample products are for preview only. Remove them from your basket before checkout.', 'error');
-      return;
-    }
     setIsProcessing(true);
 
     const isLoaded = await loadRazorpayScript();

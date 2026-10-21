@@ -58,7 +58,7 @@ export const SEO: React.FC<SEOProps> = ({
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:image" content={ogImage} />
-      <meta property="og:site_name" content="URVA" />
+      <meta property="og:site_name" content="Skin of Korea" />
 
       {/* Twitter Cards */}
       <meta name="twitter:card" content="summary_large_image" />

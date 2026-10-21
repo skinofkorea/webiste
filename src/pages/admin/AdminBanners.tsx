@@ -313,7 +313,7 @@ const AdminBanners: React.FC = () => {
           </div>
           <h3 className="text-base font-bold text-neutral-900">No campaigns found in this view</h3>
           <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-            You can create a new campaign or click "Reset Defaults" to restore curated sample banners.
+            You can create a new campaign or click "Reset Defaults" to restore curated store banners.
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <button

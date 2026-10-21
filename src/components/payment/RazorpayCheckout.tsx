@@ -21,7 +21,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
   amount,
   currency = 'INR',
   receipt = `order_${Date.now()}`,
-  description = 'URVA purchase',
+  description = 'Skin of Korea purchase',
   customer_name = 'Guest',
   customer_email = '',
   customer_phone = '',

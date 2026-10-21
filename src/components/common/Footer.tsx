@@ -72,7 +72,7 @@ const Footer: React.FC = () => (
               <FaPhone aria-hidden="true" size={12} /> Call us : 0800 0807037
             </a>
           </div>
-          <p className="mt-3 leading-5 text-[#2b211c]/60">Visit us at Meadowhall or Trafford Centre.</p>
+          <p className="mt-3 leading-5 text-[#2b211c]/60">100% Authentic Korean Skincare dispatched directly from the UK.</p>
         </div>
       </div>
 

@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FaChevronDown, FaChevronRight, FaTimes } from 'react-icons/fa';
 import { CATEGORIES_DATA, BRANDS_DATA } from '../../data/categoriesAndBrands';
+import { useStorefront } from '../../hooks/useStorefront';
+import { normalizeStoreHandle } from '../../data/storefront';
 
 interface MobileSidebarDrawerProps {
   isOpen: boolean;
@@ -11,6 +13,47 @@ interface MobileSidebarDrawerProps {
 
 export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const { storefront } = useStorefront();
+  const products = useMemo(() => storefront?.products || [], [storefront]);
+
+  const dynamicCategories = useMemo(() => {
+    if (!products.length) return [];
+    const catSet = new Set<string>();
+    const list: typeof CATEGORIES_DATA = [];
+    products.forEach((p) => {
+      if (p.category && !catSet.has(p.category.toLowerCase())) {
+        catSet.add(p.category.toLowerCase());
+        const matched = CATEGORIES_DATA.find((c) => c.categoryName.toLowerCase() === p.category.toLowerCase() || c.handle === normalizeStoreHandle(p.category));
+        list.push({
+          id: p.category.toLowerCase(),
+          title: p.category.toUpperCase(),
+          handle: normalizeStoreHandle(p.category),
+          image: matched?.image || p.photo,
+          categoryName: p.category,
+        });
+      }
+    });
+    return list;
+  }, [products]);
+
+  const dynamicBrands = useMemo(() => {
+    if (!products.length) return [];
+    const vendorSet = new Set<string>();
+    const list: typeof BRANDS_DATA = [];
+    products.forEach((p) => {
+      if (p.vendor && !vendorSet.has(p.vendor.toLowerCase())) {
+        vendorSet.add(p.vendor.toLowerCase());
+        const matched = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === p.vendor.toLowerCase() || b.handle === normalizeStoreHandle(p.vendor));
+        list.push({
+          name: p.vendor.toUpperCase(),
+          vendor: p.vendor,
+          handle: normalizeStoreHandle(p.vendor),
+          image: matched?.image || p.photo,
+        });
+      }
+    });
+    return list;
+  }, [products]);
   // Screenshot 1 has categories open by default
   const [categoriesOpen, setCategoriesOpen] = useState(true);
   const [brandsOpen, setBrandsOpen] = useState(false);
@@ -112,7 +155,7 @@ export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({ isOpen
               {/* 2-Column Categories Grid (Exact Screenshot 1) */}
               {categoriesOpen && (
                 <div className="mt-1 mb-3 grid grid-cols-2 gap-3 animate-fadeIn">
-                  {CATEGORIES_DATA.map((cat) => (
+                  {dynamicCategories.map((cat) => (
                     <button
                       key={cat.id}
                       type="button"
@@ -162,7 +205,7 @@ export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({ isOpen
               {brandsOpen && (
                 <div className="mt-1 mb-3 animate-fadeIn">
                   <div className="grid grid-cols-4 gap-2">
-                    {BRANDS_DATA.map((brand) => (
+                    {dynamicBrands.map((brand) => (
                       <button
                         key={brand.handle}
                         type="button"

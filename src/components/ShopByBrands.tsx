@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useStorefront } from '../hooks/useStorefront';
+import { normalizeStoreHandle } from '../data/storefront';
 import { BRANDS_DATA } from '../data/categoriesAndBrands';
 
 interface ShopByBrandsProps {
@@ -11,6 +13,31 @@ export const ShopByBrands: React.FC<ShopByBrandsProps> = ({
   className = '',
   title = 'Shop By Brands',
 }) => {
+  const { storefront } = useStorefront();
+  const products = useMemo(() => storefront?.products || [], [storefront]);
+
+  const brands = useMemo(() => {
+    const brandMap = new Map<string, { name: string; vendor: string; handle: string; image: string }>();
+    products.forEach((product) => {
+      const vendor = product.vendor;
+      if (vendor) {
+        const key = vendor.toLowerCase();
+        if (!brandMap.has(key)) {
+          const matched = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === key || b.handle === normalizeStoreHandle(vendor));
+          brandMap.set(key, {
+            name: vendor.toUpperCase(),
+            vendor: vendor,
+            handle: normalizeStoreHandle(vendor),
+            image: matched?.image || product.photo,
+          });
+        }
+      }
+    });
+    return Array.from(brandMap.values());
+  }, [products]);
+
+  if (!brands.length) return null;
+
   return (
     <section className={`py-10 sm:py-14 bg-white border-t border-neutral-100 ${className}`}>
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
@@ -27,7 +54,7 @@ export const ShopByBrands: React.FC<ShopByBrandsProps> = ({
         </div>
 
         <ul className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3 sm:gap-4 list-none p-0 m-0">
-          {BRANDS_DATA.map((brand) => (
+          {brands.map((brand) => (
             <li key={brand.handle} className="group">
               <Link
                 to={`/collections/${brand.handle}`}
@@ -40,11 +67,6 @@ export const ShopByBrands: React.FC<ShopByBrandsProps> = ({
                     src={brand.image}
                     alt={brand.name}
                     loading="lazy"
-                    onError={(e) => {
-                      if (brand.fallbackImage && e.currentTarget.src !== brand.fallbackImage) {
-                        e.currentTarget.src = brand.fallbackImage;
-                      }
-                    }}
                     className="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform duration-200"
                   />
                 </div>

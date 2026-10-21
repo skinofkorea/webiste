@@ -31,7 +31,7 @@ const FeaturedVariants: React.FC<Props> = ({ products }) => {
             Featured Products
           </h2>
           <p className="text-xs md:text-sm text-neutral-500 mt-2 font-light leading-relaxed">
-            Explore selected products and available options from the URVA collection.
+            Explore selected products and available options from the Skin of Korea collection.
           </p>
         </div>
 

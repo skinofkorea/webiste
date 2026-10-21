@@ -1,5 +1,4 @@
-# robots.txt – URVA
-# Last Updated: 2026-08-10
+# robots.txt – Skin of Korea
 # Purpose: SEO optimization & crawler management
 
 # ============================================

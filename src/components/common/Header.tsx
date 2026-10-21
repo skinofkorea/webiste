@@ -7,26 +7,10 @@ import MobileSidebarDrawer from './MobileSidebarDrawer';
 
 const logo = '/images/skin-of-korea-logo.png';
 const announcements = [
-  {
-    icon: 'https://www.justmylook.com/cdn/shop/files/Trustpilot-05_7863b31f-1bbf-4657-85d3-de5dcd0dc26d.svg?v=1785851510',
-    iconClass: 'h-4 w-auto',
-    text: 'Excellent 4.5 out of 5',
-  },
-  {
-    icon: 'https://www.justmylook.com/cdn/shop/files/delivery.svg?v=1733758420',
-    iconClass: 'h-4 w-auto brightness-0 invert',
-    text: 'Free delivery when you spend £35',
-  },
-  {
-    icon: '',
-    iconClass: '',
-    text: 'Next-day delivery available',
-  },
-  {
-    icon: '',
-    iconClass: '',
-    text: 'Visit us at Meadowhall or Trafford Centre',
-  },
+  { text: 'Free delivery when you spend £35' },
+  { text: '100% Authentic Korean Skincare' },
+  { text: 'Next-day delivery available across the UK' },
+  { text: 'Call us : 0800 0807037' },
 ];
 
 const Header: React.FC = () => {
@@ -63,7 +47,6 @@ const Header: React.FC = () => {
                 <React.Fragment key={announcement.text}>
                   {index > 0 && <span aria-hidden="true" className="text-emerald-400">✦</span>}
                   <div className="flex items-center gap-2 whitespace-nowrap">
-                    {announcement.icon && <img src={announcement.icon} alt="" className={announcement.iconClass} />}
                     <span>{announcement.text}</span>
                   </div>
                 </React.Fragment>
@@ -75,13 +58,6 @@ const Header: React.FC = () => {
         <div className="mx-auto flex min-h-5 items-center justify-center px-4 text-[10px] font-bold uppercase tracking-[0.12em] md:hidden sm:text-xs" aria-live="polite" aria-atomic="true">
           <div key={announcementIndex} className="announcement-slide flex items-center gap-2 whitespace-nowrap">
             <span aria-hidden="true" className="text-emerald-400">✦</span>
-            {announcements[announcementIndex].icon && (
-              <img
-                src={announcements[announcementIndex].icon}
-                alt=""
-                className={announcements[announcementIndex].iconClass}
-              />
-            )}
             <span>{announcements[announcementIndex].text}</span>
             <span aria-hidden="true" className="text-emerald-400">✦</span>
           </div>

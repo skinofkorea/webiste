@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaArrowRight, FaChevronLeft, FaChevronRight, FaFire, FaGift, FaStar, FaTag } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import Testimonials from '../components/Testimonials';
 import HomeFAQ from '../components/HomeFAQ';
 import ProductCard from '../components/ProductCard';
 import { StoreProduct, normalizeStoreHandle } from '../data/storefront';
@@ -86,32 +85,61 @@ const HomePage: React.FC = () => {
   const [activeDiscoveryHeadline, setActiveDiscoveryHeadline] = useState(0);
   const discoveryCarousel = useRef<HTMLDivElement>(null);
   const heroSlides = [
-    { src: '/images/home-hero/04.webp', alt: 'Good skin, brighter days with TOCOBO sun gel' },
+    { src: '/images/home-hero/04.webp', alt: 'Good skin, brighter days with Skin of Korea' },
     { src: '/images/home-hero/03.webp', alt: 'Glow differently every day with Skin of Korea' },
     { src: '/images/home-hero/01.webp', alt: 'Healthy skin, happier you with Korean skincare' },
-    { src: '/images/home-hero/02.webp', alt: 'Ready for every sunny moment with TOCOBO sun care' },
+    { src: '/images/home-hero/02.webp', alt: 'Ready for every sunny moment with Korean sun care' },
   ];
   const products = useMemo(() => storefront?.products ?? [], [storefront]);
   const categories = useMemo(() => {
     const availableProducts = products.filter((product) => product.photo);
-    const categoryOptions = [
-      { label: 'EYECREAM', matches: /^eye\s*cream$/i, image: '/images/home-categories/eyecream.webp' },
-      { label: 'MASKS', matches: /^masks?$/i, image: '/images/home-categories/masks.webp' },
-      { label: 'SPF', matches: /^spf$/i, image: '/images/home-categories/spf.webp' },
-      { label: 'CLEANSER', matches: /^cleanser$/i, image: '/images/home-categories/cleanser.webp' },
-      { label: 'MOISTURISER', matches: /^moisturiser$/i, image: '/images/home-categories/moisturiser.webp' },
-      { label: 'TONER', matches: /^toner$/i, image: '/images/home-categories/toner.webp' },
-    ];
-    const categoryTiles = categoryOptions.flatMap(({ label, matches, image }) => {
-      const matchingProducts = availableProducts.filter((product) => matches.test(product.category));
-      const category = matchingProducts[0]?.category;
-      if (!category) return [];
-      return [{ name: label, category, image }];
+    const distinctCategories = Array.from(new Set(availableProducts.map((p) => p.category).filter(Boolean)));
+    const categoryDefaultImages: Record<string, string> = {
+      cleanser: '/images/home-categories/cleanser.webp',
+      eyecream: '/images/home-categories/eyecream.webp',
+      'eye cream': '/images/home-categories/eyecream.webp',
+      masks: '/images/home-categories/masks.webp',
+      mask: '/images/home-categories/masks.webp',
+      moisturiser: '/images/home-categories/moisturiser.webp',
+      spf: '/images/home-categories/spf.webp',
+      toner: '/images/home-categories/toner.webp',
+    };
+
+    const categoryTiles = distinctCategories.map((catName) => {
+      const matchingProduct = availableProducts.find((p) => p.category.toLowerCase() === catName.toLowerCase());
+      const lower = catName.toLowerCase();
+      const fallbackImage = categoryDefaultImages[lower] || matchingProduct?.photo || '/images/home-categories/all-products.webp';
+      return {
+        name: catName.toUpperCase(),
+        category: catName,
+        image: fallbackImage,
+      };
     });
+
     return [
       { name: 'ALL PRODUCTS', category: '', image: '/images/home-categories/all-products.webp' },
       ...categoryTiles,
     ];
+  }, [products]);
+
+  const brands = useMemo(() => {
+    const brandMap = new Map<string, { name: string; vendor: string; handle: string; image: string }>();
+    products.forEach((product) => {
+      const vendor = product.vendor;
+      if (vendor) {
+        const key = vendor.toLowerCase();
+        if (!brandMap.has(key)) {
+          const matchedStatic = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === key);
+          brandMap.set(key, {
+            name: vendor.toUpperCase(),
+            vendor: vendor,
+            handle: normalizeStoreHandle(vendor),
+            image: matchedStatic?.image || product.photo,
+          });
+        }
+      }
+    });
+    return Array.from(brandMap.values());
   }, [products]);
   const featuredProducts = useMemo(() => {
     const tagged = products.filter((product) => product.featured && product.stock > 0);
@@ -462,7 +490,7 @@ const HomePage: React.FC = () => {
             <div className="brand-marquee-track brand-marquee-track-left">
               {[false, true].map((isDuplicate) => (
                 <div key={String(isDuplicate)} className="brand-marquee-group" aria-hidden={isDuplicate || undefined}>
-                  {[...BRANDS_DATA, ...BRANDS_DATA].map((brand, idx) => (
+                  {[...brands, ...brands].map((brand, idx) => (
                     <Link
                       key={`${brand.handle}-${idx}-${isDuplicate ? 'dup' : 'orig'}`}
                       to={`/products?brand=${encodeURIComponent(brand.vendor)}`}
@@ -559,7 +587,6 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      <Testimonials />
       <HomeFAQ />
 
     </main>
