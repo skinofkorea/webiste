@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaArrowUpRightFromSquare, FaEnvelope, FaInstagram, FaTiktok } from 'react-icons/fa6';
+import { FaArrowUpRightFromSquare, FaEnvelope, FaPhone } from 'react-icons/fa6';
 import { Link } from 'react-router-dom';
 
 const paymentMethods = [
@@ -64,15 +64,12 @@ const Footer: React.FC = () => (
 
         <div>
           <h2 className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#2b211c]/60">Stay connected</h2>
-          <a href="mailto:hello@skinofkorea.co.uk" className="mt-2.5 inline-flex items-center gap-2 transition hover:text-[#8b451f]">
-            <FaEnvelope aria-hidden="true" /> hello@skinofkorea.co.uk
-          </a>
-          <div className="mt-3 flex gap-4">
-            <a href="https://www.instagram.com/skinofkorea/" target="_blank" rel="noreferrer" aria-label="Skin of Korea on Instagram" className="transition hover:text-[#8b451f]">
-              <FaInstagram aria-hidden="true" size={16} />
+          <div className="mt-2.5 flex flex-col gap-2">
+            <a href="mailto:hello@skinofkorea.co.uk" className="inline-flex items-center gap-2 transition hover:text-[#8b451f]">
+              <FaEnvelope aria-hidden="true" /> hello@skinofkorea.co.uk
             </a>
-            <a href="https://www.tiktok.com/@skinofkorea" target="_blank" rel="noreferrer" aria-label="Skin of Korea on TikTok" className="transition hover:text-[#8b451f]">
-              <FaTiktok aria-hidden="true" size={16} />
+            <a href="tel:08000807037" className="inline-flex items-center gap-2 font-medium transition hover:text-[#8b451f]">
+              <FaPhone aria-hidden="true" size={12} /> Call us : 0800 0807037
             </a>
           </div>
           <p className="mt-3 leading-5 text-[#2b211c]/60">Visit us at Meadowhall or Trafford Centre.</p>
