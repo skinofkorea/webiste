@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaArrowRight, FaChevronLeft, FaChevronRight, FaFire, FaGift, FaHeart, FaRegHeart, FaStar, FaTag } from 'react-icons/fa';
+import { FaArrowRight, FaChevronLeft, FaChevronRight, FaFire, FaGift, FaStar, FaTag } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import Testimonials from '../components/Testimonials';
 import HomeFAQ from '../components/HomeFAQ';
 import ProductCard from '../components/ProductCard';
@@ -86,16 +85,6 @@ const HomePage: React.FC = () => {
   const [activeDiscoveryTab, setActiveDiscoveryTab] = useState('steals');
   const [activeDiscoveryHeadline, setActiveDiscoveryHeadline] = useState(0);
   const discoveryCarousel = useRef<HTMLDivElement>(null);
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('skinofkorea-wishlist');
-      const parsed: unknown = stored ? JSON.parse(stored) : [];
-      return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : [];
-    } catch (storageError) {
-      console.error('Could not read saved wishlist data.', storageError);
-      return [];
-    }
-  });
   const heroSlides = [
     { src: '/images/home-hero/04.webp', alt: 'Good skin, brighter days with TOCOBO sun gel' },
     { src: '/images/home-hero/03.webp', alt: 'Glow differently every day with Skin of Korea' },
@@ -224,20 +213,6 @@ const HomePage: React.FC = () => {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const toggleWishlist = (product: StoreProduct) => {
-    const isSaved = wishlist.includes(product.handle);
-    const nextWishlist = isSaved
-      ? wishlist.filter((handle) => handle !== product.handle)
-      : [...wishlist, product.handle];
-    try {
-      localStorage.setItem('skinofkorea-wishlist', JSON.stringify(nextWishlist));
-      setWishlist(nextWishlist);
-      toast.success(isSaved ? 'Removed from your wishlist' : 'Added to your wishlist');
-    } catch (storageError) {
-      console.error('Could not save wishlist changes.', storageError);
-      toast.error('Your wishlist could not be saved on this device.');
-    }
-  };
 
   const scrollDiscovery = (direction: 'left' | 'right') => {
     const carousel = discoveryCarousel.current;
@@ -435,7 +410,6 @@ const HomePage: React.FC = () => {
             ) : discoveryProducts.length > 0 ? (
               discoveryProducts.map((product) => {
                 const sale = getSalePrice(product);
-                const isSaved = wishlist.includes(product.handle);
                 return (
                   <article
                     key={product.handle}
@@ -456,18 +430,6 @@ const HomePage: React.FC = () => {
                         )}
                       </div>
                     )}
-                    <button
-                      type="button"
-                      aria-label={isSaved ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
-                      aria-pressed={isSaved}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleWishlist(product);
-                      }}
-                      className="absolute right-5 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 bg-white/95 text-neutral-800 shadow-sm transition hover:scale-105 hover:text-rose-600"
-                    >
-                      {isSaved ? <FaHeart className="text-rose-600" /> : <FaRegHeart />}
-                    </button>
                     <ProductCard product={product} tone="peach" homepage />
                   </article>
                 );

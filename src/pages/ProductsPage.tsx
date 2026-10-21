@@ -34,16 +34,8 @@ const ProductsPage: React.FC = () => {
   const brands = useMemo(() => Array.from(new Set(products.map((product) => product.vendor).filter(Boolean)).values()).sort(), [products]);
   const selectedCollection = storefront?.collections.find((item) => item.handle === collection);
 
-  const isWishlistFilter = query.get('wishlist') === 'true';
-
   const filteredProducts = useMemo(() => {
     let result = products.filter((product) => {
-      if (isWishlistFilter) {
-        const stored = localStorage.getItem('skinofkorea-wishlist');
-        const wishlistIds: string[] = stored ? JSON.parse(stored) : [];
-        if (!wishlistIds.includes(product.handle)) return false;
-      }
-
       const matchesCategory = !category || 
         normalizeStoreHandle(product.category) === normalizeStoreHandle(category) ||
         (normalizeStoreHandle(category) === 'spf' && /sun|spf/i.test(product.category)) ||
@@ -81,7 +73,7 @@ const ProductsPage: React.FC = () => {
     if (sort === 'price-desc') result = [...result].sort((a, b) => b.price - a.price);
     if (sort === 'newest') result = [...result].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     return result;
-  }, [brand, category, collection, isWishlistFilter, products, search, selectedCollection, sort]);
+  }, [brand, category, collection, products, search, selectedCollection, sort]);
 
   useEffect(() => {
     setPage(1);
@@ -102,12 +94,10 @@ const ProductsPage: React.FC = () => {
 
   const visibleProducts = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const pageCount = Math.ceil(filteredProducts.length / PAGE_SIZE);
-  const title = isWishlistFilter
-    ? 'My Wish List'
-    : selectedCollection?.title ||
-      (collection ? collection.replace(/-/g, ' ').toUpperCase() : '') ||
-      (category ? (categories.find((item) => normalizeStoreHandle(item) === normalizeStoreHandle(category)) || category.toUpperCase()) : '') ||
-      'Shop all Korean skincare';
+  const title = selectedCollection?.title ||
+    (collection ? collection.replace(/-/g, ' ').toUpperCase() : '') ||
+    (category ? (categories.find((item) => normalizeStoreHandle(item) === normalizeStoreHandle(category)) || category.toUpperCase()) : '') ||
+    'Shop all Korean skincare';
 
   return (
     <div className="skinofkorea-page min-h-screen bg-white px-4 py-8 sm:px-6 lg:px-8">

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaHeart, FaRegHeart, FaStar, FaTruck, FaShieldAlt } from 'react-icons/fa';
+import { FaStar, FaTruck, FaShieldAlt } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -10,19 +10,6 @@ import { RootState } from '../redux/store';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { optimizeProductImageUrl } from '../utils/cloudinaryOptimize';
 
-function readWishlist(): string[] {
-  const stored = localStorage.getItem('skinofkorea-wishlist');
-  if (!stored) return [];
-
-  try {
-    const parsed: unknown = JSON.parse(stored);
-    if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) return parsed;
-    console.error('Saved wishlist data is invalid.');
-  } catch (error) {
-    console.error('Could not read saved wishlist data.', error);
-  }
-  return [];
-}
 
 const ProductPage: React.FC = () => {
   const { productId = '' } = useParams<{ productId: string }>();
@@ -36,11 +23,6 @@ const ProductPage: React.FC = () => {
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [wishlist, setWishlist] = useState<string[]>([]);
-
-  useEffect(() => {
-    setWishlist(readWishlist());
-  }, []);
 
   useEffect(() => {
     if (!product) return;
@@ -65,7 +47,7 @@ const ProductPage: React.FC = () => {
       .filter((item) => item.handle !== product.handle && (item.category === product.category || item.vendor === product.vendor))
       .slice(0, 4);
   }, [product, storefront]);
-  const isWishlisted = product ? wishlist.includes(product.handle) : false;
+
 
   usePageSEO({
     title: product ? `${product.name} | Skin of Korea` : 'Korean Skincare | Skin of Korea',
@@ -73,21 +55,6 @@ const ProductPage: React.FC = () => {
     canonical: product ? `/product/${product.handle}` : `/product/${productId}`,
     ogImage: selectedImage || product?.photo,
   });
-
-  const toggleWishlist = () => {
-    if (!product) return;
-    const next = isWishlisted
-      ? wishlist.filter((handle) => handle !== product.handle)
-      : [...wishlist, product.handle];
-    try {
-      localStorage.setItem('skinofkorea-wishlist', JSON.stringify(next));
-      setWishlist(next);
-      toast.success(isWishlisted ? 'Removed from your wishlist' : 'Added to your wishlist');
-    } catch (storageError) {
-      console.error('Could not save wishlist changes.', storageError);
-      toast.error('Your wishlist could not be saved on this device.');
-    }
-  };
 
   const addProductToCart = () => {
     if (!product || !selectedVariant || !selectedVariant.available) return;
@@ -204,9 +171,6 @@ const ProductPage: React.FC = () => {
             </div>
             <button type="button" onClick={addProductToCart} disabled={!selectedVariant?.available} className="min-h-12 flex-1 rounded-full bg-neutral-950 px-6 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300">
               {selectedVariant?.available ? 'Add to bag' : 'Sold out'}
-            </button>
-            <button type="button" onClick={toggleWishlist} aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'} className="flex h-12 w-12 items-center justify-center rounded-full border border-neutral-300 text-neutral-900">
-              {isWishlisted ? <FaHeart /> : <FaRegHeart />}
             </button>
           </div>
           <div className="mt-6 grid gap-3 border-y border-neutral-200 py-4 text-sm text-neutral-600 sm:grid-cols-2">

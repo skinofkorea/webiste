@@ -59,7 +59,7 @@ The project is structured as a streamlined full-stack application optimized for 
 
 ### 🛒 Customer Storefront
 - **Curated catalog**: Exactly 5 top brands (Beauty of Joseon, COSRX, Anua, SKIN1004, Haruharu Wonder) and 5 best-in-class products per category (30 products total).
-- **Product discovery**: Search, brand and category filtering, pagination, product variants, and persistent wishlist.
+- **Product discovery**: Search, brand and category filtering, pagination, and product variants.
 - **GBP cart and checkout**: UK delivery details, £3.75 shipping below £35, and free delivery from £35. Checkout validates catalog prices and the GBP Razorpay payment before saving an order.
 
 ### ⚙️ Admin CMS Dashboard

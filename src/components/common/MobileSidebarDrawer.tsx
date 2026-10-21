@@ -294,17 +294,6 @@ export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({ isOpen
             </div>
           </div>
 
-          {/* ─── BOTTOM SECTION: My Wish List ─── */}
-          <div className="pt-3 pb-6">
-            <button
-              type="button"
-              onClick={() => handleNavigate('/products?wishlist=true')}
-              className="w-full py-2.5 text-left text-[13px] font-normal text-neutral-600 hover:text-black transition-colors"
-            >
-              My Wish List
-            </button>
-          </div>
-
         </div>
       </aside>
     </div>,
