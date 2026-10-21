@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
               try {
                 // Dynamically load the API handler module
                 const apiModule = await server.ssrLoadModule(
-                  path.resolve(__dirname, '../api/index.js')
+                  path.resolve(__dirname, 'api/index.js')
                 )
                 const apiHandler = apiModule.default
 
