@@ -538,9 +538,14 @@ const AdminProducts: React.FC = () => {
 
                       {/* Brand (Vendor) */}
                       <td className="px-4 py-3">
-                        <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-neutral-100 text-neutral-800 border border-neutral-200 whitespace-nowrap">
-                          {p.vendor || 'Skin of Korea'}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {p.vendorLogo && (
+                            <img src={p.vendorLogo} alt={p.vendor} className="h-4 w-auto object-contain max-w-[36px]" />
+                          )}
+                          <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-neutral-100 text-neutral-800 border border-neutral-200 whitespace-nowrap">
+                            {p.vendor || 'Skin of Korea'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Category */}

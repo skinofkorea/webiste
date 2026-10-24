@@ -128,14 +128,19 @@ const HomePage: React.FC = () => {
       const vendor = product.vendor;
       if (vendor) {
         const key = vendor.toLowerCase();
-        if (!brandMap.has(key)) {
-          const matchedStatic = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === key);
+        const matchedStatic = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === key);
+        const productBrandLogo = (product as any).vendorLogo || null;
+        const existing = brandMap.get(key);
+
+        if (!existing) {
           brandMap.set(key, {
             name: vendor.toUpperCase(),
             vendor: vendor,
             handle: normalizeStoreHandle(vendor),
-            image: matchedStatic?.image || product.photo,
+            image: productBrandLogo || matchedStatic?.image || '',
           });
+        } else if (!existing.image && productBrandLogo) {
+          existing.image = productBrandLogo;
         }
       }
     });
@@ -499,13 +504,21 @@ const HomePage: React.FC = () => {
                       className="brand-logo-tile group flex h-[88px] w-44 shrink-0 flex-col items-center justify-center rounded-2xl px-3 transition-all duration-300 hover:-translate-y-1 sm:h-[108px] sm:w-56 sm:rounded-[22px] sm:px-4"
                     >
                       <div className="flex h-10 w-full items-center justify-center sm:h-12">
-                        <img
-                          src={brand.image}
-                          alt={brand.name}
-                          className="max-h-full max-w-full object-contain filter transition duration-300 group-hover:scale-105"
-                          loading="lazy"
-                          decoding="async"
-                        />
+                        {brand.image ? (
+                          <img
+                            src={brand.image}
+                            alt={brand.name}
+                            className="max-h-full max-w-full object-contain filter transition duration-300 group-hover:scale-105"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <div className="flex h-8 items-center justify-center rounded-lg border border-neutral-200/80 bg-neutral-50/80 px-3 py-1 shadow-2xs transition group-hover:border-[#8b451f]/40 group-hover:bg-[#8b451f]/5">
+                            <span className="font-serif text-[11px] sm:text-xs font-bold tracking-widest text-neutral-900 group-hover:text-[#8b451f]">
+                              {brand.vendor}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <span className="mt-1.5 line-clamp-1 text-center text-[11px] font-semibold tracking-wide text-neutral-800 transition-colors group-hover:text-[#8b451f] sm:text-xs">
                         {brand.name}

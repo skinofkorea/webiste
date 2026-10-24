@@ -11,7 +11,7 @@ export interface BrandItem {
   name: string;
   vendor: string;
   handle: string;
-  image: string;
+  image?: string | null;
   fallbackImage?: string;
 }
 

@@ -54,6 +54,7 @@ export interface Product {
     id?: number | string;
     handle?: string;
     vendor?: string;
+    vendorLogo?: string | null;
     category: string;
     stock: number;
     photo: string;

@@ -133,6 +133,7 @@ function mapCatalogProduct(p) {
   const v0 = Array.isArray(p.variants) && p.variants[0] ? p.variants[0] : {};
   const handle = p.handle || v0.handle || (p.name || p.title ? String(p.name || p.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : String(p.id));
   const vendor = p.vendor || v0.vendor || 'Skin of Korea';
+  const vendorLogo = p.vendor_logo || p.vendorLogo || v0.vendor_logo || v0.vendorLogo || null;
   const tags = Array.isArray(p.tags) && p.tags.length > 0 ? p.tags : (v0.tags || []);
   const images = (Array.isArray(p.images) && p.images.length > 0) 
     ? p.images 
@@ -187,6 +188,7 @@ function mapCatalogProduct(p) {
     category: p.category || p.product_type || 'Skincare',
     product_type: p.category || p.product_type || 'Skincare',
     vendor: vendor,
+    vendorLogo: vendorLogo,
     stock,
     photo: p.photo || images[0]?.src || '',
     images: images,
@@ -1893,7 +1895,7 @@ export default async function handler(req, res) {
       }
 
       const body = (req.body && req.body.productData) ? req.body.productData : (req.body || {});
-      const { name, category, vendor, price, compareAtPrice, stock, description, bodyHtml, photo, images, tags, variants, featured, isActive } = body;
+      const { name, category, vendor, vendorLogo, price, compareAtPrice, stock, description, bodyHtml, photo, images, tags, variants, featured, isActive } = body;
 
       if (!name || (!category && !body.product_type) || price === undefined) {
         return res.status(400).json({ success: false, message: 'Please provide at least product name, category, and price' });
@@ -1921,6 +1923,7 @@ export default async function handler(req, res) {
             featured_image: v.featured_image || photo || null,
             handle,
             vendor: vendor || 'Skin of Korea',
+            vendor_logo: vendorLogo || null,
             body_html: bodyHtml || `<p>${description || ''}</p>`,
           }))
         : [{
@@ -1936,6 +1939,7 @@ export default async function handler(req, res) {
             featured_image: photo || null,
             handle,
             vendor: vendor || 'Skin of Korea',
+            vendor_logo: vendorLogo || null,
             body_html: bodyHtml || `<p>${description || ''}</p>`,
           }];
 
@@ -2120,7 +2124,7 @@ export default async function handler(req, res) {
       }
 
       const body = (req.body && req.body.productData) ? req.body.productData : (req.body || {});
-      const { name, category, vendor, price, compareAtPrice, stock, description, bodyHtml, variants, photo, images, tags, featured, isActive } = body;
+      const { name, category, vendor, vendorLogo, price, compareAtPrice, stock, description, bodyHtml, variants, photo, images, tags, featured, isActive } = body;
 
       const products = await getDbProducts();
       const product = products.find(p => p.id === productId || String(p.id) === productId || p.variants?.[0]?.handle === productId || p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') === productId);
@@ -2146,6 +2150,7 @@ export default async function handler(req, res) {
       v0 = {
         ...v0,
         vendor: vendor !== undefined ? vendor : (v0.vendor || 'Skin of Korea'),
+        vendor_logo: vendorLogo !== undefined ? (vendorLogo || null) : (v0.vendor_logo || null),
         body_html: bodyHtml !== undefined ? bodyHtml : (v0.body_html || (description ? `<p>${description}</p>` : '')),
         tags: tags !== undefined ? (Array.isArray(tags) ? tags : String(tags).split(',').map(t => t.trim())) : (v0.tags || []),
         price: price !== undefined ? String(price) : v0.price,
@@ -2163,6 +2168,8 @@ export default async function handler(req, res) {
         updatePayload.variants = variants.map((v, i) => ({
           ...v0,
           ...v,
+          vendor: vendor !== undefined ? vendor : (v.vendor || v0.vendor || 'Skin of Korea'),
+          vendor_logo: vendorLogo !== undefined ? (vendorLogo || null) : (v.vendor_logo || v0.vendor_logo || null),
           id: v.id || v0.id || i + 1,
         }));
       } else {

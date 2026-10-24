@@ -86,6 +86,8 @@ const AdminManageProduct: React.FC = () => {
   const [handle, setHandle] = useState('');
   const [vendor, setVendor] = useState('');
   const [customVendor, setCustomVendor] = useState('');
+  const [vendorLogo, setVendorLogo] = useState('');
+  const [uploadingBrandLogo, setUploadingBrandLogo] = useState(false);
   const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const [price, setPrice] = useState<number | string>(0);
@@ -131,6 +133,8 @@ const AdminManageProduct: React.FC = () => {
         setCategory('__custom__');
         setCustomCategory(c);
       }
+
+      setVendorLogo((p as any).vendorLogo || p.variants?.[0]?.vendor_logo || '');
 
       setPrice(p.price !== undefined ? p.price : 0);
       setCompareAtPrice(p.compareAtPrice ? p.compareAtPrice : '');
@@ -190,6 +194,27 @@ const AdminManageProduct: React.FC = () => {
       notify(err?.message || 'Error uploading image', 'error');
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  // Cloudinary brand logo upload
+  const handleBrandLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBrandLogo(true);
+    try {
+      const result = await uploadToCloudinary(file, 'skinofkorea/brands');
+      if (result && result.url) {
+        setVendorLogo(result.url);
+        notify('Brand logo uploaded successfully to Cloudinary!', 'success');
+      } else {
+        notify('Failed to upload brand logo', 'error');
+      }
+    } catch (err: any) {
+      notify(err?.message || 'Error uploading brand logo', 'error');
+    } finally {
+      setUploadingBrandLogo(false);
     }
   };
 
@@ -260,6 +285,7 @@ const AdminManageProduct: React.FC = () => {
     const payload = {
       name: name.trim(),
       vendor: finalVendor || 'Skin of Korea',
+      vendorLogo: vendorLogo.trim() || undefined,
       category: finalCategory || 'Skincare',
       price: Number(price || 0),
       compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
@@ -438,6 +464,48 @@ const AdminManageProduct: React.FC = () => {
                     className="mt-2 w-full px-3.5 py-2 rounded-xl border border-neutral-200 text-xs text-neutral-900 bg-white"
                   />
                 )}
+                <div className="mt-2.5 pt-2 border-t border-neutral-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-medium text-neutral-600">
+                      Brand Logo (Optional transparent PNG or SVG)
+                    </label>
+                    {vendorLogo && (
+                      <button
+                        type="button"
+                        onClick={() => setVendorLogo('')}
+                        className="text-[10px] text-rose-500 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={vendorLogo}
+                      onChange={(e) => setVendorLogo(e.target.value)}
+                      placeholder="https://... or upload file"
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-neutral-200 text-xs text-neutral-900 bg-white placeholder-neutral-400"
+                    />
+                    <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-medium transition flex items-center gap-1.5 whitespace-nowrap">
+                      <FaUpload className="text-[10px]" />
+                      {uploadingBrandLogo ? 'Uploading...' : 'Upload'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleBrandLogoUpload}
+                        disabled={uploadingBrandLogo}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  {vendorLogo && (
+                    <div className="mt-2 flex items-center gap-2 bg-neutral-50 p-2 rounded-lg border border-neutral-200">
+                      <img src={vendorLogo} alt="Brand Logo Preview" className="h-6 w-auto object-contain max-w-[100px]" />
+                      <span className="text-[10px] text-neutral-500 truncate">Brand logo preview</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Category */}

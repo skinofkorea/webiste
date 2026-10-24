@@ -38,21 +38,27 @@ export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({ isOpen
 
   const dynamicBrands = useMemo(() => {
     if (!products.length) return [];
-    const vendorSet = new Set<string>();
-    const list: typeof BRANDS_DATA = [];
+    const brandMap = new Map<string, (typeof BRANDS_DATA)[0]>();
     products.forEach((p) => {
-      if (p.vendor && !vendorSet.has(p.vendor.toLowerCase())) {
-        vendorSet.add(p.vendor.toLowerCase());
-        const matched = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === p.vendor.toLowerCase() || b.handle === normalizeStoreHandle(p.vendor));
-        list.push({
-          name: p.vendor.toUpperCase(),
-          vendor: p.vendor,
-          handle: normalizeStoreHandle(p.vendor),
-          image: matched?.image || p.photo,
-        });
+      if (p.vendor) {
+        const key = p.vendor.toLowerCase();
+        const matched = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === key || b.handle === normalizeStoreHandle(p.vendor));
+        const productBrandLogo = (p as any).vendorLogo || null;
+        const existing = brandMap.get(key);
+
+        if (!existing) {
+          brandMap.set(key, {
+            name: p.vendor.toUpperCase(),
+            vendor: p.vendor,
+            handle: normalizeStoreHandle(p.vendor),
+            image: productBrandLogo || matched?.image || '',
+          });
+        } else if (!existing.image && productBrandLogo) {
+          existing.image = productBrandLogo;
+        }
       }
     });
-    return list;
+    return Array.from(brandMap.values());
   }, [products]);
   // Screenshot 1 has categories open by default
   const [categoriesOpen, setCategoriesOpen] = useState(true);
@@ -213,17 +219,23 @@ export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({ isOpen
                         title={brand.name}
                         className="group flex items-center justify-center aspect-square p-2 bg-white rounded-xl border border-neutral-200/90 hover:border-[#363070] hover:shadow-xs transition"
                       >
-                        <img
-                          src={brand.image}
-                          alt={brand.name}
-                          loading="lazy"
-                          onError={(e) => {
-                            if (brand.fallbackImage && e.currentTarget.src !== brand.fallbackImage) {
-                              e.currentTarget.src = brand.fallbackImage;
-                            }
-                          }}
-                          className="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform"
-                        />
+                        {brand.image ? (
+                          <img
+                            src={brand.image}
+                            alt={brand.name}
+                            loading="lazy"
+                            onError={(e) => {
+                              if (brand.fallbackImage && e.currentTarget.src !== brand.fallbackImage) {
+                                e.currentTarget.src = brand.fallbackImage;
+                              }
+                            }}
+                            className="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <span className="font-serif text-[10px] font-bold tracking-wider text-neutral-800 text-center uppercase line-clamp-2 px-1">
+                            {brand.vendor}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

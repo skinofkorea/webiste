@@ -22,14 +22,19 @@ export const ShopByBrands: React.FC<ShopByBrandsProps> = ({
       const vendor = product.vendor;
       if (vendor) {
         const key = vendor.toLowerCase();
-        if (!brandMap.has(key)) {
-          const matched = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === key || b.handle === normalizeStoreHandle(vendor));
+        const matched = BRANDS_DATA.find((b) => b.vendor.toLowerCase() === key || b.handle === normalizeStoreHandle(vendor));
+        const productBrandLogo = (product as any).vendorLogo || null;
+        const existing = brandMap.get(key);
+
+        if (!existing) {
           brandMap.set(key, {
             name: vendor.toUpperCase(),
             vendor: vendor,
             handle: normalizeStoreHandle(vendor),
-            image: matched?.image || product.photo,
+            image: productBrandLogo || matched?.image || '',
           });
+        } else if (!existing.image && productBrandLogo) {
+          existing.image = productBrandLogo;
         }
       }
     });
@@ -63,12 +68,18 @@ export const ShopByBrands: React.FC<ShopByBrandsProps> = ({
                 className="flex items-center justify-center p-3 sm:p-4 rounded-xl border border-neutral-200/80 bg-white hover:border-neutral-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 aspect-square"
               >
                 <div className="w-full h-full flex items-center justify-center overflow-hidden">
-                  <img
-                    src={brand.image}
-                    alt={brand.name}
-                    loading="lazy"
-                    className="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform duration-200"
-                  />
+                  {brand.image ? (
+                    <img
+                      src={brand.image}
+                      alt={brand.name}
+                      loading="lazy"
+                      className="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform duration-200"
+                    />
+                  ) : (
+                    <span className="font-serif text-[10px] sm:text-[11px] font-bold tracking-wider text-neutral-800 text-center uppercase line-clamp-2 px-1">
+                      {brand.vendor}
+                    </span>
+                  )}
                 </div>
               </Link>
             </li>
