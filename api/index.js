@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -301,53 +302,92 @@ async function verifyStripePayment(paymentIntentId) {
   }
 }
 
-// Resend Email API Configuration
-const RESEND_CONFIG = {
-  get KEY() { return process.env.RESEND_API_KEY || ''; },
-  get FROM() { return process.env.RESEND_FROM_EMAIL || 'Skin of Korea <hello@skinofkorea.co.uk>'; }
+// Email Service Configuration (Google Workspace SMTP with Resend fallback)
+let mailTransporter = null;
+function getMailTransporter() {
+  if (mailTransporter) return mailTransporter;
+  const user = process.env.SMTP_USER || 'support@skinofkorea.co.uk';
+  const pass = process.env.SMTP_PASS;
+  if (!pass) return null;
+  mailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: process.env.SMTP_SECURE !== 'false',
+    auth: {
+      user: user,
+      pass: String(pass).replace(/\s+/g, ''),
+    },
+  });
+  return mailTransporter;
+}
+
+const EMAIL_CONFIG = {
+  get FROM() {
+    return process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL || '"Skin of Korea" <support@skinofkorea.co.uk>';
+  },
+  get RESEND_KEY() {
+    return process.env.RESEND_API_KEY || '';
+  }
 };
 
-// Send email using Resend REST API
 async function sendEmail({ to, subject, html }) {
-  const apiKey = RESEND_CONFIG.KEY;
-  if (!apiKey) {
-    console.error('❌ Resend API Key is missing');
-    return { success: false, message: 'Resend API Key is missing' };
+  const from = EMAIL_CONFIG.FROM;
+  const transporter = getMailTransporter();
+
+  // 1. Primary: Google Workspace SMTP
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from,
+        to,
+        subject,
+        html,
+      });
+      console.log(`✅ Email sent successfully to ${to} via Google Workspace SMTP. ID:`, info.messageId);
+      return { success: true, id: info.messageId };
+    } catch (smtpErr) {
+      console.error(`❌ Google Workspace SMTP error for ${to}:`, smtpErr.message || smtpErr);
+    }
   }
 
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: RESEND_CONFIG.FROM,
-        to: to,
-        subject: subject,
-        html: html
-      })
-    });
-
-    const text = await res.text();
-    let data = {};
+  // 2. Fallback: Resend REST API if key exists
+  const resendKey = EMAIL_CONFIG.RESEND_KEY;
+  if (resendKey) {
     try {
-      data = JSON.parse(text);
-    } catch (e) {
-      data = { message: text };
-    }
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from,
+          to,
+          subject,
+          html
+        })
+      });
 
-    if (res.ok) {
-      console.log(`✅ Email sent successfully to ${to}. ID:`, data.id);
-      return { success: true, id: data.id };
-    } else {
-      console.error(`❌ Resend API error:`, data);
-      return { success: false, error: data };
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (e) { data = { message: text }; }
+
+      if (res.ok) {
+        console.log(`✅ Email sent successfully to ${to} via Resend. ID:`, data.id);
+        return { success: true, id: data.id };
+      } else {
+        console.error(`❌ Resend API error:`, data);
+        return { success: false, error: data };
+      }
+    } catch (error) {
+      console.error(`❌ Failed to send email to ${to} via Resend:`, error);
+      return { success: false, error: error.message };
     }
-  } catch (error) {
-    console.error(`❌ Failed to send email to ${to}:`, error);
-    return { success: false, error: error.message };
+  }
+
+  if (!transporter && !resendKey) {
+    console.error('❌ Email service not configured: Missing SMTP_PASS and RESEND_API_KEY');
+    return { success: false, message: 'Email credentials missing' };
   }
 }
 
