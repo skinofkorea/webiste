@@ -510,7 +510,6 @@ async function handleOrderSuccess(orderId) {
 
     // 3. Decrement stock for purchased items
     for (const item of (orderItems || [])) {
-      if (order.currency === 'GBP') continue;
 
       try {
         // Extract base product ID (remove variant suffix like "_1kg")
