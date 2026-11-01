@@ -27,13 +27,27 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
 }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const [elementReady, setElementReady] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || !elementReady) return;
 
     setIsProcessing(true);
+    setErrorMessage(null);
+
     try {
+      // 1. Validate form fields and collect wallet data through Stripe Elements
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setIsProcessing(false);
+        setErrorMessage(submitError.message || 'Please check your payment details.');
+        notify(submitError.message || 'Please check your payment details.', 'error');
+        return;
+      }
+
+      // 2. Confirm payment with Stripe
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -43,6 +57,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       });
 
       if (result.error) {
+        setErrorMessage(result.error.message || 'Payment failed. Please check your payment details.');
         notify(result.error.message || 'Payment failed. Please check your payment details.', 'error');
         setIsProcessing(false);
       } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
@@ -52,17 +67,28 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       }
     } catch (err: unknown) {
       console.error('Stripe confirmPayment error:', err);
-      notify(err instanceof Error ? err.message : 'Payment error occurred.', 'error');
+      const msg = err instanceof Error ? err.message : 'Payment error occurred.';
+      setErrorMessage(msg);
+      notify(msg, 'error');
       setIsProcessing(false);
     }
   };
 
   return (
     <form onSubmit={handlePay} className="space-y-4">
-      <PaymentElement options={{ layout: 'tabs' }} />
+      <PaymentElement
+        options={{ layout: 'tabs' }}
+        onReady={() => setElementReady(true)}
+        onChange={() => setErrorMessage(null)}
+      />
+      {errorMessage && (
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+          {errorMessage}
+        </div>
+      )}
       <button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={!stripe || !elements || !elementReady || isProcessing}
         className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-xs disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
       >
         {isProcessing ? (
@@ -70,6 +96,8 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             <span>Processing Payment...</span>
           </>
+        ) : !elementReady ? (
+          <span>Loading Payment Form...</span>
         ) : (
           <span>Pay securely with Stripe ({formatStorePrice(total, 'GBP')}) ➔</span>
         )}
@@ -79,8 +107,10 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
 };
 
 let stripePromiseCache: Promise<Stripe | null> | null = null;
+let cachedStripeKey = '';
 function getStripePromise(key: string): Promise<Stripe | null> {
-  if (!stripePromiseCache && key) {
+  if (key && (!stripePromiseCache || cachedStripeKey !== key)) {
+    cachedStripeKey = key;
     stripePromiseCache = loadStripe(key);
   }
   return stripePromiseCache || Promise.resolve(null);
@@ -113,9 +143,14 @@ const CheckoutForm: React.FC = () => {
   const [stripeKey, setStripeKey] = useState<string>(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
   const [initializing, setInitializing] = useState<boolean>(true);
 
+  // Stable primitives for dependency tracking
+  const shippingEmail = shippingInfo?.email || '';
+  const shippingName = shippingInfo?.name || '';
+  const shippingPhone = shippingInfo?.phone || '';
+
   // Initialize Stripe PaymentIntent
   useEffect(() => {
-    if (cartItems.length === 0) return;
+    if (cartItems.length === 0 || total <= 0) return;
 
     let isMounted = true;
     const initStripe = async () => {
@@ -126,11 +161,11 @@ const CheckoutForm: React.FC = () => {
           body: JSON.stringify({
             amount: Math.round(total * 100),
             currency: 'GBP',
-            customer_email: shippingInfo.email || '',
-            customer_name: shippingInfo.name || 'Customer',
+            customer_email: shippingEmail,
+            customer_name: shippingName || 'Customer',
             metadata: {
-              phone: shippingInfo.phone || '',
-              city: shippingInfo.city || '',
+              phone: shippingPhone,
+              city: shippingInfo?.city || '',
             },
           }),
         });
@@ -155,7 +190,7 @@ const CheckoutForm: React.FC = () => {
 
     initStripe();
     return () => { isMounted = false; };
-  }, [total, shippingInfo, cartItems.length]);
+  }, [total, shippingEmail, shippingName, shippingPhone, cartItems.length]);
 
   const saveOrderToDatabase = async (paymentIntentId: string, paymentMethod = 'stripe') => {
     const guestUserId = 'guest_' + (shippingInfo.phone || Date.now());
@@ -252,6 +287,7 @@ const CheckoutForm: React.FC = () => {
           </div>
         ) : stripeConfigured && clientSecret && stripeKey ? (
           <Elements
+            key={clientSecret}
             stripe={getStripePromise(stripeKey)}
             options={{
               clientSecret,
