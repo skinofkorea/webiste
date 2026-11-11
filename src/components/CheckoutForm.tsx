@@ -76,7 +76,7 @@ const CheckoutForm: React.FC = () => {
               phone: shippingPhone,
               city: shippingInfo?.city || '',
             },
-            redirect_url: `${window.location.origin}/my-orders`,
+            redirect_url: 'https://skinofkorea.co.uk/my-orders',
           }),
         });
 

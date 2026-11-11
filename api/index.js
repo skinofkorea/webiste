@@ -946,8 +946,14 @@ export default async function handler(req, res) {
             ...(metadata || {}),
           },
         };
-        if (redirect_url) {
-          payload.redirect_url = redirect_url;
+        // Revolut production environment requires valid public HTTPS URLs and rejects localhost
+        const targetRedirect = redirect_url || `${process.env.CLIENT_URL || 'https://skinofkorea.co.uk'}/my-orders`;
+        if (targetRedirect && typeof targetRedirect === 'string') {
+          if (!targetRedirect.includes('localhost') && !targetRedirect.includes('127.0.0.1') && targetRedirect.startsWith('https://')) {
+            payload.redirect_url = targetRedirect;
+          } else {
+            payload.redirect_url = 'https://skinofkorea.co.uk/my-orders';
+          }
         }
 
         const revRes = await fetch(`${REVOLUT_CONFIG.BASE_URL}/orders`, {
