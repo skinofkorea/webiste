@@ -85,10 +85,9 @@ const HomePage: React.FC = () => {
   const [activeDiscoveryHeadline, setActiveDiscoveryHeadline] = useState(0);
   const discoveryCarousel = useRef<HTMLDivElement>(null);
   const heroSlides = [
-    { src: '/images/home-hero/04.webp', alt: 'Good skin, brighter days with Skin of Korea' },
-    { src: '/images/home-hero/03.webp', alt: 'Glow differently every day with Skin of Korea' },
-    { src: '/images/home-hero/01.webp', alt: 'Healthy skin, happier you with Korean skincare' },
-    { src: '/images/home-hero/02.webp', alt: 'Ready for every sunny moment with Korean sun care' },
+    { src: '/images/home-hero/l1.webp', alt: 'Skin of Korea - Authentic Korean Skincare' },
+    { src: '/images/home-hero/l2.webp', alt: 'Skin of Korea - Glow Differently Every Day' },
+    { src: '/images/home-hero/l3.webp', alt: 'Skin of Korea - Curated Glass Skin Essentials' },
   ];
   const products = useMemo(() => storefront?.products ?? [], [storefront]);
   const categories = useMemo(() => {
