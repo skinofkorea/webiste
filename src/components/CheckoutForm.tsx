@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import RevolutCheckout from '@revolut/checkout';
 import BackButton from '../components/common/BackBtn';
 import { useNewOrderMutation } from '../redux/api/order.api';
 import { resetCart } from '../redux/reducers/cart.reducer';
@@ -10,116 +9,12 @@ import { NewOrderRequest } from '../types/api-types';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { formatStorePrice } from '../data/storefront';
-import { FaShieldAlt, FaLock, FaCreditCard } from 'react-icons/fa';
-
-interface StripePaymentFormProps {
-  total: number;
-  onSuccess: (paymentIntentId: string) => Promise<void>;
-  isProcessing: boolean;
-  setIsProcessing: (val: boolean) => void;
-}
-
-const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
-  total,
-  onSuccess,
-  isProcessing,
-  setIsProcessing,
-}) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [elementReady, setElementReady] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const handlePay = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements || !elementReady) return;
-
-    setIsProcessing(true);
-    setErrorMessage(null);
-
-    try {
-      // 1. Validate form fields and collect wallet data through Stripe Elements
-      const { error: submitError } = await elements.submit();
-      if (submitError) {
-        setIsProcessing(false);
-        setErrorMessage(submitError.message || 'Please check your payment details.');
-        notify(submitError.message || 'Please check your payment details.', 'error');
-        return;
-      }
-
-      // 2. Confirm payment with Stripe
-      const result = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/my-orders`,
-        },
-        redirect: 'if_required',
-      });
-
-      if (result.error) {
-        setErrorMessage(result.error.message || 'Payment failed. Please check your payment details.');
-        notify(result.error.message || 'Payment failed. Please check your payment details.', 'error');
-        setIsProcessing(false);
-      } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
-        await onSuccess(result.paymentIntent.id);
-      } else {
-        setIsProcessing(false);
-      }
-    } catch (err: unknown) {
-      console.error('Stripe confirmPayment error:', err);
-      const msg = err instanceof Error ? err.message : 'Payment error occurred.';
-      setErrorMessage(msg);
-      notify(msg, 'error');
-      setIsProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handlePay} className="space-y-4">
-      <PaymentElement
-        options={{ layout: 'tabs' }}
-        onReady={() => setElementReady(true)}
-        onChange={() => setErrorMessage(null)}
-      />
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
-          {errorMessage}
-        </div>
-      )}
-      <button
-        type="submit"
-        disabled={!stripe || !elements || !elementReady || isProcessing}
-        className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-xs disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
-      >
-        {isProcessing ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            <span>Processing Payment...</span>
-          </>
-        ) : !elementReady ? (
-          <span>Loading Payment Form...</span>
-        ) : (
-          <span>Pay securely with Stripe ({formatStorePrice(total, 'GBP')}) ➔</span>
-        )}
-      </button>
-    </form>
-  );
-};
-
-let stripePromiseCache: Promise<Stripe | null> | null = null;
-let cachedStripeKey = '';
-function getStripePromise(key: string): Promise<Stripe | null> {
-  if (key && (!stripePromiseCache || cachedStripeKey !== key)) {
-    cachedStripeKey = key;
-    stripePromiseCache = loadStripe(key);
-  }
-  return stripePromiseCache || Promise.resolve(null);
-}
+import { FaShieldHalved, FaLock, FaCreditCard, FaArrowUpRightFromSquare } from 'react-icons/fa6';
 
 const CheckoutForm: React.FC = () => {
   usePageSEO({
     title: 'Checkout | Skin of Korea',
-    description: 'Review your Skin of Korea order and complete checkout securely.',
+    description: 'Review your Skin of Korea order and complete checkout securely with Revolut.',
     canonical: '/checkout',
     noIndex: true,
   });
@@ -138,68 +33,31 @@ const CheckoutForm: React.FC = () => {
 
   const [newOrder] = useNewOrderMutation();
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [clientSecret, setClientSecret] = useState<string>('');
-  const [stripeConfigured, setStripeConfigured] = useState<boolean>(false);
-  const [stripeKey, setStripeKey] = useState<string>(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
   const [initializing, setInitializing] = useState<boolean>(true);
+  const [cardFieldReady, setCardFieldReady] = useState<boolean>(false);
+  const [revolutConfigured, setRevolutConfigured] = useState<boolean>(false);
+  const [orderId, setOrderId] = useState<string>('');
+  const [checkoutUrl, setCheckoutUrl] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const cardContainerRef = useRef<HTMLDivElement>(null);
+  const cardFieldRef = useRef<any>(null);
+  const revolutInstanceRef = useRef<any>(null);
 
   // Stable primitives for dependency tracking
   const shippingEmail = shippingInfo?.email || '';
   const shippingName = shippingInfo?.name || '';
   const shippingPhone = shippingInfo?.phone || '';
 
-  // Initialize Stripe PaymentIntent
-  useEffect(() => {
-    if (cartItems.length === 0 || total <= 0) return;
-
-    let isMounted = true;
-    const initStripe = async () => {
-      try {
-        const res = await fetch('/api/v1/payments/stripe/create-payment-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: Math.round(total * 100),
-            currency: 'GBP',
-            customer_email: shippingEmail,
-            customer_name: shippingName || 'Customer',
-            metadata: {
-              phone: shippingPhone,
-              city: shippingInfo?.city || '',
-            },
-          }),
-        });
-
-        const data = await res.json();
-        if (!isMounted) return;
-
-        if (data.success && data.configured && data.clientSecret) {
-          setClientSecret(data.clientSecret);
-          setStripeConfigured(true);
-          if (data.publicKey) setStripeKey(data.publicKey);
-        } else {
-          setStripeConfigured(false);
-        }
-      } catch (err) {
-        console.warn('Stripe initialization notice:', err);
-        if (isMounted) setStripeConfigured(false);
-      } finally {
-        if (isMounted) setInitializing(false);
-      }
-    };
-
-    initStripe();
-    return () => { isMounted = false; };
-  }, [total, shippingEmail, shippingName, shippingPhone, cartItems.length]);
-
-  const saveOrderToDatabase = async (paymentIntentId: string, paymentMethod = 'stripe') => {
+  const saveOrderToDatabase = async (revolutOrderId: string, paymentMethod = 'revolut') => {
+    setIsProcessing(true);
     const guestUserId = 'guest_' + (shippingInfo.phone || Date.now());
 
     const orderData: NewOrderRequest = {
       shippingCharges,
       shippingInfo: {
         ...shippingInfo,
-        stripePaymentIntentId: paymentIntentId,
+        revolutOrderId,
         paymentMethod,
         clientOrigin: window.location.origin,
       },
@@ -222,15 +80,152 @@ const CheckoutForm: React.FC = () => {
       window.location.href = `/my-orders?payment=success&orderId=${createdOrderId}`;
     } catch (err: unknown) {
       console.error('Order save error:', err);
-      notify(`Order creation could not be completed. Please contact hello@skinofkorea.co.uk with reference ${paymentIntentId}.`, 'error');
+      notify(`Order creation could not be completed. Please contact support@skinofkorea.co.uk with reference ${revolutOrderId}.`, 'error');
       setIsProcessing(false);
     }
+  };
+
+  // Initialize Revolut Order & Card Field
+  useEffect(() => {
+    if (cartItems.length === 0 || total <= 0) return;
+
+    let isMounted = true;
+    const initRevolut = async () => {
+      try {
+        setInitializing(true);
+        setErrorMessage(null);
+
+        const res = await fetch('/api/v1/payments/revolut/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: Math.round(total * 100),
+            currency: 'GBP',
+            customer_email: shippingEmail,
+            customer_name: shippingName || 'Customer',
+            metadata: {
+              phone: shippingPhone,
+              city: shippingInfo?.city || '',
+            },
+            redirect_url: `${window.location.origin}/my-orders`,
+          }),
+        });
+
+        const data = await res.json();
+        if (!isMounted) return;
+
+        if (data.success && data.configured && data.token) {
+          setRevolutConfigured(true);
+          setOrderId(data.id);
+          if (data.checkout_url) setCheckoutUrl(data.checkout_url);
+
+          if (cardContainerRef.current) {
+            cardContainerRef.current.innerHTML = '';
+            const mode = (data.mode === 'sandbox' ? 'sandbox' : 'prod') as 'prod' | 'sandbox';
+            const instance = await RevolutCheckout(data.token, mode);
+            revolutInstanceRef.current = instance;
+
+            const cardField = instance.createCardField({
+              target: cardContainerRef.current,
+              onSuccess: async () => {
+                await saveOrderToDatabase(data.id, 'revolut');
+              },
+              onError: (err: any) => {
+                console.error('Revolut payment error:', err);
+                const msg = err?.message || 'Payment unsuccessful. Please check your card details.';
+                setErrorMessage(msg);
+                notify(msg, 'error');
+                setIsProcessing(false);
+              },
+              onCancel: () => {
+                notify('Payment was cancelled.', 'info');
+                setIsProcessing(false);
+              },
+              onStatusChange: (status: any) => {
+                if (status === 'completed' || status === 'valid') {
+                  setErrorMessage(null);
+                }
+              },
+            });
+
+            cardFieldRef.current = cardField;
+            if (isMounted) setCardFieldReady(true);
+          }
+        } else {
+          setRevolutConfigured(false);
+          if (data.mockOrderId) setOrderId(data.mockOrderId);
+        }
+      } catch (err: unknown) {
+        console.warn('Revolut initialization notice:', err);
+        if (isMounted) setRevolutConfigured(false);
+      } finally {
+        if (isMounted) setInitializing(false);
+      }
+    };
+
+    initRevolut();
+
+    return () => {
+      isMounted = false;
+      if (cardFieldRef.current && typeof cardFieldRef.current.destroy === 'function') {
+        try {
+          cardFieldRef.current.destroy();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    };
+  }, [total, shippingEmail, shippingName, shippingPhone, cartItems.length]);
+
+  const handleCardPay = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardFieldRef.current) return;
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    try {
+      cardFieldRef.current.submit({
+        name: shippingName || undefined,
+        email: shippingEmail || undefined,
+      });
+    } catch (err: any) {
+      console.error('Revolut submit error:', err);
+      const msg = err?.message || 'Failed to submit card payment.';
+      setErrorMessage(msg);
+      notify(msg, 'error');
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePopupPay = () => {
+    if (!revolutInstanceRef.current) return;
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    revolutInstanceRef.current.payWithPopup({
+      name: shippingName || undefined,
+      email: shippingEmail || undefined,
+      onSuccess: async () => {
+        await saveOrderToDatabase(orderId, 'revolut_popup');
+      },
+      onError: (err: any) => {
+        console.error('Revolut popup error:', err);
+        const msg = err?.message || 'Payment was unsuccessful.';
+        setErrorMessage(msg);
+        notify(msg, 'error');
+        setIsProcessing(false);
+      },
+      onCancel: () => {
+        notify('Payment was cancelled.', 'info');
+        setIsProcessing(false);
+      },
+    });
   };
 
   const handlePendingOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
-    await saveOrderToDatabase(`pi_pending_${Date.now()}`, 'stripe_pending');
+    await saveOrderToDatabase(orderId || `rev_pending_${Date.now()}`, 'revolut_pending');
   };
 
   return (
@@ -245,7 +240,7 @@ const CheckoutForm: React.FC = () => {
           <img src="/images/skin-of-korea-logo.png" alt="Skin of Korea" className="h-14 w-auto object-contain mb-2" />
           <h1 className="text-2xl font-sans font-semibold tracking-tight text-neutral-950">Skin of Korea</h1>
           <p className="text-xs text-neutral-500 mt-1 flex items-center justify-center gap-1.5">
-            <FaLock className="text-neutral-400 text-[10px]" /> Secure Stripe Checkout (GBP)
+            <FaLock className="text-neutral-400 text-[10px]" /> Secure Revolut Checkout (GBP)
           </p>
         </div>
 
@@ -283,39 +278,77 @@ const CheckoutForm: React.FC = () => {
         {initializing ? (
           <div className="py-8 text-center text-xs text-neutral-500 flex flex-col items-center gap-2">
             <div className="w-5 h-5 border-2 border-neutral-300 border-t-neutral-800 rounded-full animate-spin" />
-            <span>Preparing secure payment gateway…</span>
+            <span>Preparing Revolut secure payment gateway…</span>
           </div>
-        ) : stripeConfigured && clientSecret && stripeKey ? (
-          <Elements
-            key={clientSecret}
-            stripe={getStripePromise(stripeKey)}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: 'stripe',
-                variables: {
-                  colorPrimary: '#111111',
-                  borderRadius: '12px',
-                },
-              },
-            }}
-          >
-            <StripePaymentForm
-              total={total}
-              onSuccess={saveOrderToDatabase}
-              isProcessing={isProcessing}
-              setIsProcessing={setIsProcessing}
-            />
-          </Elements>
+        ) : revolutConfigured ? (
+          <form onSubmit={handleCardPay} className="space-y-4">
+            {errorMessage && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Revolut Integrated Card Field */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                Card Details
+              </label>
+              <div
+                ref={cardContainerRef}
+                className="min-h-[50px] rounded-xl border border-neutral-300 p-3 bg-white focus-within:border-neutral-900 transition-colors shadow-2xs"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!cardFieldReady || isProcessing}
+              className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-xs disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Processing Payment...</span>
+                </>
+              ) : !cardFieldReady ? (
+                <span>Loading Payment Field...</span>
+              ) : (
+                <span>Pay securely with Revolut ({formatStorePrice(total, 'GBP')}) ➔</span>
+              )}
+            </button>
+
+            {/* Alternative Revolut Pay / Hosted Checkout options */}
+            <div className="pt-2 flex flex-col items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={handlePopupPay}
+                disabled={isProcessing}
+                className="text-neutral-700 hover:text-black font-semibold underline text-xs"
+              >
+                Pay with Revolut Pay / Apple Pay / Google Pay
+              </button>
+
+              {checkoutUrl && (
+                <a
+                  href={checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-neutral-900 underline"
+                >
+                  <span>Open Revolut Hosted Checkout Page</span>
+                  <FaArrowUpRightFromSquare className="text-[9px]" />
+                </a>
+              )}
+            </div>
+          </form>
         ) : (
           <div className="space-y-4">
             <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 text-xs text-neutral-700 space-y-2">
               <div className="flex items-center gap-2 font-semibold text-neutral-900">
-                <FaCreditCard className="text-[#363070]" />
-                <span>Stripe Payment Gateway</span>
+                <FaCreditCard className="text-neutral-900" />
+                <span>Revolut Payment Gateway</span>
               </div>
               <p className="leading-relaxed text-neutral-600">
-                Live card payments via Stripe (Apple Pay, Google Pay, Visa, Mastercard, Klarna) will activate as soon as merchant API keys are provided.
+                Live card payments via Revolut (Revolut Pay, Apple Pay, Google Pay, Visa, Mastercard, Maestro) will activate as soon as merchant API keys are configured in your environment.
               </p>
             </div>
 
@@ -339,7 +372,7 @@ const CheckoutForm: React.FC = () => {
         )}
 
         <div className="mt-5 flex items-center justify-center gap-2 text-[10px] text-neutral-400">
-          <FaShieldAlt /> 256-Bit Encrypted Secure Checkout
+          <FaShieldHalved /> 256-Bit Encrypted Revolut Merchant Protection
         </div>
       </div>
     </div>

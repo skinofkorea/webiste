@@ -8,7 +8,7 @@ import { couponApi } from "./api/coupon.api";
 import { paymentApi } from "./api/payment.api";
 import { statsApi } from "./api/stats.api";
 import { adminApi } from "./api/admin.api";
-import { stripeApi } from "./api/stripe.api";
+import { revolutApi } from "./api/revolut.api";
 import { bannerApi } from "./api/banner.api";
 
 const store = configureStore({
@@ -22,7 +22,7 @@ const store = configureStore({
         [paymentApi.reducerPath]: paymentApi.reducer,
         [statsApi.reducerPath]: statsApi.reducer,
         [adminApi.reducerPath]: adminApi.reducer,
-        [stripeApi.reducerPath]: stripeApi.reducer,
+        [revolutApi.reducerPath]: revolutApi.reducer,
         [bannerApi.reducerPath]: bannerApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
@@ -34,7 +34,7 @@ const store = configureStore({
             paymentApi.middleware,
             statsApi.middleware,
             adminApi.middleware,
-            stripeApi.middleware,
+            revolutApi.middleware,
             bannerApi.middleware
         )
 });

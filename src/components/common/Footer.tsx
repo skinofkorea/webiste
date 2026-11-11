@@ -8,8 +8,7 @@ const paymentMethods = [
   { name: 'Amex', className: 'bg-[#006fcf] text-white' },
   { name: 'Apple Pay', className: 'bg-white text-black' },
   { name: 'Google Pay', className: 'bg-white text-[#4285f4]' },
-  { name: 'Link', className: 'bg-[#b8f3e3] text-[#17241f]' },
-  { name: 'Klarna', className: 'bg-[#ffb3c7] text-black' },
+  { name: 'Revolut Pay', className: 'bg-black text-white' },
 ];
 
 const Footer: React.FC = () => (
@@ -84,7 +83,7 @@ const Footer: React.FC = () => (
         <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
           <div className="flex items-center gap-1.5 text-[10px] text-[#2b211c]/70 font-medium mr-1">
             <span>Powered by</span>
-            <span className="font-bold tracking-tight text-[#635BFF] text-xs">stripe</span>
+            <span className="font-extrabold tracking-tight text-neutral-900 text-xs font-sans">Revolut</span>
           </div>
           <ul aria-label="Accepted payment methods" className="flex flex-wrap items-center justify-center gap-1.5 list-none p-0 m-0">
             {paymentMethods.map(({ name, className }) => (
@@ -116,12 +115,7 @@ const Footer: React.FC = () => (
                     <span className="text-[#3c4043]">Pay</span>
                   </>
                 )}
-                {name === 'Link' && (
-                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m9 8 2-2a4 4 0 0 1 6 0l1 1a4 4 0 0 1 0 6l-2 2M15 16l-2 2a4 4 0 0 1-6 0l-1-1a4 4 0 0 1 0-6l2-2m-1 5 8-8" />
-                  </svg>
-                )}
-                {name === 'Klarna' && <span className="text-[8px] font-black">Klarna.</span>}
+                {name === 'Revolut Pay' && <span className="text-[8px] font-black tracking-tight">R Pay</span>}
               </li>
             ))}
           </ul>

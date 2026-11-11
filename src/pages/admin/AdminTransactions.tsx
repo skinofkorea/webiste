@@ -216,7 +216,7 @@ const AdminTransactions: React.FC = () => {
                     </td>
                     <td className="px-4 py-3.5 text-neutral-700 font-medium">
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-neutral-100 border border-neutral-200 text-[10px] font-mono">
-                        <FaShieldAlt className="text-neutral-500 text-[9px]" /> Stripe / Card
+                        <FaShieldAlt className="text-neutral-500 text-[9px]" /> Revolut Pay / Card
                       </span>
                     </td>
                     <td className="px-4 py-3.5">

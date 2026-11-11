@@ -184,7 +184,9 @@ export type ShippingInfo = {
     latitude?: number;
     longitude?: number;
     deliveryType?: 'current_location' | 'nearest_landmark';
+    revolutOrderId?: string;
     stripePaymentIntentId?: string;
+    paymentIntentId?: string;
     paymentMethod?: string;
     clientOrigin?: string;
 }

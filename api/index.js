@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 
@@ -85,16 +84,17 @@ function generateShipperToken() {
 //   return hmac.digest('hex');
 // }
 
-// ─── Stripe Payment Gateway Configuration ───
-const STRIPE_CONFIG = {
-  get SECRET_KEY() { return process.env.STRIPE_SECRET_KEY || ''; },
-  get PUBLIC_KEY() { return process.env.VITE_STRIPE_PUBLIC_KEY || process.env.STRIPE_PUBLIC_KEY || ''; },
+// ─── Revolut Payment Gateway Configuration ───
+const REVOLUT_CONFIG = {
+  get SECRET_KEY() { return process.env.REVOLUT_SECRET_KEY || ''; },
+  get MODE() { return (process.env.REVOLUT_MODE || process.env.VITE_REVOLUT_MODE || 'prod').toLowerCase(); },
+  get BASE_URL() {
+    return this.MODE === 'sandbox'
+      ? 'https://sandbox-merchant.revolut.com/api'
+      : 'https://merchant.revolut.com/api';
+  },
+  get API_VERSION() { return '2025-10-16'; },
 };
-
-function getStripeInstance() {
-  if (!STRIPE_CONFIG.SECRET_KEY) return null;
-  return new Stripe(STRIPE_CONFIG.SECRET_KEY);
-}
 
 let dbProductsCache = null;
 let dbProductsCacheTime = 0;
@@ -302,23 +302,38 @@ async function getStorefrontData() {
   };
 }
 
-// Verify Stripe PaymentIntent status
-async function verifyStripePayment(paymentIntentId) {
-  const stripe = getStripeInstance();
-  if (!stripe) {
-    // Graceful fallback when client has not yet supplied Stripe keys
+// Verify Revolut Order payment status
+async function verifyRevolutPayment(orderId) {
+  if (!REVOLUT_CONFIG.SECRET_KEY) {
+    // Graceful fallback when merchant has not yet supplied Revolut keys
     return { verified: true, isMock: true, status: 'pending_configuration' };
   }
+  if (!orderId || orderId.startsWith('rev_mock_') || orderId.startsWith('rev_pending_')) {
+    return { verified: true, isMock: true, status: 'pending_mock' };
+  }
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const res = await fetch(`${REVOLUT_CONFIG.BASE_URL}/orders/${orderId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${REVOLUT_CONFIG.SECRET_KEY}`,
+        'Accept': 'application/json',
+        'Revolut-Api-Version': REVOLUT_CONFIG.API_VERSION,
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('Error retrieving Revolut order:', data);
+      return { verified: false, error: data.message || `Revolut order retrieval failed (${res.status})` };
+    }
+    const isPaid = data.state === 'completed' || data.state === 'authorised';
     return {
-      verified: paymentIntent.status === 'succeeded',
-      status: paymentIntent.status,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
+      verified: isPaid,
+      status: data.state,
+      amount: data.amount,
+      currency: data.currency,
     };
   } catch (err) {
-    console.error('Error retrieving Stripe payment intent:', err.message);
+    console.error('Error retrieving Revolut order:', err.message);
     return { verified: false, error: err.message };
   }
 }
@@ -853,24 +868,24 @@ export default async function handler(req, res) {
       });
     }
 
-    // ─── PAYMENTS: Stripe Config ───
-    if (url.includes('/api/v1/payments/stripe/config')) {
+    // ─── PAYMENTS: Revolut Config ───
+    if (url.includes('/api/v1/payments/revolut/config')) {
       return res.status(200).json({
         success: true,
-        configured: Boolean(STRIPE_CONFIG.SECRET_KEY && STRIPE_CONFIG.PUBLIC_KEY),
-        publicKey: STRIPE_CONFIG.PUBLIC_KEY,
+        configured: Boolean(REVOLUT_CONFIG.SECRET_KEY),
+        mode: REVOLUT_CONFIG.MODE,
       });
     }
 
-    // ─── PAYMENTS: Stripe Create Payment Intent ───
-    if (url.includes('/api/v1/payments/stripe/create-payment-intent') || url.includes('/api/create-payment-intent')) {
+    // ─── PAYMENTS: Revolut Create Order ───
+    if (url.includes('/api/v1/payments/revolut/create-order') || url.includes('/api/create-revolut-order')) {
       if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method not allowed' });
       }
 
       try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-        const { amount, currency = 'GBP', customer_email, customer_name, metadata } = body;
+        const { amount, currency = 'GBP', customer_email, customer_name, metadata, redirect_url } = body;
 
         const amountInPence = Number(amount);
         if (!Number.isSafeInteger(amountInPence) || amountInPence < 50) {
@@ -880,44 +895,71 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, message: 'This store only accepts GBP payments.' });
         }
 
-        const stripe = getStripeInstance();
-        if (!stripe) {
-          // Stripe keys are pending from client
+        if (!REVOLUT_CONFIG.SECRET_KEY) {
+          // Revolut merchant keys pending from client
           return res.status(200).json({
             success: true,
             configured: false,
-            message: 'Stripe gateway pending client API credentials.',
-            mockSecret: `pi_mock_${Date.now()}_secret_${Date.now()}`,
+            message: 'Revolut gateway pending merchant API credentials.',
+            mockOrderId: `rev_mock_${Date.now()}`,
+            mockToken: `rev_tok_mock_${Date.now()}`,
+            mode: REVOLUT_CONFIG.MODE,
           });
         }
 
-        const paymentIntent = await stripe.paymentIntents.create({
+        const payload = {
           amount: amountInPence,
-          currency: 'gbp',
-          automatic_payment_methods: { enabled: true },
-          receipt_email: customer_email || undefined,
+          currency: 'GBP',
+          capture_mode: 'automatic',
+          merchant_order_reference: `SOK-${Date.now()}`,
+          customer_email: customer_email || undefined,
           description: 'Skin of Korea order',
           metadata: {
             customer_name: customer_name || 'Customer',
             customer_email: customer_email || '',
             ...(metadata || {}),
           },
+        };
+        if (redirect_url) {
+          payload.redirect_url = redirect_url;
+        }
+
+        const revRes = await fetch(`${REVOLUT_CONFIG.BASE_URL}/orders`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${REVOLUT_CONFIG.SECRET_KEY}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Revolut-Api-Version': REVOLUT_CONFIG.API_VERSION,
+          },
+          body: JSON.stringify(payload),
         });
 
-        console.log('✅ Stripe PaymentIntent created:', paymentIntent.id);
+        const revData = await revRes.json();
+        if (!revRes.ok) {
+          console.error('❌ Revolut order error:', revData);
+          return res.status(revRes.status || 400).json({
+            success: false,
+            message: revData.message || revData.description || 'Failed to create Revolut order',
+          });
+        }
+
+        console.log('✅ Revolut order created:', revData.id);
 
         return res.status(200).json({
           success: true,
           configured: true,
-          clientSecret: paymentIntent.client_secret,
-          paymentIntentId: paymentIntent.id,
-          publicKey: STRIPE_CONFIG.PUBLIC_KEY,
+          id: revData.id,
+          token: revData.token,
+          checkout_url: revData.checkout_url,
+          state: revData.state,
+          mode: REVOLUT_CONFIG.MODE,
         });
       } catch (err) {
-        console.error('❌ Stripe PaymentIntent error:', err.message || err);
+        console.error('❌ Revolut Create Order error:', err.message || err);
         return res.status(500).json({
           success: false,
-          message: err.message || 'Failed to create Stripe payment intent',
+          message: err.message || 'Failed to create Revolut payment order',
         });
       }
     }
@@ -1076,14 +1118,14 @@ export default async function handler(req, res) {
         }
       }
 
-      // ── Payment Verification (Stripe) ──
-      const stripePaymentIntentId = shippingInfo.stripePaymentIntentId || shippingInfo.paymentIntentId;
-      if (stripePaymentIntentId) {
-        const paymentCheck = await verifyStripePayment(stripePaymentIntentId);
+      // ── Payment Verification (Revolut) ──
+      const revolutOrderId = shippingInfo.revolutOrderId || shippingInfo.orderId || shippingInfo.paymentIntentId || shippingInfo.stripePaymentIntentId;
+      if (revolutOrderId) {
+        const paymentCheck = await verifyRevolutPayment(revolutOrderId);
         if (!paymentCheck.verified) {
           return res.status(400).json({
             success: false,
-            message: paymentCheck.error || 'Stripe payment verification failed. Please contact support before retrying.',
+            message: paymentCheck.error || 'Revolut payment verification failed. Please contact support before retrying.',
           });
         }
         if (!paymentCheck.isMock && paymentCheck.amount && paymentCheck.amount !== submittedTotalPence) {
