@@ -302,15 +302,21 @@ async function getStorefrontData() {
   };
 }
 
-// Verify Revolut Order payment status
+// Strict Verify Revolut Order payment status - NEVER allow uncaptured orders
 async function verifyRevolutPayment(orderId) {
+  if (!orderId) {
+    return { verified: false, error: 'No Revolut Order ID provided. Payment must be completed before order confirmation.' };
+  }
+
   if (!REVOLUT_CONFIG.SECRET_KEY) {
-    // Graceful fallback when merchant has not yet supplied Revolut keys
-    return { verified: true, isMock: true, status: 'pending_configuration' };
+    return { verified: false, error: 'Revolut merchant secret key is not configured.' };
   }
-  if (!orderId || orderId.startsWith('rev_mock_') || orderId.startsWith('rev_pending_')) {
-    return { verified: true, isMock: true, status: 'pending_mock' };
+
+  // Reject any mock or pending bypass in production
+  if (orderId.startsWith('rev_mock_') || orderId.startsWith('rev_pending_')) {
+    return { verified: false, error: 'Test/pending order bypass is not permitted. Please complete payment with Revolut.' };
   }
+
   try {
     const res = await fetch(`${REVOLUT_CONFIG.BASE_URL}/orders/${orderId}`, {
       method: 'GET',
@@ -323,17 +329,27 @@ async function verifyRevolutPayment(orderId) {
     const data = await res.json();
     if (!res.ok) {
       console.error('Error retrieving Revolut order:', data);
-      return { verified: false, error: data.message || `Revolut order retrieval failed (${res.status})` };
+      return { verified: false, error: data.message || `Revolut order lookup failed (${res.status})` };
     }
+
+    // Revolut orders must be 'completed' or 'authorised'
     const isPaid = data.state === 'completed' || data.state === 'authorised';
+    if (!isPaid) {
+      return {
+        verified: false,
+        error: `Revolut payment has not been completed. Current status: "${data.state}". Please complete payment.`,
+        status: data.state,
+      };
+    }
+
     return {
-      verified: isPaid,
+      verified: true,
       status: data.state,
       amount: data.amount,
       currency: data.currency,
     };
   } catch (err) {
-    console.error('Error retrieving Revolut order:', err.message);
+    console.error('Error verifying Revolut order:', err.message);
     return { verified: false, error: err.message };
   }
 }
@@ -584,50 +600,60 @@ async function handleOrderSuccess(orderId) {
       });
     }
 
-    // 3. Decrement stock for purchased items
+    // 3. Decrement stock for purchased items safely (UUID or handle lookup)
     for (const item of (orderItems || [])) {
-
       try {
-        // Extract base product ID (remove variant suffix like "_1kg")
-        const baseProductId = item.productId.includes('_') 
-          ? item.productId.split('_')[0] 
-          : item.productId;
+        const rawId = item.id || item._id || item.productId || '';
+        const candidateId = typeof rawId === 'string' && rawId.includes('_') ? rawId.split('_')[0] : rawId;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidateId);
 
-          // Get current stock
-          const { data: product, error: productError } = await supabase
+        let targetProduct = null;
+        if (isUUID) {
+          const { data } = await supabase.from('products').select('id, stock, name').eq('id', candidateId).maybeSingle();
+          targetProduct = data;
+        }
+
+        if (!targetProduct && item.name) {
+          const cleanName = item.name.split(' — ')[0].split(' - ')[0].trim();
+          const { data } = await supabase.from('products').select('id, stock, name').ilike('name', cleanName).maybeSingle();
+          targetProduct = data;
+        }
+
+        if (!targetProduct && candidateId) {
+          const allProds = await getDbProducts();
+          const matched = allProds.find(p => p.id === candidateId || p.variants?.some(v => v.handle === candidateId));
+          if (matched) {
+            const { data } = await supabase.from('products').select('id, stock, name').eq('id', matched.id).maybeSingle();
+            targetProduct = data;
+          }
+        }
+
+        if (!targetProduct) {
+          console.warn(`⚠️  Could not locate product record to decrement stock for item: "${item.name || candidateId}"`);
+          continue;
+        }
+
+        const currentStock = Number(targetProduct.stock || 0);
+        const orderQuantity = Number(item.quantity || 0);
+
+        if (currentStock >= orderQuantity) {
+          const newStock = currentStock - orderQuantity;
+          const { error: updateStockError } = await supabase
             .from('products')
-            .select('stock, name')
-            .eq('id', baseProductId)
-            .single();
+            .update({ 
+              stock: newStock,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', targetProduct.id);
 
-          if (productError || !product) {
-            console.error(`⚠️  Product not found for stock decrement: ${baseProductId}`, productError);
-            continue;
-          }
-
-          const currentStock = Number(product.stock || 0);
-          const orderQuantity = Number(item.quantity || 0);
-
-          if (currentStock >= orderQuantity) {
-            // Decrement stock
-            const newStock = currentStock - orderQuantity;
-            
-            const { error: updateStockError } = await supabase
-              .from('products')
-              .update({ 
-                stock: newStock,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', baseProductId);
-
-            if (updateStockError) {
-              console.error(`❌ Failed to decrement stock for ${baseProductId}:`, updateStockError);
-            } else {
-              console.log(`✅ Stock decremented for "${product.name}": ${currentStock} → ${newStock} (-${orderQuantity})`);
-            }
+          if (updateStockError) {
+            console.error(`❌ Failed to decrement stock for ${targetProduct.name}:`, updateStockError);
           } else {
-            console.warn(`⚠️  Insufficient stock for "${product.name}": Ordered ${orderQuantity}, Available ${currentStock}`);
+            console.log(`✅ Stock decremented for "${targetProduct.name}": ${currentStock} → ${newStock} (-${orderQuantity})`);
           }
+        } else {
+          console.warn(`⚠️  Insufficient stock for "${targetProduct.name}": Ordered ${orderQuantity}, Available ${currentStock}`);
+        }
         } catch (stockError) {
           console.error(`❌ Error processing stock decrement for item:`, item, stockError);
         }
@@ -1118,22 +1144,27 @@ export default async function handler(req, res) {
         }
       }
 
-      // ── Payment Verification (Revolut) ──
+      // ── Payment Verification (Revolut) ── MANDATORY for all orders
       const revolutOrderId = shippingInfo.revolutOrderId || shippingInfo.orderId || shippingInfo.paymentIntentId || shippingInfo.stripePaymentIntentId;
-      if (revolutOrderId) {
-        const paymentCheck = await verifyRevolutPayment(revolutOrderId);
-        if (!paymentCheck.verified) {
-          return res.status(400).json({
-            success: false,
-            message: paymentCheck.error || 'Revolut payment verification failed. Please contact support before retrying.',
-          });
-        }
-        if (!paymentCheck.isMock && paymentCheck.amount && paymentCheck.amount !== submittedTotalPence) {
-          return res.status(400).json({
-            success: false,
-            message: 'Payment amount mismatch. Please contact support@skinofkorea.co.uk.',
-          });
-        }
+      if (!revolutOrderId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment required: No Revolut Order ID was provided with this checkout.',
+        });
+      }
+
+      const paymentCheck = await verifyRevolutPayment(revolutOrderId);
+      if (!paymentCheck.verified) {
+        return res.status(400).json({
+          success: false,
+          message: paymentCheck.error || 'Revolut payment verification failed. Payment has not been completed.',
+        });
+      }
+      if (!paymentCheck.isMock && paymentCheck.amount && paymentCheck.amount !== submittedTotalPence) {
+        return res.status(400).json({
+          success: false,
+          message: `Payment amount mismatch. Expected £${(submittedTotalPence / 100).toFixed(2)}, but received £${(paymentCheck.amount / 100).toFixed(2)}.`,
+        });
       }
 
       // ── Silent Guest Sign-Up ──

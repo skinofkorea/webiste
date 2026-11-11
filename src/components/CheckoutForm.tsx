@@ -11,6 +11,13 @@ import { usePageSEO } from '../hooks/usePageSEO';
 import { formatStorePrice } from '../data/storefront';
 import { FaShieldHalved, FaLock, FaCreditCard, FaArrowUpRightFromSquare } from 'react-icons/fa6';
 
+interface RevolutOrderInfo {
+  id: string;
+  token: string;
+  checkoutUrl?: string;
+  mode?: 'prod' | 'sandbox';
+}
+
 const CheckoutForm: React.FC = () => {
   usePageSEO({
     title: 'Checkout | Skin of Korea',
@@ -34,10 +41,8 @@ const CheckoutForm: React.FC = () => {
   const [newOrder] = useNewOrderMutation();
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [initializing, setInitializing] = useState<boolean>(true);
-  const [cardFieldReady, setCardFieldReady] = useState<boolean>(false);
-  const [revolutConfigured, setRevolutConfigured] = useState<boolean>(false);
-  const [orderId, setOrderId] = useState<string>('');
-  const [checkoutUrl, setCheckoutUrl] = useState<string>('');
+  const [cardReady, setCardReady] = useState<boolean>(false);
+  const [orderInfo, setOrderInfo] = useState<RevolutOrderInfo | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const cardContainerRef = useRef<HTMLDivElement>(null);
@@ -48,6 +53,123 @@ const CheckoutForm: React.FC = () => {
   const shippingEmail = shippingInfo?.email || '';
   const shippingName = shippingInfo?.name || '';
   const shippingPhone = shippingInfo?.phone || '';
+
+  // 1. Fetch Revolut Order Token from Backend
+  useEffect(() => {
+    if (cartItems.length === 0 || total <= 0) return;
+
+    let isMounted = true;
+    const createOrder = async () => {
+      try {
+        setInitializing(true);
+        setErrorMessage(null);
+
+        const res = await fetch('/api/v1/payments/revolut/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: Math.round(total * 100),
+            currency: 'GBP',
+            customer_email: shippingEmail,
+            customer_name: shippingName || 'Customer',
+            metadata: {
+              phone: shippingPhone,
+              city: shippingInfo?.city || '',
+            },
+            redirect_url: `${window.location.origin}/my-orders`,
+          }),
+        });
+
+        const data = await res.json();
+        if (!isMounted) return;
+
+        if (data.success && data.configured && data.token) {
+          setOrderInfo({
+            id: data.id,
+            token: data.token,
+            checkoutUrl: data.checkout_url,
+            mode: (data.mode === 'sandbox' ? 'sandbox' : 'prod'),
+          });
+        } else {
+          setErrorMessage(data.message || 'Unable to connect to the Revolut payment gateway.');
+        }
+      } catch (err: unknown) {
+        console.error('Revolut initialization error:', err);
+        if (isMounted) setErrorMessage('Failed to connect to the Revolut payment service. Please try again.');
+      } finally {
+        if (isMounted) setInitializing(false);
+      }
+    };
+
+    createOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [total, shippingEmail, shippingName, shippingPhone, cartItems.length]);
+
+  // 2. Mount Revolut Card Field once orderInfo is loaded and container is present in the DOM
+  useEffect(() => {
+    if (!orderInfo?.token || !cardContainerRef.current) return;
+
+    let isMounted = true;
+    const mountCardField = async () => {
+      try {
+        setCardReady(false);
+        if (cardContainerRef.current) {
+          cardContainerRef.current.innerHTML = '';
+        }
+
+        const mode = orderInfo.mode || 'prod';
+        const instance = await RevolutCheckout(orderInfo.token, mode);
+        if (!isMounted) return;
+        revolutInstanceRef.current = instance;
+
+        const cardField = instance.createCardField({
+          target: cardContainerRef.current!,
+          onSuccess: async () => {
+            // ONLY triggered after Revolut successfully charges and captures the card
+            await saveOrderToDatabase(orderInfo.id, 'revolut_card');
+          },
+          onError: (err: any) => {
+            console.error('Revolut payment error:', err);
+            const msg = err?.message || 'Payment unsuccessful. Please check your card details.';
+            setErrorMessage(msg);
+            notify(msg, 'error');
+            setIsProcessing(false);
+          },
+          onCancel: () => {
+            notify('Payment was cancelled.', 'info');
+            setIsProcessing(false);
+          },
+          onStatusChange: (status: any) => {
+            if (status === 'completed' || status === 'valid') {
+              setErrorMessage(null);
+            }
+          },
+        });
+
+        cardFieldRef.current = cardField;
+        if (isMounted) setCardReady(true);
+      } catch (err: any) {
+        console.error('Revolut mount error:', err);
+        if (isMounted) {
+          setErrorMessage('Could not load card input fields. You can still complete payment with the Revolut Pay button below.');
+        }
+      }
+    };
+
+    mountCardField();
+
+    return () => {
+      isMounted = false;
+      if (cardFieldRef.current && typeof cardFieldRef.current.destroy === 'function') {
+        try {
+          cardFieldRef.current.destroy();
+        } catch {}
+      }
+    };
+  }, [orderInfo]);
 
   const saveOrderToDatabase = async (revolutOrderId: string, paymentMethod = 'revolut') => {
     setIsProcessing(true);
@@ -80,106 +202,16 @@ const CheckoutForm: React.FC = () => {
       window.location.href = `/my-orders?payment=success&orderId=${createdOrderId}`;
     } catch (err: unknown) {
       console.error('Order save error:', err);
-      notify(`Order creation could not be completed. Please contact support@skinofkorea.co.uk with reference ${revolutOrderId}.`, 'error');
+      const apiMsg = (err as any)?.data?.message || 'Order creation failed. Please contact support@skinofkorea.co.uk.';
+      notify(apiMsg, 'error');
+      setErrorMessage(apiMsg);
       setIsProcessing(false);
     }
   };
 
-  // Initialize Revolut Order & Card Field
-  useEffect(() => {
-    if (cartItems.length === 0 || total <= 0) return;
-
-    let isMounted = true;
-    const initRevolut = async () => {
-      try {
-        setInitializing(true);
-        setErrorMessage(null);
-
-        const res = await fetch('/api/v1/payments/revolut/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: Math.round(total * 100),
-            currency: 'GBP',
-            customer_email: shippingEmail,
-            customer_name: shippingName || 'Customer',
-            metadata: {
-              phone: shippingPhone,
-              city: shippingInfo?.city || '',
-            },
-            redirect_url: `${window.location.origin}/my-orders`,
-          }),
-        });
-
-        const data = await res.json();
-        if (!isMounted) return;
-
-        if (data.success && data.configured && data.token) {
-          setRevolutConfigured(true);
-          setOrderId(data.id);
-          if (data.checkout_url) setCheckoutUrl(data.checkout_url);
-
-          if (cardContainerRef.current) {
-            cardContainerRef.current.innerHTML = '';
-            const mode = (data.mode === 'sandbox' ? 'sandbox' : 'prod') as 'prod' | 'sandbox';
-            const instance = await RevolutCheckout(data.token, mode);
-            revolutInstanceRef.current = instance;
-
-            const cardField = instance.createCardField({
-              target: cardContainerRef.current,
-              onSuccess: async () => {
-                await saveOrderToDatabase(data.id, 'revolut');
-              },
-              onError: (err: any) => {
-                console.error('Revolut payment error:', err);
-                const msg = err?.message || 'Payment unsuccessful. Please check your card details.';
-                setErrorMessage(msg);
-                notify(msg, 'error');
-                setIsProcessing(false);
-              },
-              onCancel: () => {
-                notify('Payment was cancelled.', 'info');
-                setIsProcessing(false);
-              },
-              onStatusChange: (status: any) => {
-                if (status === 'completed' || status === 'valid') {
-                  setErrorMessage(null);
-                }
-              },
-            });
-
-            cardFieldRef.current = cardField;
-            if (isMounted) setCardFieldReady(true);
-          }
-        } else {
-          setRevolutConfigured(false);
-          if (data.mockOrderId) setOrderId(data.mockOrderId);
-        }
-      } catch (err: unknown) {
-        console.warn('Revolut initialization notice:', err);
-        if (isMounted) setRevolutConfigured(false);
-      } finally {
-        if (isMounted) setInitializing(false);
-      }
-    };
-
-    initRevolut();
-
-    return () => {
-      isMounted = false;
-      if (cardFieldRef.current && typeof cardFieldRef.current.destroy === 'function') {
-        try {
-          cardFieldRef.current.destroy();
-        } catch {
-          // ignore cleanup errors
-        }
-      }
-    };
-  }, [total, shippingEmail, shippingName, shippingPhone, cartItems.length]);
-
   const handleCardPay = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cardFieldRef.current) return;
+    if (!cardFieldRef.current || !cardReady) return;
     setIsProcessing(true);
     setErrorMessage(null);
 
@@ -198,7 +230,7 @@ const CheckoutForm: React.FC = () => {
   };
 
   const handlePopupPay = () => {
-    if (!revolutInstanceRef.current) return;
+    if (!revolutInstanceRef.current || !orderInfo) return;
     setIsProcessing(true);
     setErrorMessage(null);
 
@@ -206,7 +238,8 @@ const CheckoutForm: React.FC = () => {
       name: shippingName || undefined,
       email: shippingEmail || undefined,
       onSuccess: async () => {
-        await saveOrderToDatabase(orderId, 'revolut_popup');
+        // ONLY triggered upon verified payment confirmation
+        await saveOrderToDatabase(orderInfo.id, 'revolut_popup');
       },
       onError: (err: any) => {
         console.error('Revolut popup error:', err);
@@ -220,12 +253,6 @@ const CheckoutForm: React.FC = () => {
         setIsProcessing(false);
       },
     });
-  };
-
-  const handlePendingOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    await saveOrderToDatabase(orderId || `rev_pending_${Date.now()}`, 'revolut_pending');
   };
 
   return (
@@ -278,9 +305,9 @@ const CheckoutForm: React.FC = () => {
         {initializing ? (
           <div className="py-8 text-center text-xs text-neutral-500 flex flex-col items-center gap-2">
             <div className="w-5 h-5 border-2 border-neutral-300 border-t-neutral-800 rounded-full animate-spin" />
-            <span>Preparing Revolut secure payment gateway…</span>
+            <span>Connecting to Revolut secure gateway…</span>
           </div>
-        ) : revolutConfigured ? (
+        ) : orderInfo ? (
           <form onSubmit={handleCardPay} className="space-y-4">
             {errorMessage && (
               <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
@@ -301,40 +328,41 @@ const CheckoutForm: React.FC = () => {
 
             <button
               type="submit"
-              disabled={!cardFieldReady || isProcessing}
+              disabled={!cardReady || isProcessing}
               className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-xs disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
             >
               {isProcessing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Processing Payment...</span>
+                  <span>Processing Payment with Revolut...</span>
                 </>
-              ) : !cardFieldReady ? (
+              ) : !cardReady ? (
                 <span>Loading Payment Field...</span>
               ) : (
-                <span>Pay securely with Revolut ({formatStorePrice(total, 'GBP')}) ➔</span>
+                <span>Pay {formatStorePrice(total, 'GBP')} with Card ➔</span>
               )}
             </button>
 
-            {/* Alternative Revolut Pay / Hosted Checkout options */}
-            <div className="pt-2 flex flex-col items-center gap-2 text-xs">
+            {/* Alternative: 1-Click Revolut Pay / Apple Pay / Google Pay Popup */}
+            <div className="pt-3 border-t border-neutral-100 flex flex-col items-center gap-2 text-xs">
               <button
                 type="button"
                 onClick={handlePopupPay}
                 disabled={isProcessing}
-                className="text-neutral-700 hover:text-black font-semibold underline text-xs"
+                className="w-full bg-[#f4f4f4] hover:bg-neutral-200 text-neutral-900 font-semibold py-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
               >
-                Pay with Revolut Pay / Apple Pay / Google Pay
+                <FaCreditCard className="text-sm" />
+                <span>Pay with Revolut Pay / Apple Pay / Google Pay</span>
               </button>
 
-              {checkoutUrl && (
+              {orderInfo.checkoutUrl && (
                 <a
-                  href={checkoutUrl}
+                  href={orderInfo.checkoutUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-neutral-900 underline"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-neutral-900 underline mt-1"
                 >
-                  <span>Open Revolut Hosted Checkout Page</span>
+                  <span>Or pay on Revolut's secure hosted page</span>
                   <FaArrowUpRightFromSquare className="text-[9px]" />
                 </a>
               )}
@@ -342,32 +370,17 @@ const CheckoutForm: React.FC = () => {
           </form>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 text-xs text-neutral-700 space-y-2">
-              <div className="flex items-center gap-2 font-semibold text-neutral-900">
-                <FaCreditCard className="text-neutral-900" />
-                <span>Revolut Payment Gateway</span>
-              </div>
-              <p className="leading-relaxed text-neutral-600">
-                Live card payments via Revolut (Revolut Pay, Apple Pay, Google Pay, Visa, Mastercard, Maestro) will activate as soon as merchant API keys are configured in your environment.
-              </p>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 space-y-1 text-center">
+              <p className="font-semibold">Unable to initiate payment</p>
+              <p>{errorMessage || 'Could not connect to the Revolut payment gateway. Please refresh or try again.'}</p>
             </div>
-
-            <form onSubmit={handlePendingOrderSubmit}>
-              <button
-                type="submit"
-                disabled={isProcessing || cartItems.length === 0}
-                className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-xs disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Confirming Order...</span>
-                  </>
-                ) : (
-                  <span>Complete Order ({formatStorePrice(total, 'GBP')}) ➔</span>
-                )}
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3 rounded-xl text-xs uppercase tracking-wider transition-colors"
+            >
+              Retry Connection
+            </button>
           </div>
         )}
 
