@@ -39,8 +39,8 @@ export const cartReducer = createSlice({
         addToCart: (state, action: PayloadAction<CartItem>) => {
             state.loading = true;
 
-            const cartCurrency = state.cartItems[0]?.currency || 'INR';
-            const itemCurrency = action.payload.currency || 'INR';
+            const cartCurrency = state.cartItems[0]?.currency || 'GBP';
+            const itemCurrency = action.payload.currency || 'GBP';
             if (state.cartItems.length > 0 && cartCurrency !== itemCurrency) {
                 state.loading = false;
                 return;

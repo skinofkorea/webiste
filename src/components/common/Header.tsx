@@ -10,7 +10,7 @@ const announcements = [
   { text: 'Free delivery when you spend £35' },
   { text: '100% Authentic Korean Skincare' },
   { text: 'Next-day delivery available across the UK' },
-  { text: 'Call us : 0800 0807037' },
+  { text: 'Call us: 0800 0807037' },
 ];
 
 const Header: React.FC = () => {

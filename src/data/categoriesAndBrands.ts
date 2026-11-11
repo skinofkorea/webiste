@@ -62,9 +62,9 @@ export const CATEGORIES_DATA: CategoryItem[] = [
 
 export const BRANDS_DATA: BrandItem[] = [
   {
-    name: 'SKIN 1004',
+    name: 'SKIN1004',
     vendor: 'SKIN1004',
-    handle: 'skin-1004',
+    handle: 'skin1004',
     image: '/images/brand-logos/skin-1004.webp',
   },
   {

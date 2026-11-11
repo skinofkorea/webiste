@@ -254,14 +254,35 @@ const STORE_PAGES = [
     id: 2,
     title: 'Shipping Policy',
     handle: 'shipping-policy',
-    body_html: '<p>We offer fast delivery across the UK and international shipping with tracked service.</p>',
+    body_html: '<p>We offer fast delivery across the UK and international shipping with tracked service. Free UK delivery is available on orders over £35.</p>',
     published_at: '2026-01-01T00:00:00Z',
   },
   {
     id: 3,
     title: 'Refund Policy',
     handle: 'refund-policy',
-    body_html: '<p>We accept returns of unopened items within 14 days of delivery.</p>',
+    body_html: '<p>We accept returns of unopened items within 14 days of delivery. For support, contact <a href="mailto:support@skinofkorea.co.uk">support@skinofkorea.co.uk</a>.</p>',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 4,
+    title: 'Return Policy',
+    handle: 'return-policy',
+    body_html: '<p>We accept returns of unopened items within 14 days of delivery. Please read our <a href="/refund-policy">Refund & Returns Policy</a> or email <a href="mailto:support@skinofkorea.co.uk">support@skinofkorea.co.uk</a>.</p>',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 5,
+    title: 'Contact Us',
+    handle: 'contact',
+    body_html: '<p>We are here to help with your Korean skincare questions, order inquiries, recommendations, and feedback.</p><p>Email: <a href="mailto:support@skinofkorea.co.uk">support@skinofkorea.co.uk</a> (we typically reply within 24 hours).<br />Freephone: <a href="tel:08000807037">0800 0807037</a> (Mon–Fri 9:00 AM – 5:00 PM GMT).</p><p>Skin of Korea Ltd, United Kingdom. 100% genuine K-beauty dispatched directly from the UK.</p>',
+    published_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 6,
+    title: 'Learn About K-Beauty',
+    handle: 'learn-about-k-beauty',
+    body_html: '<p>Korean Beauty (K-Beauty) focuses on long-term skin health, gentle hydration, and barrier protection rather than harsh quick fixes. The goal is radiant, plump, healthy skin known as "Glass Skin" (Yuri Pibu).</p><p><strong>1. Double Cleansing:</strong> Start with an oil cleanser to dissolve makeup and SPF, followed by a gentle foam cleanser.<br /><strong>2. Hydrating Toner & Essence:</strong> Restores skin pH and hydrates deeply with fermented extracts.<br /><strong>3. Targeted Serums:</strong> High-efficacy actives like Centella Asiatica (Cica), Niacinamide, and Vitamin C.<br /><strong>4. Barrier Moisturisers:</strong> Reinforces the moisture barrier with ceramides and squalane.<br /><strong>5. SPF 50+ Sunscreens:</strong> Lightweight, invisible protection that shields against UV damage.</p>',
     published_at: '2026-01-01T00:00:00Z',
   },
 ];
@@ -426,7 +447,7 @@ async function handleOrderSuccess(orderId) {
     const recipientEmail = userRow?.email || shippingInfo?.email;
     const customerName = userRow?.name || shippingInfo?.name || 'Customer';
 
-    const currency = order.currency || 'INR';
+    const currency = order.currency || 'GBP';
     const formatMoney = (amount) => new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-IN', {
       style: 'currency',
       currency,
@@ -531,7 +552,7 @@ async function handleOrderSuccess(orderId) {
 
           <!-- Footer Notes -->
           <div style="border-top: 1px solid #efe9db; padding-top: 20px; text-align: center; font-size: 11px; color: #5f6455; line-height: 1.5;">
-            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at 0800 080 7037 or hello@skinofkorea.co.uk.</p>
+            <p style="margin: 0 0 5px 0;">If you have any questions, contact support at 0800 080 7037 or support@skinofkorea.co.uk.</p>
             <p style="margin: 0;">© ${new Date().getFullYear()} Skin of Korea Ltd. All rights reserved.</p>
           </div>
 
@@ -676,7 +697,7 @@ function mapOrder(row) {
     shippingCharges: Number(row.shipping_charges),
     discount: Number(row.discount || 0),
     total: Number(row.total),
-    currency: row.currency || 'INR',
+    currency: row.currency || 'GBP',
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -1068,7 +1089,7 @@ export default async function handler(req, res) {
         if (!paymentCheck.isMock && paymentCheck.amount && paymentCheck.amount !== submittedTotalPence) {
           return res.status(400).json({
             success: false,
-            message: 'Payment amount mismatch. Please contact hello@skinofkorea.co.uk.',
+            message: 'Payment amount mismatch. Please contact support@skinofkorea.co.uk.',
           });
         }
       }

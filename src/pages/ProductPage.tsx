@@ -58,7 +58,7 @@ const ProductPage: React.FC = () => {
 
   const addProductToCart = () => {
     if (!product || !selectedVariant || !selectedVariant.available) return;
-    const currentCurrency = cartItems[0]?.currency || 'INR';
+    const currentCurrency = cartItems[0]?.currency || 'GBP';
     if (cartItems.length > 0 && currentCurrency !== 'GBP') {
       toast.error('Your basket contains items priced in a different currency. Clear it before adding Skin of Korea products.');
       navigate('/cart');

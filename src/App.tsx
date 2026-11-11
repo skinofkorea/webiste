@@ -36,6 +36,10 @@ const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
 const MyOrders = lazy(() => import('./pages/MyOrders'));
 const OrderDetails = lazy(() => import('./pages/OrderDetails'));
 const NotFoundPage = lazy(() => import('./pages/NotFound'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
+const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy'));
+const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 
 const App: React.FC = () => {
     return (
@@ -57,11 +61,18 @@ const App: React.FC = () => {
                                 <Route path="category/:categorySlug" element={<ProductsPage />} />
                                 <Route path="product/:productId" element={<ProductPage />} />
                                 <Route path="search" element={<ProductsPage />} />
+                                <Route path="shipping-policy" element={<ShippingPolicy />} />
+                                <Route path="pages/shipping-policy" element={<ShippingPolicy />} />
+                                <Route path="refund-policy" element={<RefundPolicy />} />
+                                <Route path="pages/refund-policy" element={<RefundPolicy />} />
+                                <Route path="pages/return-policy" element={<RefundPolicy />} />
+                                <Route path="terms" element={<TermsAndConditions />} />
+                                <Route path="pages/terms" element={<TermsAndConditions />} />
+                                <Route path="pages/terms-and-conditions" element={<TermsAndConditions />} />
+                                <Route path="privacy" element={<PrivacyPolicy />} />
+                                <Route path="pages/privacy" element={<PrivacyPolicy />} />
+                                <Route path="pages/privacy-policy" element={<PrivacyPolicy />} />
                                 <Route path="pages/:pageHandle" element={<ContentPage />} />
-                                <Route path="shipping-policy" element={<Navigate to="/pages/shipping-policy" replace />} />
-                                <Route path="refund-policy" element={<Navigate to="/pages/return-policy" replace />} />
-                                <Route path="terms" element={<a className="block p-10 text-center text-neutral-900 underline" href="/pages/terms">Terms and Conditions</a>} />
-                                <Route path="privacy" element={<a className="block p-10 text-center text-neutral-900 underline" href="/pages/privacy-policy">Privacy Policy</a>} />
                                 <Route path="cart" element={<CartPage />} />
                                 <Route path="my-orders" element={<MyOrders />} />
                                 <Route path="/order/:id" element={<OrderDetails />} />

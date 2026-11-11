@@ -24,9 +24,9 @@ const Shipping: React.FC = () => {
     const supportedCountries = ['United Kingdom', 'Isle of Man', 'Jersey', 'Guernsey'];
     const hasSupportedSavedAddress = supportedCountries.includes(shippingInfo.country);
 
-    // Redirect if cart is empty
+    // Redirect if cart is empty or contains legacy INR currency
     useEffect(() => {
-        if (cartItems.length === 0 || cartItems.some((item) => (item.currency || 'INR') !== 'GBP')) {
+        if (cartItems.length === 0 || cartItems.some((item) => item.currency === 'INR')) {
             navigate('/cart');
         }
     }, [cartItems, navigate]);

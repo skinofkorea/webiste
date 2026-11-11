@@ -84,7 +84,7 @@ const MyOrders: React.FC = () => {
                                             {order.status}
                                         </span>
                                     </td>
-                                    <td className="p-4 font-semibold text-[#111111]">{formatStorePrice(order.total, order.currency || 'INR')}</td>
+                                    <td className="p-4 font-semibold text-[#111111]">{formatStorePrice(order.total, order.currency || 'GBP')}</td>
                                     <td className="p-4 text-right">
                                         <button
                                             className="bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-medium hover:bg-neutral-800 transition-colors"

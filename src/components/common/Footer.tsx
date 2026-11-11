@@ -53,8 +53,8 @@ const Footer: React.FC = () => (
         <nav aria-label="Customer care">
           <h2 className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#2b211c]/60">Customer care</h2>
           <ul className="mt-2.5 space-y-2">
-            <li><Link to="/pages/shipping-policy" className="transition hover:text-[#8b451f]">Shipping & delivery</Link></li>
-            <li><Link to="/pages/return-policy" className="transition hover:text-[#8b451f]">Returns policy</Link></li>
+            <li><Link to="/shipping-policy" className="transition hover:text-[#8b451f]">Shipping & delivery</Link></li>
+            <li><Link to="/refund-policy" className="transition hover:text-[#8b451f]">Returns policy</Link></li>
             <li><Link to="/my-orders" className="transition hover:text-[#8b451f]">Order history</Link></li>
             <li><Link to="/pages/contact" className="transition hover:text-[#8b451f]">Contact us</Link></li>
           </ul>
@@ -63,11 +63,11 @@ const Footer: React.FC = () => (
         <div>
           <h2 className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#2b211c]/60">Stay connected</h2>
           <div className="mt-2.5 flex flex-col gap-2">
-            <a href="mailto:hello@skinofkorea.co.uk" className="inline-flex items-center gap-2 transition hover:text-[#8b451f]">
-              <FaEnvelope aria-hidden="true" /> hello@skinofkorea.co.uk
+            <a href="mailto:support@skinofkorea.co.uk" className="inline-flex items-center gap-2 transition hover:text-[#8b451f]">
+              <FaEnvelope aria-hidden="true" /> support@skinofkorea.co.uk
             </a>
             <a href="tel:08000807037" className="inline-flex items-center gap-2 font-medium transition hover:text-[#8b451f]">
-              <FaPhone aria-hidden="true" size={12} /> Call us : 0800 0807037
+              <FaPhone aria-hidden="true" size={12} /> Call us: 0800 0807037
             </a>
           </div>
           <p className="mt-3 leading-5 text-[#2b211c]/60">100% Authentic Korean Skincare dispatched directly from the UK.</p>

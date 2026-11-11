@@ -21,7 +21,7 @@ const Cart: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { cartItems, subTotal, total, discount, shippingCharges, shippingInfo } = useSelector((state: RootState) => state.cart);
-  const hasLegacyCurrency = cartItems.some((item) => (item.currency || 'INR') !== 'GBP');
+  const hasLegacyCurrency = cartItems.some((item) => item.currency === 'INR');
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
@@ -77,7 +77,7 @@ const Cart: React.FC = () => {
   };
 
   const productPath = (productId: string) => `/product/${productId.split('__')[0]}`;
-  const cartCurrency = cartItems[0]?.currency || 'INR';
+  const cartCurrency = cartItems[0]?.currency || 'GBP';
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] py-6 sm:py-10 px-4">
@@ -128,8 +128,8 @@ const Cart: React.FC = () => {
                           <Link to={item.productId.startsWith('demo-') ? '/products' : productPath(item.productId)}>
                             <h3 className="font-semibold text-sm text-[#111111] truncate">{item.name}</h3>
                           </Link>
-                          <p className="text-xs text-neutral-500">{formatStorePrice(item.price, item.currency || 'INR')} per unit</p>
-                          <p className="text-xs font-semibold text-neutral-900 mt-0.5">Subtotal: {formatStorePrice(item.price * item.quantity, item.currency || 'INR')}</p>
+                          <p className="text-xs text-neutral-500">{formatStorePrice(item.price, item.currency || 'GBP')} per unit</p>
+                          <p className="text-xs font-semibold text-neutral-900 mt-0.5">Subtotal: {formatStorePrice(item.price * item.quantity, item.currency || 'GBP')}</p>
                         </div>
                         <button
                           onClick={() => handleRemove(item.productId)}
@@ -193,7 +193,7 @@ const Cart: React.FC = () => {
                               <span className="font-semibold text-sm text-[#111111] group-hover:underline">{item.name}</span>
                             </Link>
                           </td>
-                          <td className="p-4 text-sm font-medium text-neutral-600">{formatStorePrice(item.price, item.currency || 'INR')}</td>
+                          <td className="p-4 text-sm font-medium text-neutral-600">{formatStorePrice(item.price, item.currency || 'GBP')}</td>
                           <td className="p-4">
                             <div className="flex items-center space-x-2 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1 w-max">
                               <button
@@ -211,7 +211,7 @@ const Cart: React.FC = () => {
                               </button>
                             </div>
                           </td>
-                          <td className="p-4 text-sm font-semibold text-[#111111]">{formatStorePrice(item.price * item.quantity, item.currency || 'INR')}</td>
+                          <td className="p-4 text-sm font-semibold text-[#111111]">{formatStorePrice(item.price * item.quantity, item.currency || 'GBP')}</td>
                           <td className="p-4 text-right">
                             <button
                               onClick={() => handleRemove(item.productId)}

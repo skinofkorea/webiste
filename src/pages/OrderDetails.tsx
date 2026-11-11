@@ -40,7 +40,7 @@ const OrderDetails: React.FC = () => {
     }
 
     const { order } = data;
-    const currency = order.currency || 'INR';
+    const currency = order.currency || 'GBP';
     const formatPrice = (amount: number) => formatStorePrice(amount, currency);
 
     const getStatusBadge = (status: string) => {
