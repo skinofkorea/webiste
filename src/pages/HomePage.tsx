@@ -174,20 +174,21 @@ const HomePage: React.FC = () => {
       })
     ).length;
     const gifting = availableProducts.filter((product) =>
-      /gift|bundle|set|duo|routine|mask|cream|patch/i.test(
-        `${product.name} ${(product.tags || []).join(' ')}`
-      )
+      /\b(gift|bundle|set|kit|duo|trio|collection|sampler|discovery|box|pack of \d+|3step|multi balm|sleeping mask)\b/i.test(
+        `${product.name} ${product.category || ''} ${(product.tags || []).join(' ')}`
+      ) || product.category === 'Body & Wellness'
     ).length;
     const trending = availableProducts.filter(
       (product) =>
         product.featured ||
         (product.tags || []).some((tag) => /trend|popular|best.?seller|bestseller/i.test(tag))
     ).length;
+    const newArrivals = Math.min(availableProducts.length, 18);
     return {
       steals: steals > 0 ? steals : Math.min(availableProducts.length, 10),
       gifting: gifting > 0 ? gifting : Math.min(availableProducts.length, 10),
       trending: trending > 0 ? trending : Math.min(availableProducts.length, 12),
-      new: availableProducts.length,
+      new: newArrivals,
     };
   }, [products]);
   const getSalePrice = (product: StoreProduct) => {
@@ -218,9 +219,9 @@ const HomePage: React.FC = () => {
       }
       case 'gifting': {
         const gifts = availableProducts.filter((product) =>
-          /gift|bundle|set|duo|routine|mask|cream|patch/i.test(
-            `${product.name} ${(product.tags || []).join(' ')}`
-          )
+          /\b(gift|bundle|set|kit|duo|trio|collection|sampler|discovery|box|pack of \d+|3step|multi balm|sleeping mask)\b/i.test(
+            `${product.name} ${product.category || ''} ${(product.tags || []).join(' ')}`
+          ) || product.category === 'Body & Wellness'
         );
         return gifts.length > 0 ? gifts : availableProducts.slice(0, 10);
       }
@@ -233,9 +234,9 @@ const HomePage: React.FC = () => {
         return trending.length > 0 ? trending : availableProducts.slice(0, 12);
       }
       case 'new':
-        return [...availableProducts].sort(
-          (first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
-        );
+        return [...availableProducts]
+          .sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime())
+          .slice(0, 18);
       default:
         return availableProducts.slice(0, 12);
     }
