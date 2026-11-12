@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaStar, FaTruck, FaShieldAlt } from 'react-icons/fa';
+import { FaStar, FaStarHalfAlt, FaTruck, FaShieldAlt } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -23,6 +23,7 @@ const ProductPage: React.FC = () => {
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [justAdded, setJustAdded] = useState(false);
 
   useEffect(() => {
     if (!product) return;
@@ -75,7 +76,9 @@ const ProductPage: React.FC = () => {
       stock: 9999,
       photo: selectedVariant.featured_image || selectedImage || product.photo,
     }));
-    toast.success('Added to your bag');
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1200);
+    toast.success('Added to your bag', { autoClose: 1200, hideProgressBar: true });
   };
 
   if (isLoading) {
@@ -140,8 +143,10 @@ const ProductPage: React.FC = () => {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">{product.vendor}</p>
           <h1 className="mt-2 text-2xl font-semibold leading-tight text-neutral-950 sm:text-3xl">{product.name}</h1>
           <div className="mt-3 flex items-center gap-2 text-sm text-neutral-600">
-            <span className="flex text-neutral-800" aria-label="5 out of 5 stars"><FaStar /><FaStar /><FaStar /><FaStar /><FaStar /></span>
-            <span>Authentic Korean skincare</span>
+            <span className="flex text-amber-500 gap-0.5 text-xs" aria-label="4.5 out of 5 stars">
+              <FaStar /><FaStar /><FaStar /><FaStar /><FaStarHalfAlt />
+            </span>
+            <span className="text-xs font-semibold text-neutral-700">4.5</span>
           </div>
           <div className="mt-5 flex items-baseline gap-3">
             <span className="text-2xl font-semibold text-neutral-950">{formatStorePrice(price)}</span>
@@ -169,8 +174,8 @@ const ProductPage: React.FC = () => {
               <span className="w-8 text-center text-sm">{quantity}</span>
               <button type="button" aria-label="Increase quantity" onClick={() => setQuantity((value) => value + 1)} className="h-12 w-11 text-lg">+</button>
             </div>
-            <button type="button" onClick={addProductToCart} disabled={!selectedVariant?.available} className="min-h-12 flex-1 rounded-full bg-neutral-950 px-6 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300">
-              {selectedVariant?.available ? 'Add to bag' : 'Sold out'}
+            <button type="button" onClick={addProductToCart} disabled={!selectedVariant?.available} className={`min-h-12 flex-1 rounded-full px-6 text-sm font-semibold transition disabled:cursor-not-allowed disabled:bg-neutral-300 ${justAdded ? 'bg-emerald-700 text-white' : 'bg-neutral-950 hover:bg-neutral-800 text-white'}`}>
+              {justAdded ? '✓ Added to bag' : (selectedVariant?.available ? 'Add to bag' : 'Sold out')}
             </button>
           </div>
           <div className="mt-6 grid gap-3 border-y border-neutral-200 py-4 text-sm text-neutral-600 sm:grid-cols-2">

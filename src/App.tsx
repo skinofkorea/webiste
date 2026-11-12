@@ -45,7 +45,7 @@ const App: React.FC = () => {
     return (
         <>
             <GlobalLoadingOverlay />
-            <ToastContainer position="bottom-center" />
+            <ToastContainer position="bottom-center" autoClose={1500} hideProgressBar={true} closeOnClick />
             <div className="flex flex-col min-h-screen">
                 <Router>
                     <Suspense fallback={<Loader />}>
