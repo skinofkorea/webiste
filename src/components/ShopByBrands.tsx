@@ -38,7 +38,7 @@ export const ShopByBrands: React.FC<ShopByBrandsProps> = ({
         }
       }
     });
-    return Array.from(brandMap.values());
+    return Array.from(brandMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
 
   if (!brands.length) return null;

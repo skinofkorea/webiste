@@ -143,7 +143,7 @@ const HomePage: React.FC = () => {
         }
       }
     });
-    return Array.from(brandMap.values());
+    return Array.from(brandMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
 
   const marqueeBrands = useMemo(() => {

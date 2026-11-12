@@ -49,8 +49,11 @@ const ProductsPage: React.FC = () => {
       if (collection) {
         if (selectedCollection) {
           matchesCollection = getCollectionProducts([product], selectedCollection).length > 0;
-        } else if (normalizeStoreHandle(collection) === 'bestsellers') {
-          matchesCollection = Boolean(product.featured || (product.stock > 0 && product.price > 0));
+        } else if (normalizeStoreHandle(collection) === 'bestsellers' || normalizeStoreHandle(collection) === 'best-sellers') {
+          matchesCollection = Boolean(
+            product.featured ||
+            (product.tags || []).some((t) => /best.?seller|bestseller|popular|trending/i.test(t))
+          );
         } else {
           const normColl = normalizeStoreHandle(collection);
           const normVendor = normalizeStoreHandle(product.vendor);

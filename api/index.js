@@ -285,6 +285,13 @@ const STORE_PAGES = [
     body_html: '<p>Korean Beauty (K-Beauty) focuses on long-term skin health, gentle hydration, and barrier protection rather than harsh quick fixes. The goal is radiant, plump, healthy skin known as "Glass Skin" (Yuri Pibu).</p><p><strong>1. Double Cleansing:</strong> Start with an oil cleanser to dissolve makeup and SPF, followed by a gentle foam cleanser.<br /><strong>2. Hydrating Toner & Essence:</strong> Restores skin pH and hydrates deeply with fermented extracts.<br /><strong>3. Targeted Serums:</strong> High-efficacy actives like Centella Asiatica (Cica), Niacinamide, and Vitamin C.<br /><strong>4. Barrier Moisturisers:</strong> Reinforces the moisture barrier with ceramides and squalane.<br /><strong>5. SPF 50+ Sunscreens:</strong> Lightweight, invisible protection that shields against UV damage.</p>',
     published_at: '2026-01-01T00:00:00Z',
   },
+  {
+    id: 7,
+    title: 'Brands & Collections',
+    handle: 'collections',
+    body_html: '<p>Explore all authentic Korean skincare brands and collections at Skin of Korea.</p>',
+    published_at: '2026-01-01T00:00:00Z',
+  },
 ];
 
 async function getStorefrontData() {

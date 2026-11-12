@@ -58,7 +58,7 @@ export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({ isOpen
         }
       }
     });
-    return Array.from(brandMap.values());
+    return Array.from(brandMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
   // Screenshot 1 has categories open by default
   const [categoriesOpen, setCategoriesOpen] = useState(true);
