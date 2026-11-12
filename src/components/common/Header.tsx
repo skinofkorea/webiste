@@ -75,8 +75,8 @@ const Header: React.FC = () => {
             </button>
           </div>
 
-          <Link to="/" aria-label="Skin of Korea home" className="absolute left-1/2 -translate-x-1/2">
-            <img src={logo} alt="Skin of Korea" className="h-12 w-auto object-contain sm:h-16" />
+          <Link to="/" aria-label="Skin of Korea home" className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+            <img src={logo} alt="Skin of Korea" className="h-8 sm:h-10 md:h-12 w-auto max-w-[180px] xs:max-w-[230px] sm:max-w-[300px] object-contain" />
           </Link>
 
           <div className="flex items-center gap-1 sm:gap-4">

@@ -68,7 +68,7 @@ const AdminLogin: React.FC = () => {
           <img 
             src="/images/skin-of-korea-logo.png" 
             alt="Skin of Korea" 
-            className="h-10 w-auto mx-auto mb-3 object-contain" 
+            className="h-9 sm:h-10 w-auto max-w-[220px] mx-auto mb-3 object-contain" 
           />
           <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Admin Console</h1>
           <p className="text-xs text-neutral-500 mt-1">Skin of Korea Management Console</p>

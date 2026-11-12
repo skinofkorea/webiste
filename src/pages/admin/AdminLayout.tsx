@@ -62,7 +62,7 @@ const AdminLoginGate: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
           <img 
             src="/images/skin-of-korea-logo.png" 
             alt="Skin of Korea" 
-            className="h-10 w-auto mb-3 object-contain" 
+            className="h-9 w-auto max-w-[200px] mb-3 object-contain" 
           />
           <h1 className="text-lg font-bold text-neutral-900 tracking-tight">Admin Access</h1>
           <p className="text-xs text-neutral-500 mt-1 text-center">

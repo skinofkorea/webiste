@@ -22,7 +22,7 @@ const Footer: React.FC = () => (
         <img
           src="/images/skin-of-korea-logo.png"
           alt="Skin of Korea"
-          className="mx-auto h-20 sm:h-28 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+          className="mx-auto h-10 sm:h-14 w-auto max-w-[280px] sm:max-w-[360px] object-contain transition-transform duration-300 group-hover:scale-105"
         />
         <span className="sr-only">Skin of Korea</span>
       </Link>

@@ -264,7 +264,7 @@ const CheckoutForm: React.FC = () => {
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xs border border-neutral-200 max-w-xl w-full">
         {/* Merchant Branding Header */}
         <div className="flex flex-col items-center mb-6 text-center border-b border-neutral-200 pb-5">
-          <img src="/images/skin-of-korea-logo.png" alt="Skin of Korea" className="h-14 w-auto object-contain mb-2" />
+          <img src="/images/skin-of-korea-logo.png" alt="Skin of Korea" className="h-9 sm:h-11 w-auto max-w-[260px] object-contain mb-2" />
           <h1 className="text-2xl font-sans font-semibold tracking-tight text-neutral-950">Skin of Korea</h1>
           <p className="text-xs text-neutral-500 mt-1 flex items-center justify-center gap-1.5">
             <FaLock className="text-neutral-400 text-[10px]" /> Secure Revolut Checkout (GBP)
