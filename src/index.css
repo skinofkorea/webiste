@@ -204,6 +204,7 @@ h6,
   width: 100%;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  touch-action: pan-y;
 }
 
 .brand-marquee-track {
@@ -400,7 +401,7 @@ h6,
 }
 
 .brand-marquee-track-left {
-  animation: marquee 28s linear infinite;
+  animation: marquee var(--brand-marquee-duration, 75s) linear infinite;
 }
 
 @keyframes brandMarqueeRight {
@@ -414,11 +415,12 @@ h6,
 }
 
 .brand-marquee-track-right {
-  animation: brandMarqueeRight 38s linear infinite;
+  animation: brandMarqueeRight 75s linear infinite;
 }
 
 .brand-marquee:hover .brand-marquee-track,
-.brand-marquee:focus-within .brand-marquee-track {
+.brand-marquee:focus-within .brand-marquee-track,
+.brand-marquee:active .brand-marquee-track {
   animation-play-state: paused;
 }
 

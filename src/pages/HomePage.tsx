@@ -145,6 +145,15 @@ const HomePage: React.FC = () => {
     });
     return Array.from(brandMap.values());
   }, [products]);
+
+  const marqueeBrands = useMemo(() => {
+    if (!brands.length) return [];
+    let list = [...brands];
+    while (list.length < 8) {
+      list = [...list, ...brands];
+    }
+    return list;
+  }, [brands]);
   const featuredProducts = useMemo(() => {
     const tagged = products.filter((product) => product.featured && product.stock > 0);
     return (tagged.length > 0 ? tagged : products.filter((product) => product.stock > 0)).slice(0, 8);
@@ -491,10 +500,15 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="brand-marquee" aria-label="Brands moving right to left">
-            <div className="brand-marquee-track brand-marquee-track-left">
+            <div
+              className="brand-marquee-track brand-marquee-track-left"
+              style={{
+                animationDuration: `${Math.max(65, marqueeBrands.length * 5.5)}s`,
+              }}
+            >
               {[false, true].map((isDuplicate) => (
                 <div key={String(isDuplicate)} className="brand-marquee-group" aria-hidden={isDuplicate || undefined}>
-                  {[...brands, ...brands].map((brand, idx) => (
+                  {marqueeBrands.map((brand, idx) => (
                     <Link
                       key={`${brand.handle}-${idx}-${isDuplicate ? 'dup' : 'orig'}`}
                       to={`/products?brand=${encodeURIComponent(brand.vendor)}`}
