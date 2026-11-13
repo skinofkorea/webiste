@@ -85,7 +85,7 @@ const HomePage: React.FC = () => {
   const [activeDiscoveryHeadline, setActiveDiscoveryHeadline] = useState(0);
   const discoveryCarousel = useRef<HTMLDivElement>(null);
   const heroSlides = [
-    { src: '/images/home-hero/l1.webp', alt: 'Skin of Korea - Authentic Korean Skincare' },
+    { src: '/images/home-hero/l1.webp', alt: 'Skin of Korea - Authentic Korean Skincare Glow' },
     { src: '/images/home-hero/l2.webp', alt: 'Skin of Korea - Black Friday Korean Skincare Glow Sale' },
     { src: '/images/home-hero/l3.webp', alt: 'Skin of Korea - Medicube Pink Glow Skincare Campaign' },
   ];
