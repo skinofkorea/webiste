@@ -86,8 +86,8 @@ const HomePage: React.FC = () => {
   const discoveryCarousel = useRef<HTMLDivElement>(null);
   const heroSlides = [
     { src: '/images/home-hero/l1.webp', alt: 'Skin of Korea - Authentic Korean Skincare' },
-    { src: '/images/home-hero/l2.webp', alt: 'Skin of Korea - Glow Differently Every Day' },
-    { src: '/images/home-hero/l3.webp', alt: 'Skin of Korea - Curated Glass Skin Essentials' },
+    { src: '/images/home-hero/l2.webp', alt: 'Skin of Korea - Black Friday Korean Skincare Glow Sale' },
+    { src: '/images/home-hero/l3.webp', alt: 'Skin of Korea - Medicube Pink Glow Skincare Campaign' },
   ];
   const products = useMemo(() => storefront?.products ?? [], [storefront]);
   const categories = useMemo(() => {
