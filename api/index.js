@@ -875,11 +875,19 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Serve cached GET response if less than 30 seconds old (never cache admin routes)
-  if (req.method === 'GET' && !url.includes('/admin/') && global.fastApiCache.has(url)) {
-    const cached = global.fastApiCache.get(url);
-    if (Date.now() - cached.timestamp < 30000) {
-      return res.status(200).json(cached.body);
+  // Serve cached GET response (Vercel Edge CDN cache + in-memory cache)
+  if (req.method === 'GET') {
+    if (!url.includes('/admin/')) {
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    } else {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    }
+
+    if (!url.includes('/admin/') && global.fastApiCache.has(url)) {
+      const cached = global.fastApiCache.get(url);
+      if (Date.now() - cached.timestamp < 30000) {
+        return res.status(200).json(cached.body);
+      }
     }
   }
 
