@@ -1104,23 +1104,46 @@ export default async function handler(req, res) {
       for (const item of orderItems) {
         const productId = String(item?.productId || '');
         const separatorIndex = productId.lastIndexOf('__');
-        const handle = separatorIndex < 0 ? '' : productId.slice(0, separatorIndex);
+        const handleOrId = separatorIndex < 0 ? productId : productId.slice(0, separatorIndex);
         const variantId = separatorIndex < 0 ? '' : productId.slice(separatorIndex + 2);
         const quantity = Number(item?.quantity);
-        const product = products.find((entry) => entry.handle === handle);
-        const variant = product?.variants?.find((entry) => String(entry.id) === variantId);
 
-        if (!product || !variant || !variant.available || item.currency !== 'GBP') {
+        // Find product by UUID (id) or handle
+        const product = products.find((entry) => 
+          String(entry.id) === handleOrId || 
+          entry.handle === handleOrId ||
+          String(entry.id) === productId ||
+          entry.handle === productId
+        );
+
+        if (!product || item.currency !== 'GBP') {
           return res.status(400).json({ success: false, message: `Product "${item?.name || 'item'}" is no longer available.` });
+        }
+
+        // Match variant or default to first variant / product base price
+        let variant = null;
+        if (variantId && Array.isArray(product.variants) && product.variants.length > 0) {
+          variant = product.variants.find((entry) => String(entry.id) === variantId);
+        }
+        if (!variant) {
+          if (Array.isArray(product.variants) && product.variants.length > 0) {
+            variant = product.variants[0];
+          } else {
+            variant = { id: product.id, price: product.price, available: true };
+          }
+        }
+
+        if (variant.available === false) {
+          return res.status(400).json({ success: false, message: `Product "${item?.name || 'item'}" is out of stock.` });
         }
 
         if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 99) {
           return res.status(400).json({ success: false, message: 'Product quantities must be between 1 and 99.' });
         }
 
-        const variantPricePence = toPence(variant.price);
+        const variantPricePence = toPence(variant.price ?? product.price);
         if (!Number.isSafeInteger(variantPricePence) || toPence(item.price) !== variantPricePence) {
-          return res.status(409).json({ success: false, message: `The price for "${product.title}" has changed. Please review your basket.` });
+          return res.status(409).json({ success: false, message: `The price for "${product.title || product.name || 'product'}" has changed. Please review your basket.` });
         }
 
         calculatedSubtotalPence += variantPricePence * quantity;
@@ -1282,6 +1305,132 @@ export default async function handler(req, res) {
         });
     }
 
+    // ─── ORDERS: Complete Revolut Order (Handle Redirects & Post-Payment Reconcile) ───
+    if (url.includes('/api/v1/orders/complete-revolut') && req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+      const { revolutOrderId, orderData } = body;
+
+      if (!revolutOrderId) {
+        return res.status(400).json({ success: false, message: 'Revolut Order ID is required.' });
+      }
+
+      // 1. Check if order already exists in Supabase
+      const { data: allOrders, error: lookupErr } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!lookupErr && Array.isArray(allOrders)) {
+        const existing = allOrders.find(ord => {
+          const s = typeof ord.shipping_info === 'string' ? JSON.parse(ord.shipping_info) : (ord.shipping_info || {});
+          return s.revolutOrderId === revolutOrderId || s.orderId === revolutOrderId;
+        });
+
+        if (existing) {
+          return res.status(200).json({
+            success: true,
+            alreadyExisted: true,
+            message: 'Order already recorded.',
+            order: mapOrder(existing),
+          });
+        }
+      }
+
+      // 2. Verify with Revolut
+      const paymentCheck = await verifyRevolutPayment(revolutOrderId);
+      if (!paymentCheck.verified) {
+        return res.status(400).json({
+          success: false,
+          message: paymentCheck.error || 'Payment not verified by Revolut.',
+        });
+      }
+
+      // 3. Resolve order data from payload or from Revolut API
+      let shippingInfo = orderData?.shippingInfo || {};
+      let orderItems = Array.isArray(orderData?.orderItems) ? orderData.orderItems : [];
+      let subTotal = Number(orderData?.subTotal) || 0;
+      let shippingCharges = Number(orderData?.shippingCharges) || 0;
+      let discount = Number(orderData?.discount) || 0;
+      let total = Number(orderData?.total) || (paymentCheck.amount ? paymentCheck.amount / 100 : 0);
+      let userId = orderData?.userId || (shippingInfo?.phone ? `guest_${shippingInfo.phone}` : `guest_${Date.now()}`);
+
+      // If items or shipping info missing (e.g. from redirect), pull from Revolut order details
+      if (!shippingInfo.address || orderItems.length === 0) {
+        try {
+          const revRes = await fetch(`${REVOLUT_CONFIG.BASE_URL}/orders/${revolutOrderId}`, {
+            headers: {
+              'Authorization': `Bearer ${REVOLUT_CONFIG.SECRET_KEY}`,
+              'Revolut-Api-Version': REVOLUT_CONFIG.API_VERSION,
+            },
+          });
+          const revOrder = await revRes.json();
+          const meta = revOrder.metadata || {};
+          const payment0 = revOrder.payments?.[0];
+          const billing = payment0?.billing_address || {};
+          const payer = payment0?.payer || {};
+
+          shippingInfo = {
+            name: meta.customer_name || payer.name || 'Customer',
+            email: meta.customer_email || payer.email || '',
+            phone: meta.phone || payer.phone || '',
+            address: billing.street_line_1 || shippingInfo.address || 'Address provided at checkout',
+            city: meta.city || billing.city || shippingInfo.city || '',
+            state: billing.region || shippingInfo.state || '',
+            country: 'United Kingdom',
+            pinCode: billing.postcode || shippingInfo.pinCode || '',
+            paymentMethod: payment0?.payment_method?.type || 'revolut',
+            revolutOrderId,
+          };
+
+          if (total <= 0 && revOrder.amount) {
+            total = revOrder.amount / 100;
+          }
+          if (subTotal <= 0) {
+            shippingCharges = total >= 35 ? 0 : 3.75;
+            subTotal = Math.max(0, total - shippingCharges);
+          }
+        } catch (fetchErr) {
+          console.error('Error fetching Revolut details in complete-revolut:', fetchErr);
+        }
+      }
+
+      shippingInfo.revolutOrderId = revolutOrderId;
+
+      const shortId = 'SOK-' + Date.now().toString().slice(-6);
+      const { data: inserted, error: insertErr } = await supabase
+        .from('orders')
+        .insert({
+          short_id: shortId,
+          user_uid: userId,
+          shipping_info: shippingInfo,
+          order_items: orderItems,
+          subtotal: subTotal,
+          tax: 0,
+          shipping_charges: shippingCharges,
+          discount: discount,
+          total: total,
+          currency: 'GBP',
+          status: 'Processing',
+        })
+        .select()
+        .single();
+
+      if (insertErr) {
+        console.error('Error inserting completed Revolut order:', insertErr);
+        return res.status(500).json({ success: false, message: 'Database insert failed. Contact support.' });
+      }
+
+      handleOrderSuccess(inserted.id).catch(e => console.error('Order email error:', e));
+
+      return res.status(201).json({
+        success: true,
+        alreadyExisted: false,
+        message: 'Order placed successfully',
+        order: mapOrder(inserted),
+      });
+    }
+
     // ─── ORDERS: Get User / All Orders ───
     if (url.includes('/api/v1/orders/my') || url.includes('/api/v1/orders/all')) {
       // ✅ ADMIN PROTECTION: /api/v1/orders/all requires authentication
@@ -1301,8 +1450,21 @@ export default async function handler(req, res) {
       if (url.includes('/api/v1/orders/my')) {
         const urlObj = new URL(url, 'http://localhost');
         const userId = urlObj.searchParams.get('userId');
-        if (userId) {
-          query = query.eq('user_uid', userId);
+        const email = urlObj.searchParams.get('email');
+        const phone = urlObj.searchParams.get('phone');
+
+        if (email) {
+          query = query.filter('shipping_info->>email', 'ilike', email.trim());
+        } else if (phone) {
+          const rawPhone = phone.trim().replace(/\s+/g, '');
+          query = query.or(`user_uid.eq.guest_${rawPhone},shipping_info->>phone.ilike.%${rawPhone}%`);
+        } else if (userId) {
+          const cleanPhone = userId.startsWith('guest_') ? userId.replace('guest_', '') : '';
+          if (cleanPhone) {
+            query = query.or(`user_uid.eq.${userId},shipping_info->>phone.ilike.%${cleanPhone}%`);
+          } else {
+            query = query.eq('user_uid', userId);
+          }
         }
       }
 

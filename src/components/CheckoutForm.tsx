@@ -132,6 +132,30 @@ const CheckoutForm: React.FC = () => {
             checkoutUrl: data.checkout_url,
             mode: (data.mode === 'sandbox' ? 'sandbox' : 'prod'),
           });
+
+          // Pre-save checkout details in localStorage so if the browser redirects (3DS, Apple Pay, Revolut Pay),
+          // the order can be completed immediately upon return
+          const guestUserId = 'guest_' + (shippingPhone || Date.now());
+          try {
+            localStorage.setItem('pendingCheckout', JSON.stringify({
+              shippingCharges: effectiveShipping,
+              shippingInfo: {
+                ...shippingInfo,
+                revolutOrderId: data.id,
+              },
+              tax: 0,
+              discount: effectiveDiscount,
+              total: effectiveTotal,
+              currency: 'GBP',
+              subTotal: effectiveSubTotal,
+              orderItems: cartItems,
+              userId: guestUserId,
+            }));
+            localStorage.setItem('pendingRevolutOrderId', data.id);
+            localStorage.setItem('guestUserId', guestUserId);
+          } catch (e) {
+            console.error('Failed to pre-save pending checkout', e);
+          }
         } else {
           setErrorMessage(data.message || 'Unable to connect to the Revolut payment gateway.');
         }
@@ -238,19 +262,46 @@ const CheckoutForm: React.FC = () => {
     };
 
     try {
-      const orderRes = await newOrder(orderData).unwrap();
-      const createdOrderId = orderRes?.order?.id || orderRes?.order?._id || `ord_${Date.now()}`;
+      const res = await fetch('/api/v1/orders/complete-revolut', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revolutOrderId, orderData }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Payment confirmation failed');
+      }
 
-      localStorage.setItem('guestUserId', guestUserId);
+      const createdOrderId = data?.order?.id || data?.order?._id || `ord_${Date.now()}`;
+      try {
+        localStorage.setItem('guestUserId', guestUserId);
+        localStorage.removeItem('pendingCheckout');
+        localStorage.removeItem('pendingRevolutOrderId');
+      } catch {}
+
       dispatch(resetCart());
-
-      window.location.href = `/my-orders?payment=success&orderId=${createdOrderId}`;
+      window.location.href = `/order/${createdOrderId}?payment=success`;
     } catch (err: unknown) {
-      console.error('Order save error:', err);
-      const apiMsg = (err as any)?.data?.message || 'Order creation failed. Please contact support@skinofkorea.co.uk.';
-      notify(apiMsg, 'error');
-      setErrorMessage(apiMsg);
-      setIsProcessing(false);
+      console.warn('complete-revolut fallback to newOrder:', err);
+      try {
+        const orderRes = await newOrder(orderData).unwrap();
+        const createdOrderId = orderRes?.order?.id || orderRes?.order?._id || `ord_${Date.now()}`;
+
+        try {
+          localStorage.setItem('guestUserId', guestUserId);
+          localStorage.removeItem('pendingCheckout');
+          localStorage.removeItem('pendingRevolutOrderId');
+        } catch {}
+        dispatch(resetCart());
+
+        window.location.href = `/order/${createdOrderId}?payment=success`;
+      } catch (fallbackErr: any) {
+        console.error('Order save error:', fallbackErr);
+        const apiMsg = fallbackErr?.data?.message || (err as any)?.message || 'Order creation failed. Please contact support@skinofkorea.co.uk.';
+        notify(apiMsg, 'error');
+        setErrorMessage(apiMsg);
+        setIsProcessing(false);
+      }
     }
   };
 
