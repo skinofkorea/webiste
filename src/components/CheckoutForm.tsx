@@ -1,15 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import RevolutCheckout from '@revolut/checkout';
 import BackButton from '../components/common/BackBtn';
 import { useNewOrderMutation } from '../redux/api/order.api';
-import { resetCart } from '../redux/reducers/cart.reducer';
+import { calculatePrice, resetCart, computeCartTotals } from '../redux/reducers/cart.reducer';
 import { RootState } from '../redux/store';
 import { NewOrderRequest } from '../types/api-types';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { formatStorePrice } from '../data/storefront';
-import { FaShieldHalved, FaLock, FaCreditCard, FaArrowUpRightFromSquare } from 'react-icons/fa6';
+import { FaShieldHalved, FaLock, FaCreditCard, FaArrowUpRightFromSquare, FaRotateRight, FaBagShopping } from 'react-icons/fa6';
 
 interface RevolutOrderInfo {
   id: string;
@@ -27,16 +28,23 @@ const CheckoutForm: React.FC = () => {
   });
 
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const {
     shippingInfo,
     cartItems,
     subTotal,
-    tax,
     discount,
     shippingCharges,
     total,
   } = useSelector((state: RootState) => state.cart);
+
+  // Synchronously compute fallback totals from cartItems so totals are never 0 on mount or page refresh
+  const fallbackTotals = useMemo(() => computeCartTotals(cartItems, discount), [cartItems, discount]);
+  const effectiveSubTotal = subTotal > 0 ? subTotal : fallbackTotals.subTotal;
+  const effectiveShipping = shippingCharges > 0 || effectiveSubTotal >= 35 ? shippingCharges : fallbackTotals.shippingCharges;
+  const effectiveDiscount = discount > 0 ? discount : fallbackTotals.discount;
+  const effectiveTotal = total > 0 ? total : fallbackTotals.total;
 
   const [newOrder] = useNewOrderMutation();
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -44,10 +52,30 @@ const CheckoutForm: React.FC = () => {
   const [cardReady, setCardReady] = useState<boolean>(false);
   const [orderInfo, setOrderInfo] = useState<RevolutOrderInfo | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState<number>(0);
 
   const cardContainerRef = useRef<HTMLDivElement>(null);
   const cardFieldRef = useRef<any>(null);
   const revolutInstanceRef = useRef<any>(null);
+
+  // Synchronize Redux cart totals on mount
+  useEffect(() => {
+    dispatch(calculatePrice());
+  }, [dispatch]);
+
+  // Guard against empty cart or missing address: redirect immediately to prevent stuck checkout
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      notify('Your basket is empty. Please add items before checkout.', 'info');
+      navigate('/cart', { replace: true });
+      return;
+    }
+    if (!shippingInfo?.address || !shippingInfo?.pinCode) {
+      notify('Please enter your delivery address first.', 'info');
+      navigate('/shipping', { replace: true });
+      return;
+    }
+  }, [cartItems.length, shippingInfo?.address, shippingInfo?.pinCode, navigate]);
 
   // Stable primitives for dependency tracking
   const shippingEmail = shippingInfo?.email || '';
@@ -56,7 +84,16 @@ const CheckoutForm: React.FC = () => {
 
   // 1. Fetch Revolut Order Token from Backend
   useEffect(() => {
-    if (cartItems.length === 0 || total <= 0) return;
+    if (cartItems.length === 0) {
+      setInitializing(false);
+      return;
+    }
+
+    if (effectiveTotal <= 0) {
+      setInitializing(false);
+      setErrorMessage('Your bag total is £0.00. Please add items to your basket.');
+      return;
+    }
 
     let isMounted = true;
     const createOrder = async () => {
@@ -64,11 +101,15 @@ const CheckoutForm: React.FC = () => {
         setInitializing(true);
         setErrorMessage(null);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         const res = await fetch('/api/v1/payments/revolut/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
-            amount: Math.round(total * 100),
+            amount: Math.round(effectiveTotal * 100),
             currency: 'GBP',
             customer_email: shippingEmail,
             customer_name: shippingName || 'Customer',
@@ -80,6 +121,7 @@ const CheckoutForm: React.FC = () => {
           }),
         });
 
+        clearTimeout(timeoutId);
         const data = await res.json();
         if (!isMounted) return;
 
@@ -95,7 +137,10 @@ const CheckoutForm: React.FC = () => {
         }
       } catch (err: unknown) {
         console.error('Revolut initialization error:', err);
-        if (isMounted) setErrorMessage('Failed to connect to the Revolut payment service. Please try again.');
+        if (isMounted) {
+          const isAbort = (err as any)?.name === 'AbortError';
+          setErrorMessage(isAbort ? 'Connecting to Revolut timed out. Please tap retry.' : 'Failed to connect to the Revolut payment service. Please try again.');
+        }
       } finally {
         if (isMounted) setInitializing(false);
       }
@@ -106,7 +151,7 @@ const CheckoutForm: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [total, shippingEmail, shippingName, shippingPhone, cartItems.length]);
+  }, [effectiveTotal, shippingEmail, shippingName, shippingPhone, cartItems.length, retryTrigger]);
 
   // 2. Mount Revolut Card Field once orderInfo is loaded and container is present in the DOM
   useEffect(() => {
@@ -176,18 +221,18 @@ const CheckoutForm: React.FC = () => {
     const guestUserId = 'guest_' + (shippingInfo.phone || Date.now());
 
     const orderData: NewOrderRequest = {
-      shippingCharges,
+      shippingCharges: effectiveShipping,
       shippingInfo: {
         ...shippingInfo,
         revolutOrderId,
         paymentMethod,
         clientOrigin: window.location.origin,
       },
-      tax,
-      discount,
-      total,
+      tax: 0,
+      discount: effectiveDiscount,
+      total: effectiveTotal,
       currency: 'GBP',
-      subTotal,
+      subTotal: effectiveSubTotal,
       orderItems: cartItems,
       userId: guestUserId,
     };
@@ -274,30 +319,32 @@ const CheckoutForm: React.FC = () => {
         {/* Customer Info Summary */}
         <div className="bg-neutral-50 p-4 rounded-xl mb-6 border border-neutral-200 text-xs sm:text-sm space-y-1">
           <p className="font-semibold text-neutral-800 mb-2 uppercase tracking-wider text-xs">Delivery Address:</p>
-          <p className="font-medium text-neutral-900">{shippingInfo.name}</p>
-          <p className="text-neutral-600">{shippingInfo.address}, {shippingInfo.city}{shippingInfo.state ? `, ${shippingInfo.state}` : ''} {shippingInfo.pinCode}, {shippingInfo.country}</p>
-          <p className="text-neutral-600">Phone: {shippingInfo.phone}</p>
+          <p className="font-medium text-neutral-900">{shippingInfo?.name || 'Customer'}</p>
+          <p className="text-neutral-600">
+            {shippingInfo?.address}, {shippingInfo?.city}{shippingInfo?.state ? `, ${shippingInfo?.state}` : ''} {shippingInfo?.pinCode}, {shippingInfo?.country}
+          </p>
+          <p className="text-neutral-600">Phone: {shippingInfo?.phone || 'Not provided'}</p>
         </div>
 
         {/* Order Price Breakdown */}
         <div className="space-y-2 mb-6 border-b border-neutral-200 pb-4 text-xs sm:text-sm">
           <div className="flex justify-between text-neutral-600">
             <span>Subtotal</span>
-            <span>{formatStorePrice(subTotal, 'GBP')}</span>
+            <span>{formatStorePrice(effectiveSubTotal, 'GBP')}</span>
           </div>
-          {discount > 0 && (
+          {effectiveDiscount > 0 && (
             <div className="flex justify-between text-emerald-600 font-semibold">
               <span>Discount</span>
-              <span>-{formatStorePrice(discount, 'GBP')}</span>
+              <span>-{formatStorePrice(effectiveDiscount, 'GBP')}</span>
             </div>
           )}
           <div className="flex justify-between text-neutral-600">
             <span>Delivery</span>
-            <span>{shippingCharges === 0 ? 'Free' : formatStorePrice(shippingCharges, 'GBP')}</span>
+            <span>{effectiveShipping === 0 ? 'Free' : formatStorePrice(effectiveShipping, 'GBP')}</span>
           </div>
           <div className="flex justify-between text-base sm:text-lg font-sans font-bold text-[#111111] pt-2 border-t border-neutral-100">
             <span>Total Payable</span>
-            <span>{formatStorePrice(total, 'GBP')}</span>
+            <span>{formatStorePrice(effectiveTotal, 'GBP')}</span>
           </div>
         </div>
 
@@ -339,7 +386,7 @@ const CheckoutForm: React.FC = () => {
               ) : !cardReady ? (
                 <span>Loading Payment Field...</span>
               ) : (
-                <span>Pay {formatStorePrice(total, 'GBP')} with Card ➔</span>
+                <span>Pay {formatStorePrice(effectiveTotal, 'GBP')} with Card ➔</span>
               )}
             </button>
 
@@ -372,15 +419,26 @@ const CheckoutForm: React.FC = () => {
           <div className="space-y-4">
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 space-y-1 text-center">
               <p className="font-semibold">Unable to initiate payment</p>
-              <p>{errorMessage || 'Could not connect to the Revolut payment gateway. Please refresh or try again.'}</p>
+              <p>{errorMessage || 'Could not connect to the Revolut payment gateway. Please check your basket and try again.'}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3 rounded-xl text-xs uppercase tracking-wider transition-colors"
-            >
-              Retry Connection
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRetryTrigger((c) => c + 1)}
+                className="w-full bg-[#111111] hover:bg-neutral-800 text-white font-medium py-3 rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+              >
+                <FaRotateRight className="text-xs" />
+                <span>Retry Connection</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/cart')}
+                className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-medium py-3 rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+              >
+                <FaBagShopping className="text-xs" />
+                <span>Return to Bag</span>
+              </button>
+            </div>
           </div>
         )}
 

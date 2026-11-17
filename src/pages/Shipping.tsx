@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { saveShippingInfo } from '../redux/reducers/cart.reducer';
+import { saveShippingInfo, calculatePrice } from '../redux/reducers/cart.reducer';
 import { RootState } from '../redux/store';
 import { notify } from '../utils/util';
 import BackButton from '../components/common/BackBtn';
@@ -24,12 +24,13 @@ const Shipping: React.FC = () => {
     const supportedCountries = ['United Kingdom', 'Isle of Man', 'Jersey', 'Guernsey'];
     const hasSupportedSavedAddress = supportedCountries.includes(shippingInfo.country);
 
-    // Redirect if cart is empty or contains legacy INR currency
+    // Sync cart pricing and redirect if cart is empty or contains legacy INR currency
     useEffect(() => {
+        dispatch(calculatePrice());
         if (cartItems.length === 0 || cartItems.some((item) => item.currency === 'INR')) {
             navigate('/cart');
         }
-    }, [cartItems, navigate]);
+    }, [cartItems, dispatch, navigate]);
 
     const [name, setName] = useState(shippingInfo.name || user?.name || '');
     const [email, setEmail] = useState(shippingInfo.email || user?.email || '');

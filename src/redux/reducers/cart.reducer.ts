@@ -16,20 +16,77 @@ const defaultShippingInfo: ShippingInfo = {
     deliveryType: 'current_location'
 };
 
+export const computeCartTotals = (cartItems: CartItem[], discount: number = 0) => {
+    const validItems = Array.isArray(cartItems) ? cartItems : [];
+    const subTotal = validItems.reduce((acc, item) => {
+        const price = Number(item?.price) || 0;
+        const qty = Number(item?.quantity) || 1;
+        return acc + price * qty;
+    }, 0);
+    // Free delivery on orders £35 and above, otherwise £3.75 standard UK delivery
+    const shippingCharges = subTotal > 0 && subTotal < 35 ? 3.75 : 0;
+    const tax = 0;
+    const safeDiscount = Math.min(Math.max(0, Number(discount) || 0), subTotal);
+    const total = Math.max(0, subTotal + shippingCharges - safeDiscount);
+    return {
+        subTotal: Math.round(subTotal * 100) / 100,
+        shippingCharges,
+        tax,
+        discount: safeDiscount,
+        total: Math.round(total * 100) / 100,
+    };
+};
+
+const getStoredCartItems = (): CartItem[] => {
+    try {
+        const stored = localStorage.getItem('cartItems');
+        return stored ? JSON.parse(stored) : [];
+    } catch {
+        return [];
+    }
+};
+
+const getStoredDiscount = (): number => {
+    try {
+        const stored = localStorage.getItem('cartDiscount');
+        return stored ? Number(stored) || 0 : 0;
+    } catch {
+        return 0;
+    }
+};
+
+const getStoredShippingInfo = (): ShippingInfo => {
+    try {
+        const stored = localStorage.getItem('shippingInfo');
+        return stored ? JSON.parse(stored) : defaultShippingInfo;
+    } catch {
+        return defaultShippingInfo;
+    }
+};
+
+const initialCartItems = getStoredCartItems();
+const initialDiscount = getStoredDiscount();
+const initialTotals = computeCartTotals(initialCartItems, initialDiscount);
+
 const initialState: CartReducerIntialState = {
     loading: false,
-    cartItems: JSON.parse(localStorage.getItem('cartItems') || '[]'),
-    subTotal: 0,
-    tax: 0,
-    shippingCharges: 0,
-    discount: 0,
-    total: 0,
-    shippingInfo: JSON.parse(localStorage.getItem('shippingInfo') || JSON.stringify(defaultShippingInfo))
+    cartItems: initialCartItems,
+    subTotal: initialTotals.subTotal,
+    tax: initialTotals.tax,
+    shippingCharges: initialTotals.shippingCharges,
+    discount: initialTotals.discount,
+    total: initialTotals.total,
+    shippingInfo: getStoredShippingInfo()
 };
 
 const saveToLocalStorage = (state: CartReducerIntialState) => {
-    localStorage.setItem('cartItems', JSON.stringify(state.cartItems));
-    localStorage.setItem('shippingInfo', JSON.stringify(state.shippingInfo));
+    try {
+        localStorage.setItem('cartItems', JSON.stringify(state.cartItems));
+        localStorage.setItem('cartDiscount', JSON.stringify(state.discount));
+        localStorage.setItem('shippingInfo', JSON.stringify(state.shippingInfo));
+    } catch (e) {
+        console.error('Failed to save cart to localStorage', e);
+    }
 };
 
 export const cartReducer = createSlice({
@@ -57,12 +114,25 @@ export const cartReducer = createSlice({
                 state.cartItems.push(action.payload);
             }
 
+            const totals = computeCartTotals(state.cartItems, state.discount);
+            state.subTotal = totals.subTotal;
+            state.shippingCharges = totals.shippingCharges;
+            state.tax = totals.tax;
+            state.discount = totals.discount;
+            state.total = totals.total;
+
             state.loading = false;
             saveToLocalStorage(state); // Save to localStorage
         },
         removeCartItem: (state, action: PayloadAction<string>) => {
             state.loading = true;
             state.cartItems = state.cartItems.filter(item => item.productId !== action.payload);
+            const totals = computeCartTotals(state.cartItems, state.discount);
+            state.subTotal = totals.subTotal;
+            state.shippingCharges = totals.shippingCharges;
+            state.tax = totals.tax;
+            state.discount = totals.discount;
+            state.total = totals.total;
             state.loading = false;
             saveToLocalStorage(state); // Save to localStorage
         },
@@ -70,6 +140,12 @@ export const cartReducer = createSlice({
             const item = state.cartItems.find(item => item.productId === action.payload);
             if (item && item.quantity < item.stock) {
                 item.quantity += 1;
+                const totals = computeCartTotals(state.cartItems, state.discount);
+                state.subTotal = totals.subTotal;
+                state.shippingCharges = totals.shippingCharges;
+                state.tax = totals.tax;
+                state.discount = totals.discount;
+                state.total = totals.total;
                 saveToLocalStorage(state); // Save to localStorage
             }
         },
@@ -77,30 +153,34 @@ export const cartReducer = createSlice({
             const item = state.cartItems.find(item => item.productId === action.payload);
             if (item && item.quantity > 1) {
                 item.quantity -= 1;
-                saveToLocalStorage(state); // Save to localStorage
             } else if (item && item.quantity === 1) {
                 state.cartItems = state.cartItems.filter(item => item.productId !== action.payload);
-                saveToLocalStorage(state); // Save to localStorage
             }
+            const totals = computeCartTotals(state.cartItems, state.discount);
+            state.subTotal = totals.subTotal;
+            state.shippingCharges = totals.shippingCharges;
+            state.tax = totals.tax;
+            state.discount = totals.discount;
+            state.total = totals.total;
+            saveToLocalStorage(state); // Save to localStorage
         },
         calculatePrice: (state) => {
-            const subTotal = state.cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-            state.subTotal = subTotal;
-            state.shippingCharges = subTotal > 0 && subTotal < 35 ? 3.75 : 0;
-            state.tax = 0;
-            state.total = state.subTotal + state.shippingCharges - state.discount;
-            // If the discount is greater than the total price, limit the discount to the total price
-            if (state.total < 0) {
-                state.discount = state.subTotal;
-                state.total = 0;
-            }
+            const totals = computeCartTotals(state.cartItems, state.discount);
+            state.subTotal = totals.subTotal;
+            state.shippingCharges = totals.shippingCharges;
+            state.tax = totals.tax;
+            state.discount = totals.discount;
+            state.total = totals.total;
+            saveToLocalStorage(state);
         },
         discountApplied: (state, action: PayloadAction<number>) => {
-            state.discount = action.payload;
-            // If the discount is greater than the total price, limit the discount to the total price
-            if (state.discount > state.total) {
-                state.discount = state.total;
-            }
+            state.discount = Number(action.payload) || 0;
+            const totals = computeCartTotals(state.cartItems, state.discount);
+            state.subTotal = totals.subTotal;
+            state.shippingCharges = totals.shippingCharges;
+            state.tax = totals.tax;
+            state.discount = totals.discount;
+            state.total = totals.total;
             saveToLocalStorage(state); // Save to localStorage
         },
         saveShippingInfo: (state, action: PayloadAction<ShippingInfo>) => {
@@ -108,10 +188,13 @@ export const cartReducer = createSlice({
             saveToLocalStorage(state); // Save to localStorage
         },
         resetCart: () => {
-            localStorage.removeItem('cartItems');
-            localStorage.removeItem('shippingInfo');
+            try {
+                localStorage.removeItem('cartItems');
+                localStorage.removeItem('cartDiscount');
+                localStorage.removeItem('shippingInfo');
+            } catch {}
             return {
-                ...initialState,
+                loading: false,
                 cartItems: [],
                 subTotal: 0,
                 tax: 0,
