@@ -497,10 +497,10 @@ async function handleOrderSuccess(orderId) {
       }
     }
 
-    const currency = order.currency || 'GBP';
-    const formatMoney = (amount) => new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-IN', {
+    const currency = 'GBP';
+    const formatMoney = (amount) => new Intl.NumberFormat('en-GB', {
       style: 'currency',
-      currency,
+      currency: 'GBP',
     }).format(Number(amount || 0));
     const baseUrl = process.env.CLIENT_URL || 'https://skinofkorea.co.uk';
 
@@ -517,9 +517,8 @@ async function handleOrderSuccess(orderId) {
       </tr>
     `).join('');
 
-    const isGbpOrder = currency === 'GBP';
-    const formattedDate = new Date(order.created_at || Date.now()).toLocaleString(isGbpOrder ? 'en-GB' : 'en-IN', {
-      timeZone: isGbpOrder ? 'Europe/London' : 'Asia/Kolkata',
+    const formattedDate = new Date(order.created_at || Date.now()).toLocaleString('en-GB', {
+      timeZone: 'Europe/London',
       dateStyle: 'medium',
       timeStyle: 'short'
     });
@@ -1891,7 +1890,7 @@ export default async function handler(req, res) {
       const orders = (ordersRaw || []).map(mapOrder);
 
       // Only count confirmed (non-Pending) orders for revenue & totals
-      const confirmedOrders = orders.filter(o => o.status !== 'Pending' && o.currency === 'GBP');
+      const confirmedOrders = orders.filter(o => o.status !== 'Pending' && (!o.currency || o.currency === 'GBP'));
       const totalRevenue = confirmedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
       const totalOrders = confirmedOrders.length;
       const totalProducts = (await getDbProducts()).length;
@@ -1901,7 +1900,7 @@ export default async function handler(req, res) {
       const revenueByMonth = {};
       confirmedOrders.forEach(o => {
         const d = o.createdAt ? new Date(o.createdAt) : new Date();
-        const month = d.toLocaleString('default', { month: 'short' });
+        const month = d.toLocaleString('en-GB', { month: 'short' });
         revenueByMonth[month] = (revenueByMonth[month] || 0) + (o.total || 0);
       });
 

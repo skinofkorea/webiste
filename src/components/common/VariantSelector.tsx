@@ -43,15 +43,15 @@ const VariantSelector: React.FC<Props> = ({ variants, selectedVariantId, onSelec
                   <span className="text-[9px] font-medium text-neutral-400 mt-1">Out of Stock</span>
                 ) : (
                   <>
-                    <span className={`text-base font-bold mt-0.5 ${isSelected ? 'text-white' : 'text-[#111111]'}`}>₹{variant.salePrice ?? variant.price ?? 0}</span>
+                    <span className={`text-base font-bold mt-0.5 ${isSelected ? 'text-white' : 'text-[#111111]'}`}>£{Number(variant.salePrice ?? variant.price ?? 0).toFixed(2)}</span>
                     {variant.mrp > (variant.salePrice ?? variant.price ?? 0) && (
                       <span className={`text-[10px] line-through ${isSelected ? 'text-neutral-400' : 'text-neutral-400'}`}>
-                        MRP ₹{variant.mrp}
+                        RRP £{Number(variant.mrp).toFixed(2)}
                       </span>
                     )}
                     {variant.bulkPrice && (
                       <span className={`text-[10px] mt-0.5 block ${isSelected ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                        Bulk: ₹{variant.bulkPrice} (MOQ {variant.bulkMOQ ?? '—'})
+                        Bulk: £{Number(variant.bulkPrice).toFixed(2)} (MOQ {variant.bulkMOQ ?? '—'})
                       </span>
                     )}
                     {variant.pack && (

@@ -59,7 +59,7 @@ export const LegalContactCard: React.FC = () => {
             Have questions about our policies or your order?
           </h3>
           <p className="text-xs text-neutral-600 mt-1 max-w-xl leading-relaxed">
-            Our dedicated support team is available Monday to Saturday, 9:00 AM – 7:00 PM IST. We strive to address all customer inquiries and grievances within 24 business hours.
+            Our dedicated support team is available Monday to Saturday, 9:00 AM – 6:00 PM GMT. We strive to address all customer inquiries within 24 business hours.
           </p>
         </div>
 

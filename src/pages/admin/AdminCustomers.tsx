@@ -96,7 +96,7 @@ const AdminCustomers: React.FC = () => {
         <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-2xs flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Active Geographic Base</span>
-            <p className="text-2xl font-bold text-neutral-900 mt-1 tracking-tight">Pan India</p>
+            <p className="text-2xl font-bold text-neutral-900 mt-1 tracking-tight">United Kingdom (UK)</p>
           </div>
           <div className="w-9 h-9 rounded-xl bg-neutral-100 text-neutral-800 flex items-center justify-center text-base">
             <FaMapMarkerAlt />

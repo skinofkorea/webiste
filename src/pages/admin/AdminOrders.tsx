@@ -115,11 +115,10 @@ const AdminOrders: React.FC = () => {
   // Order Metrics
   const metrics = useMemo(() => {
     const total = orders.length;
-    const gbpRevenue = orders.filter((order) => order.currency === 'GBP').reduce((sum, order) => sum + Number(order.total || 0), 0);
-    const legacyRevenue = orders.filter((order) => (order.currency || 'INR') !== 'GBP').reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const gbpRevenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
     const pendingProcessing = orders.filter(o => ['pending', 'processing'].includes(o.status?.toLowerCase())).length;
     const delivered = orders.filter(o => o.status?.toLowerCase() === 'delivered').length;
-    return { total, gbpRevenue, legacyRevenue, pendingProcessing, delivered };
+    return { total, gbpRevenue, pendingProcessing, delivered };
   }, [orders]);
 
   const statuses = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -169,7 +168,7 @@ const AdminOrders: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">GBP Revenue</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Total Revenue</span>
             <div className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-800 flex items-center justify-center text-sm font-bold">
               £
             </div>
@@ -177,7 +176,7 @@ const AdminOrders: React.FC = () => {
           <p className="text-2xl font-bold text-neutral-900 mt-2 tracking-tight">
             {formatStorePrice(metrics.gbpRevenue, 'GBP')}
           </p>
-          <p className="text-[11px] text-neutral-500 mt-0.5">{formatStorePrice(metrics.legacyRevenue, 'INR')} in legacy INR orders</p>
+          <p className="text-[11px] text-neutral-500 mt-0.5">Gross store sales (£ GBP)</p>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-2xs">
@@ -375,11 +374,11 @@ const AdminOrders: React.FC = () => {
                       {/* Total Amount */}
                       <td className="px-5 py-3.5">
                         <span className="font-bold text-neutral-900 text-xs block">
-                          {formatStorePrice(Number(order.total || 0), order.currency || 'INR')}
+                          {formatStorePrice(Number(order.total || 0), 'GBP')}
                         </span>
                         {Number(order.discount || 0) > 0 && (
                           <span className="text-[10px] text-rose-600 block">
-                            -{formatStorePrice(Number(order.discount), order.currency || 'INR')} off
+                            -{formatStorePrice(Number(order.discount), 'GBP')} off
                           </span>
                         )}
                       </td>

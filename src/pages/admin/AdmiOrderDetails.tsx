@@ -99,7 +99,7 @@ const AdminOrderDetails: React.FC = () => {
                     </div>
                     <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/70">
                         <strong className="block text-[10px] uppercase text-neutral-400 mb-1 tracking-wider font-semibold">Total Value</strong>
-                        <span className="text-neutral-900 font-bold text-lg block">{formatStorePrice(data?.order?.total || 0, data?.order?.currency || 'INR')}</span>
+                        <span className="text-neutral-900 font-bold text-lg block">{formatStorePrice(data?.order?.total || 0, data?.order?.currency || 'GBP')}</span>
                         <span className="text-neutral-500 text-[11px] block mt-0.5">Inclusive of taxes & delivery</span>
                     </div>
                     <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200/70">

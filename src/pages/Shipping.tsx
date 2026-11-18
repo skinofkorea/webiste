@@ -24,10 +24,10 @@ const Shipping: React.FC = () => {
     const supportedCountries = ['United Kingdom', 'Isle of Man', 'Jersey', 'Guernsey'];
     const hasSupportedSavedAddress = supportedCountries.includes(shippingInfo.country);
 
-    // Sync cart pricing and redirect if cart is empty or contains legacy INR currency
+    // Sync cart pricing and redirect if cart is empty or contains non-GBP currency
     useEffect(() => {
         dispatch(calculatePrice());
-        if (cartItems.length === 0 || cartItems.some((item) => item.currency === 'INR')) {
+        if (cartItems.length === 0 || cartItems.some((item) => item.currency && item.currency !== 'GBP')) {
             navigate('/cart');
         }
     }, [cartItems, dispatch, navigate]);

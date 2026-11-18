@@ -108,7 +108,7 @@ const AddFeaturedProductModal: React.FC<AddFeaturedProductModalProps> = ({
                                             </td>
                                             <td className="py-3 px-4">
                                                 <p className="text-xs text-neutral-600 font-medium">{product.category || 'General'}</p>
-                                                <p className="text-xs font-semibold text-neutral-900">₹{product.price}</p>
+                                                <p className="text-xs font-semibold text-neutral-900">£{Number(product.price || 0).toFixed(2)}</p>
                                             </td>
                                             <td className="py-3 px-4 text-right">
                                                 <button

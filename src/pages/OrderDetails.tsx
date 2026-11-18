@@ -67,7 +67,7 @@ const OrderDetails: React.FC = () => {
                         <div>
                             <span className="text-xs font-mono text-neutral-400 block">ORDER RECEIPT</span>
                             <h1 className="text-lg sm:text-2xl font-sans font-semibold tracking-tight text-[#111111] break-all">ID: {order._id}</h1>
-                            <p className="text-xs text-neutral-500 mt-0.5">Placed on {new Date(order.createdAt).toLocaleDateString(currency === 'GBP' ? 'en-GB' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            <p className="text-xs text-neutral-500 mt-0.5">Placed on {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                         </div>
                         <div>
                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border ${getStatusBadge(order.status)}`}>

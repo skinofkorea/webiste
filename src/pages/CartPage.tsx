@@ -21,7 +21,7 @@ const Cart: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { cartItems, subTotal, total, discount, shippingCharges, shippingInfo } = useSelector((state: RootState) => state.cart);
-  const hasLegacyCurrency = cartItems.some((item) => item.currency === 'INR');
+  const hasLegacyCurrency = cartItems.some((item) => item.currency && item.currency !== 'GBP');
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
@@ -305,7 +305,7 @@ const Cart: React.FC = () => {
                 {/* Proceed Button */}
                 {hasLegacyCurrency && (
                   <p role="alert" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                    This basket contains items from the previous INR store. Remove them or clear your basket before checking out in GBP.
+                    This basket contains items with an invalid currency. Please clear your basket to continue with GBP checkout.
                   </p>
                 )}
                 <button
@@ -316,7 +316,7 @@ const Cart: React.FC = () => {
                   disabled={hasLegacyCurrency}
                   className="w-full bg-black hover:bg-neutral-800 text-white font-medium py-3.5 px-4 rounded-lg text-xs uppercase tracking-widest transition-colors shadow-xs text-center block mt-4 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {hasLegacyCurrency ? 'Clear previous-store items to checkout' : 'Proceed to Checkout ➔'}
+                  {hasLegacyCurrency ? 'Clear invalid currency items to checkout' : 'Proceed to Checkout ➔'}
                 </button>
               </div>
             </div>

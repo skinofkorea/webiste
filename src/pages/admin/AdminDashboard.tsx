@@ -17,6 +17,7 @@ import {
 } from 'react-icons/fa';
 import Papa from 'papaparse';
 import { notify } from '../../utils/util';
+import { formatStorePrice } from '../../data/storefront';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -233,28 +234,28 @@ const AdminDashboard: React.FC = () => {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Widget 
           heading="Gross Revenue"
-          value={new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(stats?.totalRevenue || 0)}
+          value={formatStorePrice(stats?.totalRevenue || 0, 'GBP')}
           description="Paid customer checkouts"
           icon={<span className="text-base font-bold">£</span>}
           accentClass="bg-neutral-100 text-neutral-900 border border-neutral-200"
         />
         <Widget 
           heading="Total Orders" 
-          value={(stats?.totalOrders || 0).toLocaleString('en-IN')} 
+          value={(stats?.totalOrders || 0).toLocaleString('en-GB')} 
           description="Orders placed to date" 
           icon={<FaShoppingBag className="text-base" />}
           accentClass="bg-neutral-100 text-neutral-900 border border-neutral-200"
         />
         <Widget 
           heading="Total Products" 
-          value={totalCatalogProducts.toLocaleString('en-IN')} 
+          value={totalCatalogProducts.toLocaleString('en-GB')} 
           description="Active catalog listings"
           icon={<FaBoxes className="text-base" />}
           accentClass="bg-neutral-100 text-neutral-900 border border-neutral-200"
         />
         <Widget 
           heading="Active Coupons" 
-          value={(stats?.totalCoupons || 0).toLocaleString('en-IN')} 
+          value={(stats?.totalCoupons || 0).toLocaleString('en-GB')} 
           description="Available promo discounts" 
           icon={<FaTicketAlt className="text-base" />}
           accentClass="bg-neutral-100 text-neutral-900 border border-neutral-200"
@@ -364,7 +365,7 @@ const AdminDashboard: React.FC = () => {
                       {order.orderItems?.length || 1} items
                     </td>
                     <td className="px-4 py-3 font-bold text-neutral-900">
-                      {new Intl.NumberFormat(order.currency === 'GBP' ? 'en-GB' : 'en-IN', { style: 'currency', currency: order.currency || 'GBP' }).format(Number(order.total || 0))}
+                      {formatStorePrice(Number(order.total || 0), 'GBP')}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
