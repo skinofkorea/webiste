@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import { APPLE_ASSOCIATION_BUFFER } from './appleAssociation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -475,15 +476,26 @@ async function handleOrderSuccess(orderId) {
     console.log(`Order ${orderId} triggering confirmation email...`);
 
     // 2. Fetch user details to get email
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('email, name')
-      .eq('id', order.user_uid)
-      .maybeSingle();
-
     const shippingInfo = typeof order.shipping_info === 'string' ? JSON.parse(order.shipping_info) : order.shipping_info;
-    const recipientEmail = userRow?.email || shippingInfo?.email;
-    const customerName = userRow?.name || shippingInfo?.name || 'Customer';
+    let recipientEmail = shippingInfo?.email;
+    let customerName = shippingInfo?.name || 'Customer';
+
+    const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
+    if ((!recipientEmail || customerName === 'Customer') && isUuid(order.user_uid)) {
+      try {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('email, name')
+          .eq('id', order.user_uid)
+          .maybeSingle();
+
+        if (userRow?.email && !recipientEmail) recipientEmail = userRow.email;
+        if (userRow?.name && customerName === 'Customer') customerName = userRow.name;
+      } catch (userErr) {
+        console.warn('Could not fetch user by UUID:', userErr);
+      }
+    }
 
     const currency = order.currency || 'GBP';
     const formatMoney = (amount) => new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-IN', {
@@ -853,6 +865,12 @@ function saveLocalFallbackBanners(banners) {
 export default async function handler(req, res) {
   const url = req.url || '';
 
+  // Apple Pay Domain Association file
+  if (url.includes('.well-known/apple-developer-merchantid-domain-association')) {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    return res.status(200).send(APPLE_ASSOCIATION_BUFFER);
+  }
+
   // Initialize in-memory fast API response cache
   if (!global.fastApiCache) global.fastApiCache = new Map();
 
@@ -916,6 +934,34 @@ export default async function handler(req, res) {
         configured: Boolean(REVOLUT_CONFIG.SECRET_KEY),
         mode: REVOLUT_CONFIG.MODE,
       });
+    }
+
+    // ─── PAYMENTS: Revolut Register Apple Pay Domain ───
+    if (url.includes('/api/v1/payments/revolut/register-apple-pay')) {
+      if (!REVOLUT_CONFIG.SECRET_KEY) {
+        return res.status(500).json({ success: false, message: 'Revolut merchant secret key is not configured.' });
+      }
+      try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+        const domain = body.domain || 'skinofkorea.co.uk';
+        const regRes = await fetch(`${REVOLUT_CONFIG.BASE_URL}/apple-pay/domains/register`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${REVOLUT_CONFIG.SECRET_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ domain }),
+        });
+        const regData = await regRes.json().catch(() => ({}));
+        return res.status(regRes.ok ? 200 : regRes.status).json({
+          success: regRes.ok,
+          status: regRes.status,
+          domain,
+          data: regData,
+        });
+      } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
     }
 
     // ─── PAYMENTS: Revolut Create Order ───
@@ -1296,7 +1342,11 @@ export default async function handler(req, res) {
       }
 
         // Trigger order confirmation email & stock update
-        handleOrderSuccess(inserted.id).catch(e => console.error('Order confirmation email error:', e));
+        try {
+          await handleOrderSuccess(inserted.id);
+        } catch (emailErr) {
+          console.error('Order confirmation email/stock error:', emailErr);
+        }
 
         return res.status(201).json({
           success: true,
@@ -1421,7 +1471,11 @@ export default async function handler(req, res) {
         return res.status(500).json({ success: false, message: 'Database insert failed. Contact support.' });
       }
 
-      handleOrderSuccess(inserted.id).catch(e => console.error('Order email error:', e));
+      try {
+        await handleOrderSuccess(inserted.id);
+      } catch (emailErr) {
+        console.error('Order email/stock error in complete-revolut:', emailErr);
+      }
 
       return res.status(201).json({
         success: true,

@@ -10,7 +10,7 @@ import { NewOrderRequest } from '../types/api-types';
 import { notify } from '../utils/util';
 import { usePageSEO } from '../hooks/usePageSEO';
 import { formatStorePrice } from '../data/storefront';
-import { FaShieldHalved, FaLock, FaCreditCard, FaArrowUpRightFromSquare, FaRotateRight, FaBagShopping } from 'react-icons/fa6';
+import { FaShieldHalved, FaLock, FaArrowUpRightFromSquare, FaRotateRight, FaBagShopping } from 'react-icons/fa6';
 
 interface RevolutOrderInfo {
   id: string;
@@ -50,12 +50,17 @@ const CheckoutForm: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [initializing, setInitializing] = useState<boolean>(true);
   const [cardReady, setCardReady] = useState<boolean>(false);
+  const [walletMethod, setWalletMethod] = useState<'applePay' | 'googlePay' | null>(null);
+  const [revolutPayReady, setRevolutPayReady] = useState<boolean>(false);
   const [orderInfo, setOrderInfo] = useState<RevolutOrderInfo | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryTrigger, setRetryTrigger] = useState<number>(0);
 
+  const walletContainerRef = useRef<HTMLDivElement>(null);
+  const revolutPayContainerRef = useRef<HTMLDivElement>(null);
   const cardContainerRef = useRef<HTMLDivElement>(null);
   const cardFieldRef = useRef<any>(null);
+  const paymentRequestRef = useRef<any>(null);
   const revolutInstanceRef = useRef<any>(null);
 
   // Synchronize Redux cart totals on mount
@@ -177,64 +182,147 @@ const CheckoutForm: React.FC = () => {
     };
   }, [effectiveTotal, shippingEmail, shippingName, shippingPhone, cartItems.length, retryTrigger]);
 
-  // 2. Mount Revolut Card Field once orderInfo is loaded and container is present in the DOM
+  // 2. Mount Revolut Payment Methods (Apple Pay / Google Pay, Revolut Pay, Card Field)
   useEffect(() => {
     if (!orderInfo?.token || !cardContainerRef.current) return;
 
     let isMounted = true;
-    const mountCardField = async () => {
+    const mountCheckout = async () => {
       try {
         setCardReady(false);
-        if (cardContainerRef.current) {
-          cardContainerRef.current.innerHTML = '';
-        }
+        setWalletMethod(null);
+        setRevolutPayReady(false);
+
+        if (cardContainerRef.current) cardContainerRef.current.innerHTML = '';
+        if (walletContainerRef.current) walletContainerRef.current.innerHTML = '';
+        if (revolutPayContainerRef.current) revolutPayContainerRef.current.innerHTML = '';
 
         const mode = orderInfo.mode || 'prod';
         const instance = await RevolutCheckout(orderInfo.token, mode);
         if (!isMounted) return;
         revolutInstanceRef.current = instance;
 
-        const cardField = instance.createCardField({
-          target: cardContainerRef.current!,
-          onSuccess: async () => {
-            // ONLY triggered after Revolut successfully charges and captures the card
-            await saveOrderToDatabase(orderInfo.id, 'revolut_card');
-          },
-          onError: (err: any) => {
-            console.error('Revolut payment error:', err);
-            const msg = err?.message || 'Payment unsuccessful. Please check your card details.';
-            setErrorMessage(msg);
-            notify(msg, 'error');
-            setIsProcessing(false);
-          },
-          onCancel: () => {
-            notify('Payment was cancelled.', 'info');
-            setIsProcessing(false);
-          },
-          onStatusChange: (status: any) => {
-            if (status === 'completed' || status === 'valid') {
-              setErrorMessage(null);
-            }
-          },
-        });
+        // 1. Mount Payment Request (Native Apple Pay on Safari iOS/macOS, Google Pay on Chrome)
+        if (walletContainerRef.current && typeof instance.paymentRequest === 'function') {
+          try {
+            const pr = instance.paymentRequest({
+              target: walletContainerRef.current,
+              buttonStyle: {
+                size: 'large',
+                radius: 'large',
+                variant: 'dark',
+                height: '48px',
+              },
+              onSuccess: async () => {
+                await saveOrderToDatabase(orderInfo.id, 'wallet_payment');
+              },
+              onError: (err: any) => {
+                console.error('Digital wallet payment error:', err);
+                const msg = err?.message || 'Payment unsuccessful with digital wallet.';
+                setErrorMessage(msg);
+                notify(msg, 'error');
+                setIsProcessing(false);
+              },
+              onCancel: () => {
+                setIsProcessing(false);
+              },
+            });
 
-        cardFieldRef.current = cardField;
-        if (isMounted) setCardReady(true);
+            paymentRequestRef.current = pr;
+
+            // Check if Apple Pay or Google Pay is available in the user's browser
+            const method = await pr.canMakePayment();
+            if (isMounted && method) {
+              setWalletMethod(method);
+              await pr.render();
+            }
+          } catch (prErr) {
+            console.warn('PaymentRequest not supported or setup error:', prErr);
+          }
+        }
+
+        // 2. Mount 1-Click Revolut Pay
+        if (revolutPayContainerRef.current && typeof instance.revolutPay === 'function') {
+          try {
+            instance.revolutPay({
+              target: revolutPayContainerRef.current,
+              phone: shippingPhone || undefined,
+              email: shippingEmail || undefined,
+              buttonStyle: {
+                size: 'large',
+                radius: 'large',
+                variant: 'light-outlined',
+                height: '48px',
+              },
+              onSuccess: async () => {
+                await saveOrderToDatabase(orderInfo.id, 'revolut_pay');
+              },
+              onError: (err: any) => {
+                console.error('Revolut Pay error:', err);
+                const msg = err?.message || 'Revolut Pay payment unsuccessful.';
+                setErrorMessage(msg);
+                notify(msg, 'error');
+                setIsProcessing(false);
+              },
+              onCancel: () => {
+                setIsProcessing(false);
+              },
+            });
+            if (isMounted) setRevolutPayReady(true);
+          } catch (rpErr) {
+            console.warn('RevolutPay setup warning:', rpErr);
+          }
+        }
+
+        // 3. Mount Inline Card Field
+        if (cardContainerRef.current && typeof instance.createCardField === 'function') {
+          const cardField = instance.createCardField({
+            target: cardContainerRef.current!,
+            onSuccess: async () => {
+              // ONLY triggered after Revolut successfully charges and captures the card
+              await saveOrderToDatabase(orderInfo.id, 'revolut_card');
+            },
+            onError: (err: any) => {
+              console.error('Revolut payment error:', err);
+              const msg = err?.message || 'Payment unsuccessful. Please check your card details.';
+              setErrorMessage(msg);
+              notify(msg, 'error');
+              setIsProcessing(false);
+            },
+            onCancel: () => {
+              notify('Payment was cancelled.', 'info');
+              setIsProcessing(false);
+            },
+            onStatusChange: (status: any) => {
+              if (status === 'completed' || status === 'valid') {
+                setErrorMessage(null);
+              }
+            },
+          });
+
+          cardFieldRef.current = cardField;
+          if (isMounted) setCardReady(true);
+        }
       } catch (err: any) {
         console.error('Revolut mount error:', err);
         if (isMounted) {
-          setErrorMessage('Could not load card input fields. You can still complete payment with the Revolut Pay button below.');
+          setErrorMessage('Could not load payment options. You can still complete payment with the hosted Revolut link.');
         }
       }
     };
 
-    mountCardField();
+    mountCheckout();
 
     return () => {
       isMounted = false;
       if (cardFieldRef.current && typeof cardFieldRef.current.destroy === 'function') {
         try {
           cardFieldRef.current.destroy();
+        } catch {}
+      }
+      if (paymentRequestRef.current && typeof paymentRequestRef.current.destroy === 'function') {
+        try {
+          paymentRequestRef.current.destroy();
         } catch {}
       }
     };
@@ -325,32 +413,6 @@ const CheckoutForm: React.FC = () => {
     }
   };
 
-  const handlePopupPay = () => {
-    if (!revolutInstanceRef.current || !orderInfo) return;
-    setIsProcessing(true);
-    setErrorMessage(null);
-
-    revolutInstanceRef.current.payWithPopup({
-      name: shippingName || undefined,
-      email: shippingEmail || undefined,
-      onSuccess: async () => {
-        // ONLY triggered upon verified payment confirmation
-        await saveOrderToDatabase(orderInfo.id, 'revolut_popup');
-      },
-      onError: (err: any) => {
-        console.error('Revolut popup error:', err);
-        const msg = err?.message || 'Payment was unsuccessful.';
-        setErrorMessage(msg);
-        notify(msg, 'error');
-        setIsProcessing(false);
-      },
-      onCancel: () => {
-        notify('Payment was cancelled.', 'info');
-        setIsProcessing(false);
-      },
-    });
-  };
-
   return (
     <div className="min-h-screen bg-[#FAFAFA] py-10 px-4 flex flex-col items-center">
       <div className="w-full max-w-xl mb-4">
@@ -413,7 +475,31 @@ const CheckoutForm: React.FC = () => {
               </div>
             )}
 
-            {/* Revolut Integrated Card Field */}
+            {/* 1. Native Digital Wallet: Apple Pay (Safari iOS/macOS) / Google Pay (Chrome) */}
+            <div
+              ref={walletContainerRef}
+              className={`w-full overflow-hidden rounded-xl transition-all ${walletMethod ? 'block mb-3' : 'hidden'}`}
+              style={{ minHeight: walletMethod ? '48px' : '0px' }}
+            />
+
+            {/* 2. Official 1-Click Revolut Pay Button */}
+            <div
+              ref={revolutPayContainerRef}
+              className={`w-full overflow-hidden rounded-xl transition-all ${revolutPayReady ? 'block mb-3' : 'hidden'}`}
+              style={{ minHeight: revolutPayReady ? '48px' : '0px' }}
+            />
+
+            {/* Visual Divider if 1-click payment methods are available */}
+            {(walletMethod || revolutPayReady) && (
+              <div className="relative py-2 flex items-center justify-center my-3">
+                <div className="border-t border-neutral-200 w-full" />
+                <span className="bg-white px-3 text-[11px] font-medium text-neutral-400 uppercase tracking-wider absolute">
+                  or pay with card
+                </span>
+              </div>
+            )}
+
+            {/* 3. Revolut Integrated Card Field */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
                 Card Details
@@ -441,30 +527,19 @@ const CheckoutForm: React.FC = () => {
               )}
             </button>
 
-            {/* Alternative: 1-Click Revolut Pay / Apple Pay / Google Pay Popup */}
-            <div className="pt-3 border-t border-neutral-100 flex flex-col items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={handlePopupPay}
-                disabled={isProcessing}
-                className="w-full bg-[#f4f4f4] hover:bg-neutral-200 text-neutral-900 font-semibold py-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
-              >
-                <FaCreditCard className="text-sm" />
-                <span>Pay with Revolut Pay / Apple Pay / Google Pay</span>
-              </button>
-
-              {orderInfo.checkoutUrl && (
+            {orderInfo.checkoutUrl && (
+              <div className="pt-2 flex justify-center">
                 <a
                   href={orderInfo.checkoutUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-neutral-900 underline mt-1"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-neutral-500 hover:text-neutral-900 underline"
                 >
                   <span>Or pay on Revolut's secure hosted page</span>
                   <FaArrowUpRightFromSquare className="text-[9px]" />
                 </a>
-              )}
-            </div>
+              </div>
+            )}
           </form>
         ) : (
           <div className="space-y-4">
